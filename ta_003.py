@@ -7,6 +7,7 @@ from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
+import geopandas as gpd
 
 # Fungsi untuk mengupload file CSV
 def upload_csv_file(key=None):
@@ -15,6 +16,17 @@ def upload_csv_file(key=None):
         try:
             df = pd.read_csv(uploaded_file)
             return df
+        except Exception as e:
+            st.error(f"Error: {e}")
+    return None
+
+# Fungsi untuk mengupload file GeoJSON
+def upload_geojson_file(key=None):
+    uploaded_file = st.file_uploader("Upload file GeoJSON", type=["geojson"], key=key)
+    if uploaded_file is not None:
+        try:
+            gdf = gpd.read_file(uploaded_file)
+            return gdf
         except Exception as e:
             st.error(f"Error: {e}")
     return None
@@ -64,7 +76,7 @@ def pemetaan():
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
-        # Hitung rata-rata harian
+        # Menghitung rata-rata per hari
         data_daily = data_df.resample('D').mean()
 
         # Standarisasi data harian
@@ -81,18 +93,12 @@ def pemetaan():
         # Klustering dan perhitungan skor siluet untuk data harian
         max_n_clusters = 10
         silhouette_scores = {}
-        best_labels = None
-        best_n_clusters = 2
-
+        
         for n_clusters in range(2, max_n_clusters + 1):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='complete')
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
-            
-            if score > silhouette_scores.get(best_n_clusters, -1):
-                best_n_clusters = n_clusters
-                best_labels = labels
 
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
@@ -103,6 +109,10 @@ def pemetaan():
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
         st.pyplot(plt)
+
+        # Menentukan jumlah kluster dengan silhouette score tertinggi
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
         # Klustering dan dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
@@ -115,15 +125,66 @@ def pemetaan():
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Menampilkan tabel kluster
+        # Tabel kluster provinsi dengan optimal_n_clusters
+        cluster_labels = AgglomerativeClustering(n_clusters=optimal_n_clusters, metric='precomputed', linkage='complete').fit_predict(dtw_distance_matrix_daily)
         clustered_data = pd.DataFrame({
             'Province': data_daily_standardized.columns,
-            'Cluster': best_labels  # Use the labels from best clustering
+            'Cluster': cluster_labels
         })
 
-        # Menampilkan tabel kluster
-        st.subheader("Tabel Kluster")
+        # Tampilkan tabel cluster
+        st.subheader("Tabel Provinsi per Cluster")
         st.write(clustered_data)
+
+        # Upload GeoJSON file
+        gdf = upload_geojson_file(key="geojson_upload")
+        
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Ganti sesuai dengan nama kolom yang benar
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Menghitung kluster dari hasil klustering
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            
+            # Mengganti nama provinsi yang tidak konsisten
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
+
+            # Menghapus provinsi yang None (yaitu GORONTALO)
+            gdf = gdf[gdf['Province'].notna()]
+
+            # Menggabungkan data terkluster dengan GeoDataFrame
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+            # Set warna untuk kluster
+            gdf['color'] = gdf['Cluster'].map({i: plt.cm.jet(i / optimal_n_clusters) for i in range(optimal_n_clusters)})
+            gdf['color'].fillna('grey', inplace=True)
+
+            # Menampilkan nama provinsi yang berwarna grey
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
+
+            # Plot peta
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot batas
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.6)  # Plot provinsi dengan warna
+
+            # Tambahkan judul dan label
+            plt.title('Peta Kluster Provinsi di Indonesia', fontsize=15)
+            plt.xlabel('Longitude', fontsize=12)
+            plt.ylabel('Latitude', fontsize=12)
+            st.pyplot(plt)
+        else:
+            st.warning("Silakan upload file GeoJSON.")
 
 # Fungsi untuk menghitung matriks biaya lokal DTW
 def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
@@ -133,21 +194,29 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                cost = np.square(data_df.iloc[:, i] - data_df.iloc[:, j])
-                local_cost_matrix[:, i, j] = cost
+            for t in range(num_time_points):
+                if i == j:
+                    local_cost_matrix[t, i, j] = 0
+                else:
+                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
 
     return local_cost_matrix
 
 # Fungsi untuk menghitung matriks biaya akumulatif
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points = local_cost_matrix.shape[0]
-    num_provinces = local_cost_matrix.shape[1]
+    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            accumulated_cost_matrix[:, i, j] = np.cumsum(local_cost_matrix[:, i, j])
+            if i == j:
+                accumulated_cost_matrix[:, i, j] = 0
+            else:
+                for t in range(num_time_points):
+                    if t == 0:
+                        accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
+                    else:
+                        accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(accumulated_cost_matrix[t - 1, i, j], accumulated_cost_matrix[t - 1, j, j])
 
     return accumulated_cost_matrix
 
@@ -162,16 +231,17 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main function
+# Fungsi utama
 def main():
-    st.title("Aplikasi Streamlit - Clustering dengan DTW")
+    st.title("Aplikasi Clustering dengan DTW")
     
-    # Sidebar untuk memilih halaman
-    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
-    
-    if page == "Statistika Deskriptif":
+    # Menu navigasi
+    menu = ["Statistika Deskriptif", "Pemetaan"]
+    choice = st.sidebar.selectbox("Pilih Halaman", menu)
+
+    if choice == "Statistika Deskriptif":
         statistik_deskriptif()
-    elif page == "Pemetaan":
+    elif choice == "Pemetaan":
         pemetaan()
 
 if __name__ == "__main__":
