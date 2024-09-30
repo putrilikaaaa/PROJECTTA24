@@ -169,6 +169,12 @@ def pemetaan():
             else:
                 st.write("Semua provinsi termasuk dalam kluster.")
 
+            # Menampilkan label provinsi untuk setiap kluster
+            cluster_labels = gdf.groupby('Cluster')['Province'].apply(list).reset_index()
+            for index, row in cluster_labels.iterrows():
+                st.subheader(f"Provinsi dalam Cluster {row['Cluster']}:")
+                st.write(row['Province'])
+
             # Plot peta
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot batas
@@ -191,15 +197,14 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     for i in range(num_provinces):
         for j in range(num_provinces):
             if i != j:
-                cost = np.square(data_df.iloc[:, i] - data_df.iloc[:, j])
-                local_cost_matrix[:, i, j] = cost
+                for t in range(num_time_points):
+                    local_cost_matrix[t, i, j] = (data_df.iloc[t, i] - data_df.iloc[t, j]) ** 2
 
     return local_cost_matrix
 
 # Fungsi untuk menghitung matriks biaya akumulatif
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points = local_cost_matrix.shape[0]
-    num_provinces = local_cost_matrix.shape[1]
+    num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for i in range(num_provinces):
@@ -210,25 +215,25 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
 
 # Fungsi untuk menghitung matriks jarak DTW
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
+    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            dtw_distance = np.sum(np.abs(accumulated_cost_matrix[:, i, j] - accumulated_cost_matrix[:, j, i]))
+            dtw_distance_matrix[i, j] = dtw_distance
 
     return dtw_distance_matrix
 
-# Main function
+# Fungsi utama untuk menampilkan aplikasi Streamlit
 def main():
-    st.title("Aplikasi Streamlit - Clustering dengan DTW")
-    
-    # Sidebar untuk memilih halaman
-    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
-    
-    if page == "Statistika Deskriptif":
+    st.title("Aplikasi Analisis Data Provinsi")
+    menu = ["Statistika Deskriptif", "Pemetaan"]
+    choice = st.sidebar.selectbox("Pilih Halaman", menu)
+
+    if choice == "Statistika Deskriptif":
         statistik_deskriptif()
-    elif page == "Pemetaan":
+    elif choice == "Pemetaan":
         pemetaan()
 
 if __name__ == "__main__":
