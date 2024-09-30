@@ -196,7 +196,11 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                min_cost = np.min(accumulated_cost_matrix[t - 1, :, j])
+                min_cost = np.min([
+                    accumulated_cost_matrix[t-1, i, j],
+                    accumulated_cost_matrix[t-1, j, i],
+                    accumulated_cost_matrix[t-1, i, i]
+                ])
                 accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
 
     return accumulated_cost_matrix
@@ -212,11 +216,11 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Menu Navigasi
-st.sidebar.title("Navigasi")
-selected_page = st.sidebar.radio("Pilih Halaman:", ["Statistika Deskriptif", "Pemetaan"])
+# Menjalankan aplikasi Streamlit
+st.title("Aplikasi Analisis Klustering")
+page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
 
-if selected_page == "Statistika Deskriptif":
+if page == "Statistika Deskriptif":
     statistik_deskriptif()
-elif selected_page == "Pemetaan":
+elif page == "Pemetaan":
     pemetaan()
