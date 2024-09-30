@@ -8,9 +8,10 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
+import urllib.request
 
 # URL GeoJSON dari GitHub
-URL_GEOJSON = 'https://raw.githubusercontent.com/username/repo/main/indonesia-prov.geojson'  # Ganti dengan URL GeoJSON yang sesuai
+URL_GEOJSON = 'https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson'
 
 # Fungsi untuk mengupload file CSV
 def upload_csv_file(key=None):
@@ -122,12 +123,15 @@ def pemetaan():
         # Klustering dan perhitungan skor siluet untuk data harian
         max_n_clusters = 10
         silhouette_scores = {}
-        
+        best_n_clusters = 2
+
         for n_clusters in range(2, max_n_clusters + 1):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='complete')
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
+            if score > silhouette_scores.get(best_n_clusters, -1):
+                best_n_clusters = n_clusters
 
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
@@ -139,15 +143,10 @@ def pemetaan():
         plt.grid(True)
         st.pyplot(plt)
 
-        # Temukan jumlah kluster terbaik
-        best_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        st.write(f"Jumlah kluster terbaik berdasarkan Silhouette Score adalah: {best_n_clusters}")
-
-        # Klustering dengan jumlah kluster terbaik
-        clustering_best = AgglomerativeClustering(n_clusters=best_n_clusters, metric='precomputed', linkage='complete')
-        labels_best = clustering_best.fit_predict(dtw_distance_matrix_daily)
-
-        # Dendrogram
+        # Klustering dan dendrogram
+        clustering = AgglomerativeClustering(n_clusters=best_n_clusters, metric='precomputed', linkage='complete')
+        labels = clustering.fit_predict(dtw_distance_matrix_daily)
+        
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method='complete')
 
@@ -158,19 +157,16 @@ def pemetaan():
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Mengambil data GeoJSON
+        # Memuat GeoDataFrame dari URL GeoJSON
         gdf = gpd.read_file(URL_GEOJSON)
-        
-        # Normalisasi nama provinsi
-        gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
         # Menghitung kluster dari hasil klustering
         clustered_data = pd.DataFrame({
             'Province': data_daily_standardized.columns,
-            'Cluster': labels_best  # Use the labels from clustering
+            'Cluster': labels  # Use the labels from clustering
         })
 
-        # Mengganti nama provinsi yang tidak konsisten
+        # Normalisasi nama provinsi
         clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
         
         # Mengganti nama provinsi yang tidak konsisten
@@ -189,27 +185,28 @@ def pemetaan():
         gdf = gdf.merge(clustered_data, on='Province', how='left')
 
         # Set warna untuk kluster
-        gdf['color'] = gdf['Cluster'].map({i: f'cluster_{i + 1}' for i in range(best_n_clusters)})
+        gdf['color'] = gdf['Cluster'].map({0: 'green', 1: 'yellow', 2: 'red'})
         gdf['color'].fillna('grey', inplace=True)
 
-        # Menampilkan nama provinsi yang berwarna grey
-        grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-        if grey_provinces:
-            st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-            st.write(grey_provinces)
-        else:
-            st.write("Semua provinsi termasuk dalam kluster.")
+        # Menampilkan tabel kluster
+        st.subheader("Tabel Kluster Provinsi:")
+        cluster_table = clustered_data.groupby('Cluster')['Province'].apply(list).reset_index()
+        cluster_table.columns = ['Cluster', 'Provinces']
+        st.write(cluster_table)
 
         # Plot peta
-        fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-        gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-        gdf[gdf['color'] != 'grey'].plot(column='color', ax=ax, legend=True, legend_kwds={'bbox_to_anchor': (1, 1)}, cmap='tab10')
-        plt.title('Peta Klustering Provinsi di Indonesia')
+        fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+        gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot batas
+        gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.6)  # Plot provinsi dengan warna
+
+        # Tambahkan judul dan label
+        plt.title("Pemetaan Kluster Provinsi Berdasarkan DTW")
+        plt.axis('off')
         st.pyplot(fig)
 
 # Fungsi utama
 def main():
-    st.title("Aplikasi Pemetaan Clustering Provinsi di Indonesia")
+    st.title("Aplikasi Clustering dan Pemetaan")
     menu = ["Statistika Deskriptif", "Pemetaan"]
     choice = st.sidebar.selectbox("Pilih Halaman", menu)
 
