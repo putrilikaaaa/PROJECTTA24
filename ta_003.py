@@ -1,6 +1,12 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.spatial.distance import squareform
 
 # Fungsi untuk mengupload file
 def upload_file():
@@ -35,27 +41,13 @@ def process_data(data_df):
 # Fungsi untuk menampilkan statistik deskriptif
 def show_descriptive_statistics(data_df):
     st.subheader("Statistika Deskriptif")
-    statistics = data_df.describe().transpose()  # Transpose untuk mengubah orientasi menjadi baris
-
-    # Membuat kolom untuk menampilkan statistik deskriptif
-    cols = st.columns(len(statistics))
-    
-    for col, (stat_name, stat_values) in zip(cols, statistics.iterrows()):
-        col.subheader(stat_name)
-        col.write(f"Count: {stat_values['count']:.0f}")
-        col.write(f"Mean: {stat_values['mean']:.2f}")
-        col.write(f"Std: {stat_values['std']:.2f}")
-        col.write(f"Min: {stat_values['min']:.2f}")
-        col.write(f"25%: {stat_values['25%']:.2f}")
-        col.write(f"50%: {stat_values['50%']:.2f}")
-        col.write(f"75%: {stat_values['75%']:.2f}")
-        col.write(f"Max: {stat_values['max']:.2f}")
+    st.write(data_df.describe())  # Menampilkan statistik deskriptif
 
 # Fungsi untuk plot time series harian
 def plot_time_series_daily(data_df: pd.DataFrame, province: str):
     st.subheader(f"Plot Time Series Harian untuk {province}")
     if province in data_df.columns:
-        fig, ax = plt.subplots(figsize=(12, 6))  # Buat objek figure dan axis
+        fig, ax = plt.subplots(figsize=(12, 6))
         ax.plot(data_df.index, data_df[province], label=province, color='blue')
         ax.set_title(f"Time Series Harian - {province}", fontsize=16)
         ax.set_xlabel('Tanggal', fontsize=12)
@@ -63,36 +55,45 @@ def plot_time_series_daily(data_df: pd.DataFrame, province: str):
         ax.legend(loc='upper left')
         plt.xticks(rotation=45)
         plt.tight_layout()
-        st.pyplot(fig)  # Kirimkan objek figure ke st.pyplot
+        st.pyplot(fig)
+
+# Fungsi untuk pemetaan dan clustering
+def mapping_and_clustering():
+    st.title("Pemetaan Clustering dengan DTW")
+    
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
+
+    if uploaded_file is not None:
+        data_df = load_and_process_data(uploaded_file)
+
+        # Proses penghitungan dan pemetaan
+        # (Berisi kode pemetaan dan penghitungan DTW seperti yang Anda sediakan sebelumnya)
 
 # Fungsi utama aplikasi
 def main():
-    st.title("Aplikasi Statistika Deskriptif dan Plot Time Series")
+    st.title("Aplikasi Statistika Deskriptif dan Pemetaan")
+    
+    # Menambahkan sidebar untuk navigasi
+    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
 
-    # Upload file dan proses data
-    data_df = upload_file()
+    if page == "Statistika Deskriptif":
+        data_df = upload_file()
+        
+        if data_df is not None:
+            st.subheader("Dataframe")
+            st.write(data_df)
 
-    if data_df is not None:
-        # Menampilkan data
-        st.subheader("Dataframe")
-        st.write(data_df)
+            processed_data_df = process_data(data_df)
 
-        # Memproses data
-        processed_data_df = process_data(data_df)
+            if processed_data_df is not None:
+                selected_province = st.selectbox("Pilih Provinsi", options=processed_data_df.columns.tolist())
+                
+                if selected_province:
+                    show_descriptive_statistics(processed_data_df[[selected_province]])
+                    plot_time_series_daily(processed_data_df, selected_province)
 
-        if processed_data_df is not None and not processed_data_df.empty:
-            # Menambahkan dropdown untuk memilih provinsi
-            selected_province = st.selectbox("Pilih Provinsi", options=processed_data_df.columns.tolist())
-
-            # Menampilkan statistik deskriptif berdasarkan provinsi yang dipilih
-            if selected_province:
-                st.subheader(f"Statistika Deskriptif untuk {selected_province}")
-                show_descriptive_statistics(processed_data_df[[selected_province]])
-
-                # Menampilkan plot time series harian untuk provinsi yang dipilih
-                plot_time_series_daily(processed_data_df, selected_province)
-        else:
-            st.warning("Data tidak dapat diproses atau tidak ada data yang valid.")
+    elif page == "Pemetaan":
+        mapping_and_clustering()
 
 if __name__ == "__main__":
     main()
