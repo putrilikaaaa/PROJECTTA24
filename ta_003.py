@@ -156,16 +156,6 @@ def pemetaan():
             # Cluster labels for KMedoids
             cluster_labels = KMedoids(n_clusters=optimal_n_clusters, metric='precomputed', method='pam', random_state=42).fit_predict(dtw_distance_matrix_daily)
 
-        # Table of provinces per cluster
-        clustered_data = pd.DataFrame({
-            'Province': data_daily_standardized.columns,
-            'Cluster': cluster_labels
-        })
-
-        # Display cluster table
-        st.subheader("Tabel Provinsi per Cluster")
-        st.write(clustered_data)
-
         # Load GeoJSON file from GitHub
         gdf = upload_geojson_file()
 
@@ -174,6 +164,11 @@ def pemetaan():
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Calculate cluster from clustering results
+            clustered_data = pd.DataFrame({
+                'Province': data_daily_standardized.columns,
+                'Cluster': cluster_labels
+            })
+
             clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Rename inconsistent provinces
@@ -201,9 +196,7 @@ def pemetaan():
 
             # Display provinces colored grey
             grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
+            st.write("Provinsi yang tidak terklasifikasi:", grey_provinces)
 
             # Plot clustering map using geopandas
             st.subheader("Peta Klustering Berdasarkan DTW")
