@@ -80,7 +80,7 @@ def main():
         # Memproses data
         processed_data_df = process_data(data_df)
 
-        if processed_data_df is not None:
+        if processed_data_df is not None and not processed_data_df.empty:
             # Menambahkan dropdown untuk memilih provinsi
             selected_province = st.selectbox("Pilih Provinsi", options=processed_data_df.columns.tolist())
 
