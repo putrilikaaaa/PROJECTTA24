@@ -9,4 +9,4 @@ seaborn
 statsmodels
 scipy
 scikit-learn
-
+geopandas
