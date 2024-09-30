@@ -95,7 +95,7 @@ def pemetaan():
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
 
         # Klustering dan perhitungan skor siluet untuk data harian
-        max_n_clusters = 10
+        max_n_clusters = 3  # Sesuaikan dengan jumlah cluster yang diinginkan
         silhouette_scores = {}
         
         for n_clusters in range(2, max_n_clusters + 1):
@@ -178,6 +178,12 @@ def pemetaan():
             plt.xlabel('Longitude', fontsize=12)
             plt.ylabel('Latitude', fontsize=12)
             st.pyplot(plt)
+
+            # Tampilkan tabel cluster
+            st.subheader("Provinsi dalam Setiap Cluster")
+            cluster_table = clustered_data.groupby('Cluster')['Province'].apply(list).reset_index()
+            cluster_table.columns = ['Cluster', 'Provinsi']
+            st.dataframe(cluster_table)
         else:
             st.warning("Silakan upload file GeoJSON.")
 
@@ -201,9 +207,17 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_provinces = local_cost_matrix.shape[1]
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            accumulated_cost_matrix[:, i, j] = np.cumsum(local_cost_matrix[:, i, j])
+    accumulated_cost_matrix[0] = local_cost_matrix[0]
+
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                min_cost = min(
+                    accumulated_cost_matrix[t - 1, i, j], 
+                    accumulated_cost_matrix[t, i, j - 1], 
+                    accumulated_cost_matrix[t - 1, i, j - 1]
+                )
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
 
     return accumulated_cost_matrix
 
@@ -214,13 +228,11 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                dtw_distance = accumulated_cost_matrix[-1, i, j]
-                dtw_distance_matrix[i, j] = dtw_distance
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Main function for Streamlit app
+# Fungsi utama
 def main():
     st.title("Aplikasi Clustering Provinsi di Indonesia")
     menu = ["Statistika Deskriptif", "Pemetaan"]
