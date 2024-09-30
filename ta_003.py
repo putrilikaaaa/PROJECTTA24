@@ -29,14 +29,14 @@ def statistik_deskriptif():
     if data_df is not None:
         st.write("Dataframe:")
         st.write(data_df)
-        
+
         # Mengubah kolom 'Tanggal' menjadi format datetime dan mengatur sebagai index
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y')
         data_df.set_index('Tanggal', inplace=True)
 
         # Dropdown untuk memilih provinsi
         selected_province = st.selectbox("Pilih Provinsi", options=data_df.columns.tolist())
-        
+
         if selected_province:
             # Menampilkan statistik deskriptif
             st.subheader(f"Statistika Deskriptif untuk {selected_province}")
@@ -158,11 +158,14 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 # Fungsi utama aplikasi
 def main():
     st.title("Aplikasi Statistika Deskriptif dan Pemetaan")
-    page = st.sidebar.radio("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
 
-    if page == "Statistika Deskriptif":
+    # Menggunakan layout kolom
+    col1, col2 = st.columns(2)
+
+    with col1:
         statistik_deskriptif()
-    elif page == "Pemetaan":
+
+    with col2:
         pemetaan()
 
 if __name__ == "__main__":
