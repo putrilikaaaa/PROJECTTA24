@@ -136,7 +136,7 @@ def pemetaan():
             # Mengganti nama provinsi yang tidak konsisten
             gdf['Province'] = gdf['Province'].replace({
                 'DI ACEH': 'ACEH',
-                'BANGKA BELITUNG': 'KEPULAUAN BANGKA BELITUNG',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
@@ -202,19 +202,20 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]  # Jarak DTW
 
     return dtw_distance_matrix
 
-# Halaman Utama
+# Menu utama
 def main():
-    st.title("Aplikasi Clustering Provinsi")
-    menu = ["Statistika Deskriptif", "Pemetaan"]
-    choice = st.sidebar.selectbox("Pilih Halaman", menu)
-
-    if choice == "Statistika Deskriptif":
+    st.title("Analisis Clustering dan Pemetaan")
+    
+    # Pilih halaman
+    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+    
+    if page == "Statistika Deskriptif":
         statistik_deskriptif()
-    elif choice == "Pemetaan":
+    elif page == "Pemetaan":
         pemetaan()
 
 if __name__ == "__main__":
