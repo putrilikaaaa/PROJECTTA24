@@ -8,3 +8,5 @@ linearmodels
 seaborn
 statsmodels
 scipy
+scikit-learn
+
