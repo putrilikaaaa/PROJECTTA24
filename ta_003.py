@@ -18,7 +18,17 @@ def upload_csv_file(key=None):
             return df
         except Exception as e:
             st.error(f"Error: {e}")
-            return None
+    return None
+
+# Fungsi untuk mengupload file GeoJSON
+def upload_geojson_file(key=None):
+    uploaded_file = st.file_uploader("Upload file GeoJSON", type=["geojson"], key=key)
+    if uploaded_file is not None:
+        try:
+            gdf = gpd.read_file(uploaded_file)
+            return gdf
+        except Exception as e:
+            st.error(f"Error: {e}")
     return None
 
 # Halaman Statistika Deskriptif
@@ -117,10 +127,9 @@ def pemetaan():
         st.pyplot(plt)
 
         # Upload GeoJSON file
-        uploaded_geojson = st.file_uploader("Upload file GeoJSON", type=["geojson"], key="geojson_upload")
+        gdf = upload_geojson_file(key="geojson_upload")
         
-        if uploaded_geojson is not None:
-            gdf = gpd.read_file(uploaded_geojson)
+        if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Ganti sesuai dengan nama kolom yang benar
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
@@ -189,40 +198,38 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 
 # Fungsi untuk menghitung matriks biaya akumulatif
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.full((num_time_points, num_provinces, num_provinces), np.inf)
+    num_time_points = local_cost_matrix.shape[0]
+    num_provinces = local_cost_matrix.shape[1]
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for t in range(num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + np.min(accumulated_cost_matrix[t - 1, :, j])
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            accumulated_cost_matrix[:, i, j] = np.cumsum(local_cost_matrix[:, i, j])
 
     return accumulated_cost_matrix
 
-# Fungsi untuk menghitung jarak DTW
+# Fungsi untuk menghitung matriks jarak DTW
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
     num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                dtw_distance_matrix[i, j] = np.min(accumulated_cost_matrix[:, i, j])
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Menentukan layout aplikasi
-st.set_page_config(page_title="Aplikasi Clustering Provinsi", layout="wide")
-st.title("Aplikasi Clustering Provinsi")
+# Main function
+def main():
+    st.title("Aplikasi Streamlit - Clustering dengan DTW")
+    
+    # Sidebar untuk memilih halaman
+    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
+    
+    if page == "Statistika Deskriptif":
+        statistik_deskriptif()
+    elif page == "Pemetaan":
+        pemetaan()
 
-# Sidebar untuk pemilihan halaman
-page = st.sidebar.radio("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
-
-# Menampilkan halaman sesuai pemilihan
-if page == "Statistika Deskriptif":
-    statistik_deskriptif()
-elif page == "Pemetaan":
-    pemetaan()
+if __name__ == "__main__":
+    main()
