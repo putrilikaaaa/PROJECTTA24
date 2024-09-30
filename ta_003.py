@@ -121,7 +121,7 @@ def pemetaan():
         
         if uploaded_geojson is not None:
             gdf = gpd.read_file(uploaded_geojson)
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Ganti sesuai dengan nama kolom yang benar
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Menghitung kluster dari hasil klustering
@@ -191,35 +191,37 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.full((num_time_points, num_provinces, num_provinces), np.inf)
-    accumulated_cost_matrix[0] = local_cost_matrix[0]
 
-    for t in range(1, num_time_points):
+    for t in range(num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                min_cost = np.min([
-                    accumulated_cost_matrix[t-1, i, j],
-                    accumulated_cost_matrix[t-1, j, i],
-                    accumulated_cost_matrix[t-1, i, i]
-                ])
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
+                if t == 0:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
+                else:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + np.min(accumulated_cost_matrix[t - 1, :, j])
 
     return accumulated_cost_matrix
 
-# Fungsi untuk menghitung matriks jarak DTW
+# Fungsi untuk menghitung jarak DTW
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
     num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            if i != j:
+                dtw_distance_matrix[i, j] = np.min(accumulated_cost_matrix[:, i, j])
 
     return dtw_distance_matrix
 
-# Menjalankan aplikasi Streamlit
-st.title("Aplikasi Analisis Klustering")
-page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+# Menentukan layout aplikasi
+st.set_page_config(page_title="Aplikasi Clustering Provinsi", layout="wide")
+st.title("Aplikasi Clustering Provinsi")
 
+# Sidebar untuk pemilihan halaman
+page = st.sidebar.radio("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
+
+# Menampilkan halaman sesuai pemilihan
 if page == "Statistika Deskriptif":
     statistik_deskriptif()
 elif page == "Pemetaan":
