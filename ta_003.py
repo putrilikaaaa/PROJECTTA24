@@ -95,7 +95,7 @@ def pemetaan():
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
 
         # Klustering dan perhitungan skor siluet untuk data harian
-        max_n_clusters = 3  # Sesuaikan dengan jumlah cluster yang diinginkan
+        max_n_clusters = 10  # Ubah ke 10 untuk memeriksa hingga 10 kluster
         silhouette_scores = {}
         
         for n_clusters in range(2, max_n_clusters + 1):
