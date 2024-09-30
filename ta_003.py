@@ -76,39 +76,38 @@ def pemetaan():
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
-        # Menghitung rata-rata per minggu dan bulan
-        data_weekly = data_df.resample('W').mean()
-        data_monthly = data_df.resample('M').mean()
+        # Tampilkan keseluruhan data
+        st.write("Data keseluruhan:")
+        st.dataframe(data_df)
 
-        # Standarisasi data mingguan dan bulanan
+        # Menghitung rata-rata per hari
+        data_daily = data_df.resample('D').mean()
+
+        # Standarisasi data harian
         scaler = StandardScaler()
-        data_weekly_standardized = pd.DataFrame(scaler.fit_transform(data_weekly), index=data_weekly.index, columns=data_weekly.columns)
-        data_monthly_standardized = pd.DataFrame(scaler.fit_transform(data_monthly), index=data_monthly.index, columns=data_monthly.columns)
+        data_daily_standardized = pd.DataFrame(scaler.fit_transform(data_daily), index=data_daily.index, columns=data_daily.columns)
 
-        # Hitung matriks biaya lokal dan akumulatif untuk data mingguan dan bulanan
-        local_cost_matrix_weekly = compute_local_cost_matrix(data_weekly_standardized)
-        accumulated_cost_matrix_weekly = compute_accumulated_cost_matrix(local_cost_matrix_weekly)
+        # Hitung matriks biaya lokal dan akumulatif untuk data harian
+        local_cost_matrix_daily = compute_local_cost_matrix(data_daily_standardized)
+        accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
 
-        local_cost_matrix_monthly = compute_local_cost_matrix(data_monthly_standardized)
-        accumulated_cost_matrix_monthly = compute_accumulated_cost_matrix(local_cost_matrix_monthly)
+        # Hitung matriks jarak DTW untuk data harian
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
 
-        # Hitung matriks jarak DTW untuk data bulanan
-        dtw_distance_matrix_monthly = compute_dtw_distance_matrix(accumulated_cost_matrix_monthly)
-
-        # Klustering dan perhitungan skor siluet untuk data bulanan
+        # Klustering dan perhitungan skor siluet untuk data harian
         max_n_clusters = 10
         silhouette_scores = {}
         
         for n_clusters in range(2, max_n_clusters + 1):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='complete')
-            labels = clustering.fit_predict(dtw_distance_matrix_monthly)
-            score = silhouette_score(dtw_distance_matrix_monthly, labels, metric='precomputed')
+            labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
 
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        plt.title('Silhouette Score vs. Number of Clusters (Data Bulanan)')
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -116,12 +115,12 @@ def pemetaan():
         st.pyplot(plt)
 
         # Klustering dan dendrogram
-        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_monthly)
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method='complete')
 
         plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_monthly_standardized.columns, leaf_rotation=90)
-        plt.title('Dendrogram Clustering dengan DTW (Data Bulanan)')
+        dendrogram(Z, labels=data_daily_standardized.columns, leaf_rotation=90)
+        plt.title('Dendrogram Clustering dengan DTW (Data Harian)')
         plt.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
@@ -135,7 +134,7 @@ def pemetaan():
 
             # Menghitung kluster dari hasil klustering
             clustered_data = pd.DataFrame({
-                'Province': data_monthly_standardized.columns,
+                'Province': data_daily_standardized.columns,
                 'Cluster': labels  # Use the labels from clustering
             })
 
@@ -215,20 +214,21 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            if i != j:
+                dtw_distance = accumulated_cost_matrix[-1, i, j]
+                dtw_distance_matrix[i, j] = dtw_distance
 
     return dtw_distance_matrix
 
-# Main function
+# Main function for Streamlit app
 def main():
-    st.title("Aplikasi Streamlit - Clustering dengan DTW")
-    
-    # Sidebar untuk memilih halaman
-    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
-    
-    if page == "Statistika Deskriptif":
+    st.title("Aplikasi Clustering Provinsi di Indonesia")
+    menu = ["Statistika Deskriptif", "Pemetaan"]
+    choice = st.sidebar.selectbox("Pilih Halaman", menu)
+
+    if choice == "Statistika Deskriptif":
         statistik_deskriptif()
-    elif page == "Pemetaan":
+    elif choice == "Pemetaan":
         pemetaan()
 
 if __name__ == "__main__":
