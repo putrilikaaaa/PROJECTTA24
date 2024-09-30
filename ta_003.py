@@ -35,21 +35,7 @@ def process_data(data_df):
 # Fungsi untuk menampilkan statistik deskriptif
 def show_descriptive_statistics(data_df):
     st.subheader("Statistika Deskriptif")
-    statistics = data_df.describe().transpose()  # Transpose untuk mengubah orientasi menjadi baris
-
-    # Membuat kolom untuk menampilkan statistik deskriptif
-    cols = st.columns(len(statistics))
-    
-    for col, (stat_name, stat_values) in zip(cols, statistics.iterrows()):
-        col.subheader(stat_name)
-        col.write(f"Count: {stat_values['count']}")
-        col.write(f"Mean: {stat_values['mean']:.2f}")
-        col.write(f"Std: {stat_values['std']:.2f}")
-        col.write(f"Min: {stat_values['min']:.2f}")
-        col.write(f"25%: {stat_values['25%']:.2f}")
-        col.write(f"50%: {stat_values['50%']:.2f}")
-        col.write(f"75%: {stat_values['75%']:.2f}")
-        col.write(f"Max: {stat_values['max']:.2f}")
+    st.write(data_df.describe())
 
 # Fungsi untuk plot time series harian
 def plot_time_series_daily(data_df: pd.DataFrame, province: str):
@@ -80,14 +66,14 @@ def main():
         # Memproses data
         processed_data_df = process_data(data_df)
 
-        if processed_data_df is not None and not processed_data_df.empty:
+        if processed_data_df is not None:
             # Menambahkan dropdown untuk memilih provinsi
             selected_province = st.selectbox("Pilih Provinsi", options=processed_data_df.columns.tolist())
 
             # Menampilkan statistik deskriptif berdasarkan provinsi yang dipilih
             if selected_province:
                 st.subheader(f"Statistika Deskriptif untuk {selected_province}")
-                show_descriptive_statistics(processed_data_df[[selected_province]])
+                st.write(processed_data_df[selected_province].describe())
 
                 # Menampilkan plot time series harian untuk provinsi yang dipilih
                 plot_time_series_daily(processed_data_df, selected_province)
