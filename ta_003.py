@@ -140,21 +140,6 @@ def pemetaan():
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-                'GORONTALO': 'GORONTALO',
-                'SULAWESI TENGGARA': 'SULAWESI TENGGARA',
-                'SULAWESI SELATAN': 'SULAWESI SELATAN',
-                'KALIMANTAN TENGAH': 'KALIMANTAN TENGAH',
-                'KALIMANTAN UTARA': 'KALIMANTAN UTARA',
-                'BANTEN': 'BANTEN',
-                'MALUKU': 'MALUKU',
-                'DKI JAKARTA': 'DKI JAKARTA',
-                'BALI': 'BALI',
-                'RIAU': 'RIAU',
-                'KEPULAUAN RIAU': 'KEPULAUAN RIAU',
-                'SULAWESI TENGAH': 'SULAWESI TENGAH',
-                'SUMATERA SELATAN': 'SUMATERA SELATAN',
-                'JAMBI': 'JAMBI',
-                'LAMPUNG': 'LAMPUNG',
             })
 
             # Menghapus provinsi yang None (yaitu GORONTALO)
@@ -166,6 +151,14 @@ def pemetaan():
             # Set warna untuk kluster
             gdf['color'] = gdf['Cluster'].map({0: 'green', 1: 'yellow', 2: 'red'})
             gdf['color'].fillna('grey', inplace=True)
+
+            # Menampilkan nama provinsi yang berwarna grey
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
 
             # Plot peta
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
@@ -184,46 +177,46 @@ def pemetaan():
 def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     num_provinces = data_df.shape[1]
     num_time_points = data_df.shape[0]
-    local_cost_matrix = np.zeros((num_time_points, num_time_points))
+    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for i in range(num_time_points):
-        for j in range(num_time_points):
-            local_cost_matrix[i, j] = np.sum((data_df.iloc[i] - data_df.iloc[j]) ** 2)
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i != j:
+                cost = np.square(data_df.iloc[:, i] - data_df.iloc[:, j])
+                local_cost_matrix[:, i, j] = cost
 
     return local_cost_matrix
 
-# Fungsi untuk menghitung matriks biaya akumulatif DTW
+# Fungsi untuk menghitung matriks biaya akumulatif
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points = local_cost_matrix.shape[0]
-    accumulated_cost_matrix = np.zeros((num_time_points, num_time_points))
+    num_time_points, num_provinces, _ = local_cost_matrix.shape
+    accumulated_cost_matrix = np.full((num_time_points, num_provinces, num_provinces), np.inf)
+    accumulated_cost_matrix[0] = local_cost_matrix[0]
 
-    for i in range(num_time_points):
-        for j in range(num_time_points):
-            if i == 0 and j == 0:
-                accumulated_cost_matrix[i, j] = local_cost_matrix[i, j]
-            elif i == 0:
-                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i, j - 1] + local_cost_matrix[i, j]
-            elif j == 0:
-                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i - 1, j] + local_cost_matrix[i, j]
-            else:
-                accumulated_cost_matrix[i, j] = min(accumulated_cost_matrix[i - 1, j],
-                                                      accumulated_cost_matrix[i, j - 1],
-                                                      accumulated_cost_matrix[i - 1, j - 1]) + local_cost_matrix[i, j]
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                min_cost = np.min(accumulated_cost_matrix[t - 1, :, j])
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
+
     return accumulated_cost_matrix
 
 # Fungsi untuk menghitung matriks jarak DTW
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    return accumulated_cost_matrix[-1, -1]
+    num_provinces = accumulated_cost_matrix.shape[1]
+    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
-# Menu Pemilihan Halaman
-def main():
-    st.title("Aplikasi Analisis Data Provinsi di Indonesia")
-    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
-    if page == "Statistika Deskriptif":
-        statistik_deskriptif()
-    elif page == "Pemetaan":
-        pemetaan()
+    return dtw_distance_matrix
 
-if __name__ == "__main__":
-    main()
+# Menu Navigasi
+st.sidebar.title("Navigasi")
+selected_page = st.sidebar.radio("Pilih Halaman:", ["Statistika Deskriptif", "Pemetaan"])
+
+if selected_page == "Statistika Deskriptif":
+    statistik_deskriptif()
+elif selected_page == "Pemetaan":
+    pemetaan()
