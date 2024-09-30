@@ -27,10 +27,32 @@ def statistik_deskriptif():
     data_df = upload_file()
 
     if data_df is not None:
+        st.write("Dataframe:")
         st.write(data_df)
+        
+        # Mengubah kolom 'Tanggal' menjadi format datetime dan mengatur sebagai index
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y')
         data_df.set_index('Tanggal', inplace=True)
-        st.write(data_df.describe())
+
+        # Dropdown untuk memilih provinsi
+        selected_province = st.selectbox("Pilih Provinsi", options=data_df.columns.tolist())
+        
+        if selected_province:
+            # Menampilkan statistik deskriptif
+            st.subheader(f"Statistika Deskriptif untuk {selected_province}")
+            st.write(data_df[selected_province].describe())
+
+            # Menampilkan plot line chart
+            st.subheader(f"Line Chart untuk {selected_province}")
+            plt.figure(figsize=(12, 6))
+            plt.plot(data_df.index, data_df[selected_province], label=selected_province, color='blue')
+            plt.title(f"Line Chart - {selected_province}")
+            plt.xlabel('Tanggal')
+            plt.ylabel('Nilai')
+            plt.legend()
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            st.pyplot(plt)
 
 # Halaman Pemetaan
 def pemetaan():
