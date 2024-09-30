@@ -41,15 +41,15 @@ def show_descriptive_statistics(data_df):
 def plot_time_series_daily(data_df: pd.DataFrame, province: str):
     st.subheader(f"Plot Time Series Harian untuk {province}")
     if province in data_df.columns:
-        plt.figure(figsize=(12, 6))
-        plt.plot(data_df.index, data_df[province], label=province, color='blue')
-        plt.title(f"Time Series Harian - {province}", fontsize=16)
-        plt.xlabel('Tanggal', fontsize=12)
-        plt.ylabel('Nilai', fontsize=12)
-        plt.legend(loc='upper left')
+        fig, ax = plt.subplots(figsize=(12, 6))  # Buat objek figure dan axis
+        ax.plot(data_df.index, data_df[province], label=province, color='blue')
+        ax.set_title(f"Time Series Harian - {province}", fontsize=16)
+        ax.set_xlabel('Tanggal', fontsize=12)
+        ax.set_ylabel('Nilai', fontsize=12)
+        ax.legend(loc='upper left')
         plt.xticks(rotation=45)
         plt.tight_layout()
-        st.pyplot()
+        st.pyplot(fig)  # Kirimkan objek figure ke st.pyplot
 
 # Fungsi utama aplikasi
 def main():
