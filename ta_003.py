@@ -152,6 +152,14 @@ def pemetaan():
             gdf['color'] = gdf['Cluster'].map({0: 'green', 1: 'yellow', 2: 'red'})
             gdf['color'].fillna('grey', inplace=True)
 
+            # Menampilkan nama provinsi yang berwarna grey
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
+
             # Plot peta
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot batas
@@ -183,15 +191,13 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.full((num_time_points, num_provinces, num_provinces), np.inf)
-    accumulated_cost_matrix[0, :, :] = local_cost_matrix[0, :, :]
+    accumulated_cost_matrix[0] = local_cost_matrix[0]
 
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                min_prev_cost = np.min([accumulated_cost_matrix[t-1, i, j], 
-                                         accumulated_cost_matrix[t-1, i, :].min(), 
-                                         accumulated_cost_matrix[t-1, :, j].min()])
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_prev_cost
+                min_cost = np.min(accumulated_cost_matrix[t - 1, :, j])
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
 
     return accumulated_cost_matrix
 
@@ -202,21 +208,15 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]  # Jarak DTW
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Menu utama
-def main():
-    st.title("Analisis Clustering dan Pemetaan")
-    
-    # Pilih halaman
-    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
-    
-    if page == "Statistika Deskriptif":
-        statistik_deskriptif()
-    elif page == "Pemetaan":
-        pemetaan()
+# Menu Navigasi
+st.sidebar.title("Navigasi")
+selected_page = st.sidebar.radio("Pilih Halaman:", ["Statistika Deskriptif", "Pemetaan"])
 
-if __name__ == "__main__":
-    main()
+if selected_page == "Statistika Deskriptif":
+    statistik_deskriptif()
+elif selected_page == "Pemetaan":
+    pemetaan()
