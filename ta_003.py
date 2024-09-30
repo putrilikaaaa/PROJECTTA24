@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
-from kmedoids import KMedoids
+from kmedoids import KMedoids  # Ensure this import works
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
@@ -190,10 +190,10 @@ def pemetaan():
                 plt.title('Peta Kluster Provinsi di Indonesia', fontsize=15)
                 plt.xlabel('Longitude', fontsize=12)
                 plt.ylabel('Latitude', fontsize=12)
-                st.pyplot(plt)
-            else:
-                st.warning("Silakan upload file GeoJSON.")
+
+                # Show plot in Streamlit
+                st.pyplot(fig)
 
 # Run the app
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
