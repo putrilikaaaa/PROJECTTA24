@@ -29,7 +29,7 @@ def statistik_deskriptif():
     if data_df is not None:
         st.write("Dataframe:")
         st.write(data_df)
-
+        
         # Mengubah kolom 'Tanggal' menjadi format datetime dan mengatur sebagai index
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
@@ -39,7 +39,7 @@ def statistik_deskriptif():
 
         # Dropdown untuk memilih provinsi
         selected_province = st.selectbox("Pilih Provinsi", options=data_df.columns.tolist())
-
+        
         if selected_province:
             # Menampilkan statistik deskriptif
             st.subheader(f"Statistika Deskriptif untuk {selected_province}")
@@ -88,7 +88,7 @@ def pemetaan():
         # Klustering dan perhitungan skor siluet untuk data bulanan
         max_n_clusters = 10
         silhouette_scores = {}
-
+        
         for n_clusters in range(2, max_n_clusters + 1):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='complete')
             labels = clustering.fit_predict(dtw_distance_matrix_monthly)
@@ -118,7 +118,7 @@ def pemetaan():
 
         # Upload GeoJSON file
         uploaded_geojson = st.file_uploader("Upload file GeoJSON", type=["geojson"], key="geojson_upload")
-
+        
         if uploaded_geojson is not None:
             gdf = gpd.read_file(uploaded_geojson)
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -132,16 +132,15 @@ def pemetaan():
 
             # Normalisasi nama provinsi
             clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
+            
             # Mengganti nama provinsi yang tidak konsisten
-            replacement_dict = {
+            gdf['Province'] = gdf['Province'].replace({
                 'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'BANGKA BELITUNG': 'KEPULAUAN BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            }
-            clustered_data['Province'] = clustered_data['Province'].replace(replacement_dict)
+            })
 
             # Menghapus provinsi yang None (yaitu GORONTALO)
             gdf = gdf[gdf['Province'].notna()]
@@ -180,17 +179,19 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 
     return local_cost_matrix
 
-# Fungsi untuk menghitung matriks biaya akumulatif DTW
+# Fungsi untuk menghitung matriks biaya akumulatif
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
+    accumulated_cost_matrix = np.full((num_time_points, num_provinces, num_provinces), np.inf)
+    accumulated_cost_matrix[0, :, :] = local_cost_matrix[0, :, :]
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            accumulated_cost_matrix[0, i, j] = local_cost_matrix[0, i, j]
-            for k in range(1, num_time_points):
-                accumulated_cost_matrix[k, i, j] = local_cost_matrix[k, i, j] + \
-                    min(accumulated_cost_matrix[k-1, i, j], accumulated_cost_matrix[k, i, j-1])
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                min_prev_cost = np.min([accumulated_cost_matrix[t-1, i, j], 
+                                         accumulated_cost_matrix[t-1, i, :].min(), 
+                                         accumulated_cost_matrix[t-1, :, j].min()])
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_prev_cost
 
     return accumulated_cost_matrix
 
@@ -205,16 +206,16 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main App
+# Main Application
 def main():
-    st.title("Aplikasi Pemetaan dan Analisis Data")
+    st.title("Aplikasi Analisis Data Provinsi")
     menu = ["Statistika Deskriptif", "Pemetaan"]
-    choice = st.selectbox("Pilih Halaman", menu)
+    choice = st.sidebar.selectbox("Pilih Halaman", menu)
 
     if choice == "Statistika Deskriptif":
         statistik_deskriptif()
     elif choice == "Pemetaan":
         pemetaan()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
