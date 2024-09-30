@@ -20,14 +20,10 @@ def upload_csv_file(key=None):
             st.error(f"Error: {e}")
     return None
 
-# Function to load GeoJSON from GitHub
-def load_geojson_from_github(url):
-    try:
-        gdf = gpd.read_file(url)
-        return gdf
-    except Exception as e:
-        st.error(f"Error: {e}")
-    return None
+# Function to upload GeoJSON files
+def upload_geojson_file():
+    gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
+    return gdf
 
 # Descriptive Statistics Page
 def statistik_deskriptif():
@@ -135,8 +131,7 @@ def pemetaan():
         st.write(clustered_data)
 
         # Load GeoJSON file from GitHub
-        github_geojson_url = 'https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson'
-        gdf = load_geojson_from_github(github_geojson_url)
+        gdf = upload_geojson_file()
 
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
@@ -161,7 +156,11 @@ def pemetaan():
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             # Set colors for clusters
-            gdf['color'] = gdf['Cluster'].map({i: plt.cm.jet(i / optimal_n_clusters) for i in range(optimal_n_clusters)})
+            gdf['color'] = gdf['Cluster'].map({
+                0: 'red',
+                1: 'yellow',
+                2: 'green'
+            })
             gdf['color'].fillna('grey', inplace=True)
 
             # Display provinces colored grey
@@ -183,7 +182,7 @@ def pemetaan():
             plt.ylabel('Latitude', fontsize=12)
             st.pyplot(plt)
         else:
-            st.warning("GeoJSON tidak berhasil dimuat.")
+            st.warning("Silakan upload file GeoJSON.")
 
 # Function to compute local cost matrix for DTW
 def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
@@ -206,17 +205,14 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for t in range(num_time_points):
+    for i in range(num_provinces):
+        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
+
+    for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                        accumulated_cost_matrix[t - 1, i, j],
-                        accumulated_cost_matrix[t - 1, i, (j + 1) % num_provinces],
-                        accumulated_cost_matrix[t - 1, (i + 1) % num_provinces, j]
-                    )
+                min_cost = min(accumulated_cost_matrix[t-1, i, k] for k in range(num_provinces)) + local_cost_matrix[t, i, j]
+                accumulated_cost_matrix[t, i, j] = min_cost
 
     return accumulated_cost_matrix
 
@@ -231,12 +227,16 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Sidebar for page selection
-st.sidebar.title("Navigasi")
-page = st.sidebar.radio("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+# Streamlit main function
+def main():
+    st.title("Aplikasi Clustering dengan DTW dan Visualisasi Pemetaan")
+    menu = ["Statistika Deskriptif", "Pemetaan"]
+    choice = st.sidebar.selectbox("Pilih Menu", menu)
 
-# Render selected page
-if page == "Statistika Deskriptif":
-    statistik_deskriptif()
-elif page == "Pemetaan":
-    pemetaan()
+    if choice == "Statistika Deskriptif":
+        statistik_deskriptif()
+    elif choice == "Pemetaan":
+        pemetaan()
+
+if __name__ == "__main__":
+    main()
