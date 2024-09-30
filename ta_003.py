@@ -1,13 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
-import streamlit as st
 
 # Function to upload CSV files
 def upload_csv_file(key=None):
@@ -166,30 +164,77 @@ def pemetaan():
             # Display provinces colored grey
             grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
             if grey_provinces:
-                st.warning(f"Provinsi berikut tidak termasuk dalam kluster: {', '.join(grey_provinces)}")
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
 
-            # Plot the map with cluster colors
-            st.subheader("Peta Cluster (Data Harian)")
-            fig, ax = plt.subplots(figsize=(10, 15))
-            gdf.boundary.plot(ax=ax)
-            gdf.plot(column='color', ax=ax, color=gdf['color'])
-            plt.title('Clustering dengan DTW')
-            plt.axis('off')
-            st.pyplot(fig)
+            # Plot map
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.6)  # Plot provinces with colors
 
-# Main function
+            # Add title and labels
+            plt.title('Peta Kluster Provinsi di Indonesia', fontsize=15)
+            plt.xlabel('Longitude', fontsize=12)
+            plt.ylabel('Latitude', fontsize=12)
+            st.pyplot(plt)
+        else:
+            st.warning("Silakan upload file GeoJSON.")
+
+# Function to compute local cost matrix for DTW
+def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
+    num_provinces = data_df.shape[1]
+    num_time_points = data_df.shape[0]
+    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            for t in range(num_time_points):
+                if i == j:
+                    local_cost_matrix[t, i, j] = 0
+                else:
+                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+
+    return local_cost_matrix
+
+# Function to compute accumulated cost matrix
+def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
+    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
+
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                min_cost = min(accumulated_cost_matrix[t-1, i, k] for k in range(num_provinces)) + local_cost_matrix[t, i, j]
+                accumulated_cost_matrix[t, i, j] = min_cost
+
+    return accumulated_cost_matrix
+
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
+    num_provinces = accumulated_cost_matrix.shape[1]
+    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+
+    return dtw_distance_matrix
+
+# Streamlit main function
 def main():
-    st.title("Aplikasi Prediksi Transaksi")
+    st.title("Aplikasi Clustering dengan DTW dan Visualisasi Pemetaan")
+    menu = ["Statistika Deskriptif", "Pemetaan"]
+    choice = st.sidebar.selectbox("Pilih Menu", menu)
 
-    # Create option menu
-    pages = ["Statistika Deskriptif", "Pemetaan"]
-    selected_page = st.sidebar.radio("Navigasi", pages)
-
-    # Render selected page
-    if selected_page == "Statistika Deskriptif":
+    if choice == "Statistika Deskriptif":
         statistik_deskriptif()
-    elif selected_page == "Pemetaan":
+    elif choice == "Pemetaan":
         pemetaan()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
