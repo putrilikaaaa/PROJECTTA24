@@ -10,6 +10,27 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
 
+# Dummy implementation of DTW local cost matrix
+def compute_local_cost_matrix(data):
+    # Here, you should implement the actual DTW cost calculation
+    return np.abs(data.values[:, None] - data.values[None, :])  # Simple example for illustration
+
+# Dummy implementation of DTW accumulated cost matrix
+def compute_accumulated_cost_matrix(local_cost_matrix):
+    # Here, implement the logic to calculate the accumulated cost
+    n = local_cost_matrix.shape[0]
+    accumulated_cost = np.zeros_like(local_cost_matrix)
+    accumulated_cost[0, :] = np.cumsum(local_cost_matrix[0, :])
+    for i in range(1, n):
+        for j in range(n):
+            accumulated_cost[i, j] = local_cost_matrix[i, j] + min(accumulated_cost[i-1, j], accumulated_cost[i, j-1])
+    return accumulated_cost
+
+# Dummy implementation of DTW distance matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix):
+    # Implement the logic to extract DTW distances
+    return accumulated_cost_matrix[-1, -1]  # Example for illustration
+
 # Function to upload CSV files
 def upload_csv_file(key=None):
     uploaded_file = st.file_uploader("Upload file CSV", type=["csv"], key=key)
@@ -177,34 +198,25 @@ def pemetaan():
             # Calculate cluster from clustering results
             clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Rename inconsistent provinces
-            gdf['Province'] = gdf['Province'].replace({
+            # Rename inconsistent provinces in gdf
+            replacements = {
                 'DI ACEH': 'ACEH',
+                'GORONTALO': None,  # This will drop GORONTALO
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
+                'DAERAH ISTIMEWA YOGYAKARTA': 'D.I YOGYAKARTA'
+            }
 
-            # Remove provinces that are None (i.e., GORONTALO)
-            gdf = gdf[gdf['Province'].notna()]
+            gdf.replace({'Province': replacements}, inplace=True)
 
-            # Merge clustered data with GeoDataFrame
+            # Merge GeoDataFrame with clustered data
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Set colors for clusters
-            gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green'
-            })
-            gdf['color'].fillna('grey', inplace=True)
-
-            # Display provinces colored grey
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
+            # Assign colors to clusters
+            gdf['color'] = gdf['Cluster'].map({0: 'red', 1: 'yellow', 2: 'green'})
+            grey_provinces = gdf[gdf['color'].isna()]['Province'].unique()
+            st.write("Provinsi tanpa Cluster:", grey_provinces)
 
             # Plot clustering map
             st.subheader("Peta Clustering")
