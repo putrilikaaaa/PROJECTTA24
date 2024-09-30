@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
+from sklearn_extra.cluster import KMedoids  # Import KMedoids from sklearn_extra
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
@@ -84,43 +85,78 @@ def pemetaan():
         # Compute DTW distance matrix for daily data
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
 
-        # Clustering and silhouette score calculation for daily data
-        max_n_clusters = 10
-        silhouette_scores = {}
+        # Dropdown for selecting clustering method
+        clustering_method = st.selectbox("Pilih Metode Clustering", ["Complete Linkage", "K-Medoids"])
 
-        for n_clusters in range(2, max_n_clusters + 1):
-            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='complete')
-            labels = clustering.fit_predict(dtw_distance_matrix_daily)
-            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
-            silhouette_scores[n_clusters] = score
+        if clustering_method == "Complete Linkage":
+            # Clustering and silhouette score calculation for complete linkage
+            max_n_clusters = 10
+            silhouette_scores = {}
 
-        # Plot Silhouette Scores
-        plt.figure(figsize=(10, 6))
-        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
-        plt.xlabel('Number of Clusters')
-        plt.ylabel('Silhouette Score')
-        plt.xticks(range(2, max_n_clusters + 1))
-        plt.grid(True)
-        st.pyplot(plt)
+            for n_clusters in range(2, max_n_clusters + 1):
+                clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='complete')
+                labels = clustering.fit_predict(dtw_distance_matrix_daily)
+                score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+                silhouette_scores[n_clusters] = score
 
-        # Determine optimal number of clusters
-        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+            # Plot Silhouette Scores
+            plt.figure(figsize=(10, 6))
+            plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+            plt.title('Silhouette Score vs. Number of Clusters (Complete Linkage)')
+            plt.xlabel('Number of Clusters')
+            plt.ylabel('Silhouette Score')
+            plt.xticks(range(2, max_n_clusters + 1))
+            plt.grid(True)
+            st.pyplot(plt)
 
-        # Clustering and dendrogram
-        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-        Z = linkage(condensed_dtw_distance_matrix, method='complete')
+            # Determine optimal number of clusters
+            optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+            st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily_standardized.columns, leaf_rotation=90)
-        plt.title('Dendrogram Clustering dengan DTW (Data Harian)')
-        plt.xlabel('Provinsi')
-        plt.ylabel('Jarak DTW')
-        st.pyplot(plt)
+            # Clustering and dendrogram
+            condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+            Z = linkage(condensed_dtw_distance_matrix, method='complete')
 
-        # Table of provinces per cluster
-        cluster_labels = AgglomerativeClustering(n_clusters=optimal_n_clusters, metric='precomputed', linkage='complete').fit_predict(dtw_distance_matrix_daily)
+            plt.figure(figsize=(16, 10))
+            dendrogram(Z, labels=data_daily_standardized.columns, leaf_rotation=90)
+            plt.title('Dendrogram Clustering dengan DTW (Complete Linkage)')
+            plt.xlabel('Provinsi')
+            plt.ylabel('Jarak DTW')
+            st.pyplot(plt)
+
+            # Clustering results
+            cluster_labels = AgglomerativeClustering(n_clusters=optimal_n_clusters, metric='precomputed', linkage='complete').fit_predict(dtw_distance_matrix_daily)
+        
+        elif clustering_method == "K-Medoids":
+            # Calculate silhouette scores for K-Medoids
+            max_n_clusters = 10
+            silhouette_scores = {}
+
+            for n_clusters in range(2, max_n_clusters + 1):
+                clustering = KMedoids(n_clusters=n_clusters, metric='precomputed')
+                labels = clustering.fit_predict(dtw_distance_matrix_daily)
+                score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+                silhouette_scores[n_clusters] = score
+
+            # Plot Silhouette Scores
+            plt.figure(figsize=(10, 6))
+            plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+            plt.title('Silhouette Score vs. Number of Clusters (K-Medoids)')
+            plt.xlabel('Number of Clusters')
+            plt.ylabel('Silhouette Score')
+            plt.xticks(range(2, max_n_clusters + 1))
+            plt.grid(True)
+            st.pyplot(plt)
+
+            # Determine optimal number of clusters
+            optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+            st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+
+            # Clustering results
+            clustering = KMedoids(n_clusters=optimal_n_clusters, metric='precomputed')
+            cluster_labels = clustering.fit_predict(dtw_distance_matrix_daily)
+
+        # Create DataFrame for clustered results
         clustered_data = pd.DataFrame({
             'Province': data_daily_standardized.columns,
             'Cluster': cluster_labels
@@ -169,74 +205,30 @@ def pemetaan():
                 st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
                 st.write(grey_provinces)
             else:
-                st.write("Semua provinsi termasuk dalam kluster.")
+                st.subheader("Semua provinsi termasuk dalam kluster.")
 
-            # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.6)  # Plot provinces with colors
+            # Plotting the map
+            st.subheader("Pemetaan Kluster")
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1)
+            gdf.plot(column='color', ax=ax, legend=True)
+            plt.title('Pemetaan Kluster Provinsi')
+            plt.axis('off')
+            st.pyplot(fig)
 
-            # Add title and labels
-            plt.title('Peta Kluster Provinsi di Indonesia', fontsize=15)
-            plt.xlabel('Longitude', fontsize=12)
-            plt.ylabel('Latitude', fontsize=12)
-            st.pyplot(plt)
-        else:
-            st.warning("Silakan upload file GeoJSON.")
-
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_provinces = data_df.shape[1]
-    num_time_points = data_df.shape[0]
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            for t in range(num_time_points):
-                if i == j:
-                    local_cost_matrix[t, i, j] = 0
-                else:
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
-
-    return local_cost_matrix
-
-# Function to compute accumulated cost matrix
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
-
-    for t in range(1, num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                min_cost = min(accumulated_cost_matrix[t-1, i, k] for k in range(num_provinces)) + local_cost_matrix[t, i, j]
-                accumulated_cost_matrix[t, i, j] = min_cost
-
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
-
-    return dtw_distance_matrix
-
-# Streamlit main function
+# Main function to control the app
 def main():
-    st.title("Aplikasi Clustering dengan DTW dan Visualisasi Pemetaan")
-    menu = ["Statistika Deskriptif", "Pemetaan"]
-    choice = st.sidebar.selectbox("Pilih Menu", menu)
+    st.title("Aplikasi Analisis Data dan Clustering")
 
-    if choice == "Statistika Deskriptif":
-        statistik_deskriptif()
-    elif choice == "Pemetaan":
-        pemetaan()
+    # Sidebar for navigation
+    pages = {
+        "Statistika Deskriptif": statistik_deskriptif,
+        "Pemetaan": pemetaan
+    }
+    page = st.sidebar.selectbox("Pilih Halaman", options=list(pages.keys()))
+
+    # Call the selected page function
+    pages[page]()
 
 if __name__ == "__main__":
-    main() 
+    main()
