@@ -88,8 +88,13 @@ def main():
         data_monthly_filtered = process_data(data_df)
 
         if data_monthly_filtered is not None:
-            # Menampilkan statistik deskriptif
-            show_descriptive_statistics(data_monthly_filtered)
+            # Menambahkan dropdown untuk memilih provinsi
+            selected_province = st.selectbox("Pilih Provinsi", options=data_monthly_filtered.columns.tolist())
+
+            # Menampilkan statistik deskriptif berdasarkan provinsi yang dipilih
+            if selected_province:
+                st.subheader(f"Statistika Deskriptif untuk {selected_province}")
+                st.write(data_monthly_filtered[selected_province].describe())
 
             # Menampilkan plot time series
             plot_time_series_monthly(data_monthly_filtered, interval=3)
