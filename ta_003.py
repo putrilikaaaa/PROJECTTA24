@@ -9,9 +9,16 @@ import geopandas as gpd
 import requests
 import json
 
+# Fungsi untuk mengunggah file CSV
+def upload_csv_file(key):
+    uploaded_file = st.file_uploader("Unggah File CSV", type=["csv"], key=key)
+    if uploaded_file is not None:
+        return pd.read_csv(uploaded_file)
+    return None
+
 # Fungsi untuk mengunggah file GeoJSON dari GitHub
 def upload_geojson_file():
-    url = "https://raw.githubusercontent.com/username/repo/main/indonesia-prov.geojson"
+    url = "https://raw.githubusercontent.com/username/repo/main/indonesia-prov.geojson"  # Ganti dengan URL yang benar
     response = requests.get(url)
     data = response.json()
     return gpd.GeoDataFrame.from_features(data['features'])
@@ -190,9 +197,6 @@ def complete_linkage_clustering():
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
-
-            # Menghapus provinsi yang None (i.e., GORONTALO)
-            gdf = gdf[gdf['Province'].notna()]
 
             # Menghitung data terklasifikasi
             clustered_data = pd.DataFrame({
