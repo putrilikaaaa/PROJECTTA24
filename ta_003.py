@@ -20,15 +20,13 @@ def upload_csv_file(key=None):
             st.error(f"Error: {e}")
     return None
 
-# Function to upload GeoJSON files
-def upload_geojson_file(key=None):
-    uploaded_file = st.file_uploader("Upload file GeoJSON", type=["geojson"], key=key)
-    if uploaded_file is not None:
-        try:
-            gdf = gpd.read_file(uploaded_file)
-            return gdf
-        except Exception as e:
-            st.error(f"Error: {e}")
+# Function to load GeoJSON from GitHub
+def load_geojson_from_github(url):
+    try:
+        gdf = gpd.read_file(url)
+        return gdf
+    except Exception as e:
+        st.error(f"Error: {e}")
     return None
 
 # Descriptive Statistics Page
@@ -136,8 +134,9 @@ def pemetaan():
         st.subheader("Tabel Provinsi per Cluster")
         st.write(clustered_data)
 
-        # Upload GeoJSON file
-        gdf = upload_geojson_file(key="geojson_upload")
+        # Load GeoJSON file from GitHub
+        github_geojson_url = 'https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson'
+        gdf = load_geojson_from_github(github_geojson_url)
 
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
@@ -184,7 +183,7 @@ def pemetaan():
             plt.ylabel('Latitude', fontsize=12)
             st.pyplot(plt)
         else:
-            st.warning("Silakan upload file GeoJSON.")
+            st.warning("GeoJSON tidak berhasil dimuat.")
 
 # Function to compute local cost matrix for DTW
 def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
@@ -207,14 +206,17 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for i in range(num_provinces):
-        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
-
-    for t in range(1, num_time_points):
+    for t in range(num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(accumulated_cost_matrix[t - 1, i, j],
-                                                                                     accumulated_cost_matrix[t - 1, j, i])
+                if t == 0:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
+                else:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                        accumulated_cost_matrix[t - 1, i, j],
+                        accumulated_cost_matrix[t - 1, i, (j + 1) % num_provinces],
+                        accumulated_cost_matrix[t - 1, (i + 1) % num_provinces, j]
+                    )
 
     return accumulated_cost_matrix
 
@@ -229,17 +231,12 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main app structure
-def main():
-    st.title("Aplikasi Pemetaan dan Analisis Data")
-    
-    menu = ["Statistik Deskriptif", "Pemetaan"]
-    choice = st.sidebar.radio("Pilih Halaman", menu)
+# Sidebar for page selection
+st.sidebar.title("Navigasi")
+page = st.sidebar.radio("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
 
-    if choice == "Statistik Deskriptif":
-        statistik_deskriptif()
-    elif choice == "Pemetaan":
-        pemetaan()
-
-if __name__ == "__main__":
-    main()
+# Render selected page
+if page == "Statistika Deskriptif":
+    statistik_deskriptif()
+elif page == "Pemetaan":
+    pemetaan()
