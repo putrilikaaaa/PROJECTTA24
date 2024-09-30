@@ -9,9 +9,9 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
 
-# Fungsi untuk mengupload file
-def upload_file():
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
+# Fungsi untuk mengupload file CSV
+def upload_csv_file(key=None):
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"], key=key)
     if uploaded_file is not None:
         try:
             df = pd.read_csv(uploaded_file)
@@ -19,21 +19,23 @@ def upload_file():
         except Exception as e:
             st.error(f"Error: {e}")
             return None
-    else:
-        return None
+    return None
 
 # Halaman Statistika Deskriptif
 def statistik_deskriptif():
     st.subheader("Statistika Deskriptif")
-    data_df = upload_file()
+    data_df = upload_csv_file()
 
     if data_df is not None:
         st.write("Dataframe:")
         st.write(data_df)
         
         # Mengubah kolom 'Tanggal' menjadi format datetime dan mengatur sebagai index
-        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y')
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
+
+        if data_df.isnull().any().any():
+            st.warning("Terdapat tanggal yang tidak valid, silakan periksa data Anda.")
 
         # Dropdown untuk memilih provinsi
         selected_province = st.selectbox("Pilih Provinsi", options=data_df.columns.tolist())
@@ -58,11 +60,10 @@ def statistik_deskriptif():
 # Halaman Pemetaan
 def pemetaan():
     st.subheader("Pemetaan Clustering dengan DTW")
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"], key="pemetaan_upload")
+    data_df = upload_csv_file(key="pemetaan_upload")
 
-    if uploaded_file is not None:
-        data_df = pd.read_csv(uploaded_file)
-        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y')
+    if data_df is not None:
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
         # Menghitung rata-rata per minggu dan bulan
@@ -115,49 +116,54 @@ def pemetaan():
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Peta klustering provinsi
-        gdf = gpd.read_file('/content/indonesia-prov.geojson')
-        gdf = gdf.rename(columns={'Propinsi': 'Province'})
-        gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-        # Menghitung kluster dari hasil klustering
-        clustered_data = pd.DataFrame({
-            'Province': data_monthly_standardized.columns,
-            'Cluster': labels  # Use the labels from clustering
-        })
-
-        # Normalisasi nama provinsi
-        clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+        # Upload GeoJSON file
+        uploaded_geojson = st.file_uploader("Upload file GeoJSON", type=["geojson"], key="geojson_upload")
         
-        # Mengganti nama provinsi yang tidak konsisten
-        gdf['Province'] = gdf['Province'].replace({
-            'DI ACEH': 'ACEH',
-            'BANGKA BELITUNG': 'KEPULAUAN BANGKA BELITUNG',
-            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-            'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-        })
+        if uploaded_geojson is not None:
+            gdf = gpd.read_file(uploaded_geojson)
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-        # Menghapus provinsi yang None (yaitu GORONTALO)
-        gdf = gdf[gdf['Province'].notna()]
+            # Menghitung kluster dari hasil klustering
+            clustered_data = pd.DataFrame({
+                'Province': data_monthly_standardized.columns,
+                'Cluster': labels  # Use the labels from clustering
+            })
 
-        # Menggabungkan data terkluster dengan GeoDataFrame
-        gdf = gdf.merge(clustered_data, on='Province', how='left')
+            # Normalisasi nama provinsi
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            
+            # Mengganti nama provinsi yang tidak konsisten
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'BANGKA BELITUNG': 'KEPULAUAN BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
 
-        # Set warna untuk kluster
-        gdf['color'] = gdf['Cluster'].map({0: 'green', 1: 'yellow', 2: 'red'})
-        gdf['color'].fillna('grey', inplace=True)
+            # Menghapus provinsi yang None (yaitu GORONTALO)
+            gdf = gdf[gdf['Province'].notna()]
 
-        # Plot peta
-        fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-        gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot batas
-        gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.6)  # Plot provinsi dengan warna
+            # Menggabungkan data terkluster dengan GeoDataFrame
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-        # Tambahkan judul dan label
-        plt.title('Peta Kluster Provinsi di Indonesia', fontsize=15)
-        plt.xlabel('Longitude', fontsize=12)
-        plt.ylabel('Latitude', fontsize=12)
-        st.pyplot(plt)
+            # Set warna untuk kluster
+            gdf['color'] = gdf['Cluster'].map({0: 'green', 1: 'yellow', 2: 'red'})
+            gdf['color'].fillna('grey', inplace=True)
+
+            # Plot peta
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot batas
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.6)  # Plot provinsi dengan warna
+
+            # Tambahkan judul dan label
+            plt.title('Peta Kluster Provinsi di Indonesia', fontsize=15)
+            plt.xlabel('Longitude', fontsize=12)
+            plt.ylabel('Latitude', fontsize=12)
+            st.pyplot(plt)
+        else:
+            st.warning("Silakan upload file GeoJSON.")
 
 # Fungsi untuk menghitung matriks biaya lokal DTW
 def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
@@ -182,12 +188,14 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                min_prev_cost = np.min([accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i, :].min(), accumulated_cost_matrix[t-1, :, j].min()])
+                min_prev_cost = np.min([accumulated_cost_matrix[t-1, i, j], 
+                                         accumulated_cost_matrix[t-1, i, :].min(), 
+                                         accumulated_cost_matrix[t-1, :, j].min()])
                 accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_prev_cost
 
     return accumulated_cost_matrix
 
-# Fungsi untuk menghitung jarak DTW
+# Fungsi untuk menghitung matriks jarak DTW
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
     num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
@@ -198,12 +206,16 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main application logic
-st.title("Aplikasi Streamlit untuk Klustering dan Pemetaan")
+# Main Application
+def main():
+    st.title("Aplikasi Analisis Data Provinsi")
+    menu = ["Statistika Deskriptif", "Pemetaan"]
+    choice = st.sidebar.selectbox("Pilih Halaman", menu)
 
-page = st.sidebar.radio("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+    if choice == "Statistika Deskriptif":
+        statistik_deskriptif()
+    elif choice == "Pemetaan":
+        pemetaan()
 
-if page == "Statistika Deskriptif":
-    statistik_deskriptif()
-elif page == "Pemetaan":
-    pemetaan()
+if __name__ == "__main__":
+    main()
