@@ -7,6 +7,7 @@ from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
+import geopandas as gpd
 
 # Fungsi untuk mengupload file
 def upload_file():
@@ -114,6 +115,50 @@ def pemetaan():
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
+        # Peta klustering provinsi
+        gdf = gpd.read_file('/content/indonesia-prov.geojson')
+        gdf = gdf.rename(columns={'Propinsi': 'Province'})
+        gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+        # Menghitung kluster dari hasil klustering
+        clustered_data = pd.DataFrame({
+            'Province': data_monthly_standardized.columns,
+            'Cluster': labels  # Use the labels from clustering
+        })
+
+        # Normalisasi nama provinsi
+        clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+        
+        # Mengganti nama provinsi yang tidak konsisten
+        gdf['Province'] = gdf['Province'].replace({
+            'DI ACEH': 'ACEH',
+            'BANGKA BELITUNG': 'KEPULAUAN BANGKA BELITUNG',
+            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+            'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+        })
+
+        # Menghapus provinsi yang None (yaitu GORONTALO)
+        gdf = gdf[gdf['Province'].notna()]
+
+        # Menggabungkan data terkluster dengan GeoDataFrame
+        gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+        # Set warna untuk kluster
+        gdf['color'] = gdf['Cluster'].map({0: 'green', 1: 'yellow', 2: 'red'})
+        gdf['color'].fillna('grey', inplace=True)
+
+        # Plot peta
+        fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+        gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot batas
+        gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.6)  # Plot provinsi dengan warna
+
+        # Tambahkan judul dan label
+        plt.title('Peta Kluster Provinsi di Indonesia', fontsize=15)
+        plt.xlabel('Longitude', fontsize=12)
+        plt.ylabel('Latitude', fontsize=12)
+        st.pyplot(plt)
+
 # Fungsi untuk menghitung matriks biaya lokal DTW
 def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     num_provinces = data_df.shape[1]
@@ -148,23 +193,17 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
-        for j in range(i + 1, num_provinces):
-            dtw_distance = accumulated_cost_matrix[-1, i, j]
-            dtw_distance_matrix[i, j] = dtw_distance
-            dtw_distance_matrix[j, i] = dtw_distance
+        for j in range(num_provinces):
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Fungsi utama aplikasi
-def main():
-    st.title("Aplikasi Statistika Deskriptif dan Pemetaan")
-    page = st.sidebar.radio("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
+# Main application logic
+st.title("Aplikasi Streamlit untuk Klustering dan Pemetaan")
 
-    if page == "Statistika Deskriptif":
-        statistik_deskriptif()
-    elif page == "Pemetaan":
-        pemetaan()
+page = st.sidebar.radio("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
 
-if __name__ == "__main__":
-    main()
-    
+if page == "Statistika Deskriptif":
+    statistik_deskriptif()
+elif page == "Pemetaan":
+    pemetaan()
