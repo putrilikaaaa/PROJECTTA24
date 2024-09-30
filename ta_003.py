@@ -8,6 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
+import matplotlib.colors as mcolors
 
 # Function to upload CSV files
 def upload_csv_file(key=None):
@@ -24,6 +25,40 @@ def upload_csv_file(key=None):
 def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
+
+# Data Characteristics Page
+def karakteristik_data():
+    st.subheader("Karakteristik Data Rata-rata Harga")
+    data_df = upload_csv_file()
+
+    if data_df is not None:
+        # Convert 'Tanggal' column to datetime and set as index
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
+
+        # Allow user to select a date
+        selected_date = st.date_input("Pilih Tanggal", value=data_df.index.min())
+        selected_date = pd.to_datetime(selected_date)
+
+        if selected_date in data_df.index:
+            average_price = data_df.loc[selected_date].mean()
+            st.write(f"Rata-rata Harga pada {selected_date.date()}: {average_price:.2f}")
+
+            # Create a heatmap of average prices across provinces
+            plt.figure(figsize=(10, 6))
+            color_map = plt.get_cmap('coolwarm')  # Blue to red color map
+            normalized_prices = (data_df.loc[selected_date] - data_df.loc[selected_date].min()) / (data_df.loc[selected_date].max() - data_df.loc[selected_date].min())
+            colors = [color_map(val) for val in normalized_prices]
+
+            plt.bar(data_df.columns, data_df.loc[selected_date], color=colors)
+            plt.title(f'Rata-rata Harga per Provinsi pada {selected_date.date()}')
+            plt.xlabel('Provinsi')
+            plt.ylabel('Rata-rata Harga')
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            st.pyplot(plt)
+        else:
+            st.warning("Tanggal yang dipilih tidak terdapat dalam data.")
 
 # Descriptive Statistics Page
 def statistik_deskriptif():
@@ -173,70 +208,4 @@ def pemetaan():
 
             # Plot map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.6)  # Plot provinces with colors
-
-            # Add title and labels
-            plt.title('Peta Kluster Provinsi di Indonesia', fontsize=15)
-            plt.xlabel('Longitude', fontsize=12)
-            plt.ylabel('Latitude', fontsize=12)
-            st.pyplot(plt)
-        else:
-            st.warning("Silakan upload file GeoJSON.")
-
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_provinces = data_df.shape[1]
-    num_time_points = data_df.shape[0]
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            for t in range(num_time_points):
-                if i == j:
-                    local_cost_matrix[t, i, j] = 0
-                else:
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
-
-    return local_cost_matrix
-
-# Function to compute accumulated cost matrix
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
-
-    for t in range(1, num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                min_cost = min(accumulated_cost_matrix[t-1, i, k] for k in range(num_provinces)) + local_cost_matrix[t, i, j]
-                accumulated_cost_matrix[t, i, j] = min_cost
-
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
-
-    return dtw_distance_matrix
-
-# Streamlit main function
-def main():
-    st.title("Aplikasi Clustering dengan DTW dan Visualisasi Pemetaan")
-    menu = ["Statistika Deskriptif", "Pemetaan"]
-    choice = st.sidebar.selectbox("Pilih Menu", menu)
-
-    if choice == "Statistika Deskriptif":
-        statistik_deskriptif()
-    elif choice == "Pemetaan":
-        pemetaan()
-
-if __name__ == "__main__":
-    main()
+            gdf.boundary.plot(ax=ax, linewidth=1, color
