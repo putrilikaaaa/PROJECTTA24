@@ -110,6 +110,10 @@ def pemetaan():
         plt.grid(True)
         st.pyplot(plt)
 
+        # Menentukan jumlah kluster dengan silhouette score tertinggi
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+
         # Klustering dan dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method='complete')
@@ -121,8 +125,8 @@ def pemetaan():
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Tabel kluster provinsi
-        cluster_labels = AgglomerativeClustering(n_clusters=3, metric='precomputed', linkage='complete').fit_predict(dtw_distance_matrix_daily)
+        # Tabel kluster provinsi dengan optimal_n_clusters
+        cluster_labels = AgglomerativeClustering(n_clusters=optimal_n_clusters, metric='precomputed', linkage='complete').fit_predict(dtw_distance_matrix_daily)
         clustered_data = pd.DataFrame({
             'Province': data_daily_standardized.columns,
             'Cluster': cluster_labels
@@ -158,7 +162,7 @@ def pemetaan():
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             # Set warna untuk kluster
-            gdf['color'] = gdf['Cluster'].map({0: 'green', 1: 'yellow', 2: 'red'})
+            gdf['color'] = gdf['Cluster'].map({i: plt.cm.jet(i / optimal_n_clusters) for i in range(optimal_n_clusters)})
             gdf['color'].fillna('grey', inplace=True)
 
             # Menampilkan nama provinsi yang berwarna grey
@@ -190,16 +194,17 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                cost = np.square(data_df.iloc[:, i] - data_df.iloc[:, j])
-                local_cost_matrix[:, i, j] = cost
+            for t in range(num_time_points):
+                if i == j:
+                    local_cost_matrix[t, i, j] = 0
+                else:
+                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
 
     return local_cost_matrix
 
 # Fungsi untuk menghitung matriks biaya akumulatif
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points = local_cost_matrix.shape[0]
-    num_provinces = local_cost_matrix.shape[1]
+    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for i in range(num_provinces):
@@ -211,7 +216,7 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
                     if t == 0:
                         accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
                     else:
-                        accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(accumulated_cost_matrix[t - 1, i, j], accumulated_cost_matrix[t - 1, i, j])
+                        accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(accumulated_cost_matrix[t - 1, i, j], accumulated_cost_matrix[t - 1, j, j])
 
     return accumulated_cost_matrix
 
