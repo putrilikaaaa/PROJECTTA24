@@ -10,3 +10,6 @@ statsmodels
 scipy
 scikit-learn
 geopandas
+fastdtw
+shapely
+requests
