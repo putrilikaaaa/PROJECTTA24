@@ -1,68 +1,3 @@
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score
-from sklearn.cluster import AgglomerativeClustering
-from sklearn_extra.cluster import KMedoids  # Ensure you have sklearn-extra installed
-from scipy.cluster.hierarchy import dendrogram, linkage
-from scipy.spatial.distance import squareform
-import geopandas as gpd
-
-# Function to upload CSV files
-def upload_csv_file(key=None):
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"], key=key)
-    if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
-            return df
-        except Exception as e:
-            st.error(f"Error: {e}")
-    return None
-
-# Function to upload GeoJSON files
-def upload_geojson_file():
-    gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
-    return gdf
-
-# Descriptive Statistics Page
-def statistik_deskriptif():
-    st.subheader("Statistika Deskriptif")
-    data_df = upload_csv_file()
-
-    if data_df is not None:
-        st.write("Dataframe:")
-        st.write(data_df)
-
-        # Convert 'Tanggal' column to datetime and set as index
-        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-        data_df.set_index('Tanggal', inplace=True)
-
-        if data_df.isnull().any().any():
-            st.warning("Terdapat tanggal yang tidak valid, silakan periksa data Anda.")
-
-        # Dropdown for selecting province
-        selected_province = st.selectbox("Pilih Provinsi", options=data_df.columns.tolist())
-
-        if selected_province:
-            # Display descriptive statistics
-            st.subheader(f"Statistika Deskriptif untuk {selected_province}")
-            st.write(data_df[selected_province].describe())
-
-            # Display line chart
-            st.subheader(f"Line Chart untuk {selected_province}")
-            plt.figure(figsize=(12, 6))
-            plt.plot(data_df.index, data_df[selected_province], label=selected_province, color='blue')
-            plt.title(f"Line Chart - {selected_province}")
-            plt.xlabel('Tanggal')
-            plt.ylabel('Nilai')
-            plt.legend()
-            plt.xticks(rotation=45)
-            plt.tight_layout()
-            st.pyplot(plt)
-
-# Mapping Page
 def pemetaan():
     st.subheader("Pemetaan Clustering dengan DTW")
     data_df = upload_csv_file(key="pemetaan_upload")
@@ -90,16 +25,20 @@ def pemetaan():
         silhouette_scores = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
+            # Agglomerative Clustering
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='complete')
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
 
             # K-Medoids clustering
-            kmedoids = KMedoids(n_clusters=n_clusters, metric='precomputed')
-            kmedoids_labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
-            kmedoids_score = silhouette_score(dtw_distance_matrix_daily, kmedoids_labels, metric='precomputed')
-            silhouette_scores[f'KMedoids-{n_clusters}'] = kmedoids_score
+            try:
+                kmedoids = KMedoids(n_clusters=n_clusters, metric='precomputed')
+                kmedoids_labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
+                kmedoids_score = silhouette_score(dtw_distance_matrix_daily, kmedoids_labels, metric='precomputed')
+                silhouette_scores[f'KMedoids-{n_clusters}'] = kmedoids_score
+            except Exception as e:
+                st.warning(f"Error occurred while performing K-Medoids for {n_clusters} clusters: {e}")
 
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
@@ -112,9 +51,15 @@ def pemetaan():
         st.pyplot(plt)
 
         # Determine optimal number of clusters
-        optimal_n_clusters = max((k for k in silhouette_scores.keys() if k.startswith('KMedoids-')), key=silhouette_scores.get)
-        optimal_n_clusters_num = int(optimal_n_clusters.split('-')[1])
-        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score K-Medoids adalah: {optimal_n_clusters_num}")
+        optimal_n_clusters = None
+        try:
+            optimal_n_clusters = max((k for k in silhouette_scores.keys() if k.startswith('KMedoids-')), key=silhouette_scores.get)
+        except ValueError:
+            st.warning("Tidak ada hasil untuk K-Medoids. Memilih jumlah kluster berdasarkan Agglomerative Clustering.")
+            optimal_n_clusters = max(silhouette_scores.keys(), key=silhouette_scores.get)
+
+        optimal_n_clusters_num = int(optimal_n_clusters.split('-')[1]) if 'KMedoids-' in optimal_n_clusters else optimal_n_clusters
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters_num}")
 
         # Clustering and dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
@@ -191,53 +136,3 @@ def pemetaan():
             st.pyplot(plt)
         else:
             st.warning("Silakan upload file GeoJSON.")
-
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_provinces = data_df.shape[1]
-    num_time_points = data_df.shape[0]
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            for t in range(num_time_points):
-                if i == j:
-                    local_cost_matrix[t, i, j] = 0
-                else:
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
-
-    return local_cost_matrix
-
-# Function to compute accumulated cost matrix for DTW
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for t in range(1, num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + \
-                    min(accumulated_cost_matrix[t - 1, i, j],
-                        accumulated_cost_matrix[t - 1, j, i])  # symmetric
-
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix from accumulated cost matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
-
-    return dtw_distance_matrix
-
-# Sidebar for navigation
-st.sidebar.title("Navigasi")
-page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
-
-if page == "Statistika Deskriptif":
-    statistik_deskriptif()
-else:
-    pemetaan()
