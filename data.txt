@@ -1,10 +1,11 @@
 numpy==1.26.3
 streamlit==1.29.0
 streamlit-option-menu==0.3.6
-pandas
-matplotlib
-pyngrok
-linearmodels
-seaborn
-statsmodels
-scipy
+pandas==2.0.3  # Pastikan versi pandas sesuai dengan versi yang kompatibel
+matplotlib==3.7.2  # Versi stabil matplotlib
+pyngrok==5.1.0  # Versi terbaru untuk akses tunnel
+linearmodels==4.27  # Versi stabil untuk regresi panel
+seaborn==0.12.2  # Versi terbaru
+statsmodels==0.14.0  # Pastikan statsmodels juga terbaru
+scipy==1.11.2  # Versi terbaru yang kompatibel dengan numpy
+
