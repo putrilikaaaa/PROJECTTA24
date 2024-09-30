@@ -76,10 +76,6 @@ def pemetaan():
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
-        # Tampilkan keseluruhan data
-        st.write("Data keseluruhan:")
-        st.dataframe(data_df)
-
         # Menghitung rata-rata per hari
         data_daily = data_df.resample('D').mean()
 
@@ -95,7 +91,7 @@ def pemetaan():
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
 
         # Klustering dan perhitungan skor siluet untuk data harian
-        max_n_clusters = 10  # Ubah ke 10 untuk memeriksa hingga 10 kluster
+        max_n_clusters = 10
         silhouette_scores = {}
         
         for n_clusters in range(2, max_n_clusters + 1):
@@ -125,6 +121,17 @@ def pemetaan():
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
+        # Tabel kluster provinsi
+        cluster_labels = AgglomerativeClustering(n_clusters=3, metric='precomputed', linkage='complete').fit_predict(dtw_distance_matrix_daily)
+        clustered_data = pd.DataFrame({
+            'Province': data_daily_standardized.columns,
+            'Cluster': cluster_labels
+        })
+
+        # Tampilkan tabel cluster
+        st.subheader("Tabel Provinsi per Cluster")
+        st.write(clustered_data)
+
         # Upload GeoJSON file
         gdf = upload_geojson_file(key="geojson_upload")
         
@@ -133,12 +140,6 @@ def pemetaan():
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Menghitung kluster dari hasil klustering
-            clustered_data = pd.DataFrame({
-                'Province': data_daily_standardized.columns,
-                'Cluster': labels  # Use the labels from clustering
-            })
-
-            # Normalisasi nama provinsi
             clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
             
             # Mengganti nama provinsi yang tidak konsisten
@@ -178,12 +179,6 @@ def pemetaan():
             plt.xlabel('Longitude', fontsize=12)
             plt.ylabel('Latitude', fontsize=12)
             st.pyplot(plt)
-
-            # Tampilkan tabel cluster
-            st.subheader("Provinsi dalam Setiap Cluster")
-            cluster_table = clustered_data.groupby('Cluster')['Province'].apply(list).reset_index()
-            cluster_table.columns = ['Cluster', 'Provinsi']
-            st.dataframe(cluster_table)
         else:
             st.warning("Silakan upload file GeoJSON.")
 
@@ -207,17 +202,16 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_provinces = local_cost_matrix.shape[1]
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    accumulated_cost_matrix[0] = local_cost_matrix[0]
-
-    for t in range(1, num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                min_cost = min(
-                    accumulated_cost_matrix[t - 1, i, j], 
-                    accumulated_cost_matrix[t, i, j - 1], 
-                    accumulated_cost_matrix[t - 1, i, j - 1]
-                )
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i == j:
+                accumulated_cost_matrix[:, i, j] = 0
+            else:
+                for t in range(num_time_points):
+                    if t == 0:
+                        accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
+                    else:
+                        accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(accumulated_cost_matrix[t - 1, i, j], accumulated_cost_matrix[t - 1, i, j])
 
     return accumulated_cost_matrix
 
@@ -234,7 +228,9 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
 # Fungsi utama
 def main():
-    st.title("Aplikasi Clustering Provinsi di Indonesia")
+    st.title("Aplikasi Clustering dengan DTW")
+    
+    # Menu navigasi
     menu = ["Statistika Deskriptif", "Pemetaan"]
     choice = st.sidebar.selectbox("Pilih Halaman", menu)
 
