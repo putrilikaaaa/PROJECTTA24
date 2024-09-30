@@ -206,9 +206,9 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main Application
+# Halaman Utama
 def main():
-    st.title("Aplikasi Analisis Data Provinsi")
+    st.title("Aplikasi Clustering Provinsi")
     menu = ["Statistika Deskriptif", "Pemetaan"]
     choice = st.sidebar.selectbox("Pilih Halaman", menu)
 
