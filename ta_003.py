@@ -73,6 +73,9 @@ def pemetaan(data_df):
         # Calculate daily averages
         data_daily = data_df.resample('D').mean()
 
+        # Handle missing data by forward filling
+        data_daily.fillna(method='ffill', inplace=True)
+
         # Standardize daily data
         scaler = StandardScaler()
         data_daily_standardized = pd.DataFrame(scaler.fit_transform(data_daily), index=data_daily.index, columns=data_daily.columns)
@@ -201,11 +204,12 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     num_time_points = data_df.shape[0]
     local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for t in range(num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                if i != j:
-                    local_cost_matrix[t, i, j] = (data_df.iloc[t, i] - data_df.iloc[t, j]) ** 2
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i != j:
+                for t in range(num_time_points):
+                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+
     return local_cost_matrix
 
 # Function to compute accumulated cost matrix for DTW
@@ -213,19 +217,20 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for t in range(num_time_points):
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            accumulated_cost_matrix[0, i, j] = local_cost_matrix[0, i, j]
+
+    for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                elif i == 0 and j == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(accumulated_cost_matrix[t - 1, 0, 0], accumulated_cost_matrix[t - 1, 0, 1], accumulated_cost_matrix[t - 1, 1, 0])
-                else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                        accumulated_cost_matrix[t - 1, i, j],  # from top
-                        accumulated_cost_matrix[t - 1, i - 1, j],  # from top-left
-                        accumulated_cost_matrix[t - 1, i, j - 1]  # from left
-                    )
+                min_cost = np.min([
+                    accumulated_cost_matrix[t-1, i, j],
+                    accumulated_cost_matrix[t-1, i, (j+1) % num_provinces],
+                    accumulated_cost_matrix[t-1, (i+1) % num_provinces, j]
+                ])
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
+
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
@@ -236,17 +241,26 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
     for i in range(num_provinces):
         for j in range(num_provinces):
             dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+
     return dtw_distance_matrix
 
-# Sidebar options
-with st.sidebar:
-    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"],
-                            icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
+# Main App
+def main():
+    st.title("Aplikasi Clustering Data Harga")
 
-# Main application
-data_df = upload_csv_file()
+    # Sidebar menu
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                               icons=['bar-chart', 'map'], 
+                               menu_icon="cast", default_index=0)
 
-if selected == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
-elif selected == "Pemetaan":
-    pemetaan(data_df)
+    # Upload data
+    data_df = upload_csv_file()
+
+    if selected == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected == "Pemetaan":
+        pemetaan(data_df)
+
+if __name__ == "__main__":
+    main()
