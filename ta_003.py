@@ -7,6 +7,8 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
+import folium
+from folium import Choropleth
 from streamlit_option_menu import option_menu
 
 # Function to upload CSV files
@@ -195,14 +197,37 @@ def pemetaan(data_df):
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Table of provinces per cluster
+        # Create a map visualization
+        gdf = upload_geojson_file()
         cluster_labels = cluster_labels_dict[optimal_n_clusters]
-        clustered_data = pd.DataFrame({
-            'Province': data_daily_standardized.columns,
-            'Cluster': cluster_labels
-        })
+        cluster_labels_df = pd.DataFrame({'Province': data_daily_standardized.columns, 'Cluster': cluster_labels})
+        
+        # Merge the GeoDataFrame with the clustering results
+        gdf = gdf.merge(cluster_labels_df, left_on='properties.name', right_on='Province', how='left')
+
+        # Create a Folium map
+        m = folium.Map(location=[-5, 120], zoom_start=5)
+
+        # Add Choropleth layer to the map
+        Choropleth(
+            geo_data=gdf,
+            name='choropleth',
+            data=cluster_labels_df,
+            columns=['Province', 'Cluster'],
+            key_on='feature.properties.name',
+            fill_color='YlGn',
+            fill_opacity=0.7,
+            line_opacity=0.2,
+            legend_name='Cluster'
+        ).add_to(m)
+
+        folium.LayerControl().add_to(m)
+        st.subheader("Peta Kluster Provinsi")
+        st.markdown(m._repr_html_(), unsafe_allow_html=True)
+
+        # Show cluster results
         st.write("Daftar Provinsi per Kluster:")
-        st.write(clustered_data.groupby('Cluster')['Province'].apply(list))
+        st.write(cluster_labels_df.groupby('Cluster')['Province'].apply(list))
 
 # Main Streamlit app
 def main():
