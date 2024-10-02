@@ -8,6 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
+from streamlit_option_menu import option_menu
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -216,8 +217,11 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
                 if t == 0:
                     accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
                 else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i, j])
-
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                        accumulated_cost_matrix[t - 1, i, j],
+                        accumulated_cost_matrix[t - 1, i, (j - 1) % num_provinces],
+                        accumulated_cost_matrix[t - 1, (i - 1) % num_provinces, j]
+                    )
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
@@ -231,20 +235,27 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main Application
+# Main Function
 def main():
-    st.title("Analisis Clustering dan Statistika Deskriptif")
+    st.title("Aplikasi Clustering Provinsi di Indonesia")
 
-    # Sidebar menu
-    menu = ['Statistika Deskriptif', 'Pemetaan']
-    selected_page = st.sidebar.radio("Pilih Halaman", menu)
+    # Sidebar Menu
+    with st.sidebar:
+        selected = option_menu(
+            menu_title="Navigasi",
+            options=["Statistika Deskriptif", "Pemetaan"],
+            icons=["bar-chart", "map"],
+            menu_icon="cast",
+            default_index=0,
+            orientation="vertical",
+        )
 
-    # Upload CSV file
+    # Upload data
     data_df = upload_csv_file()
 
-    if selected_page == 'Statistika Deskriptif':
+    if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_page == 'Pemetaan':
+    elif selected == "Pemetaan":
         pemetaan(data_df)
 
 # Run the application
