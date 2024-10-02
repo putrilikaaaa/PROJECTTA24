@@ -41,18 +41,20 @@ def statistika_deskriptif(data_df):
         st.write("Statistika deskriptif data:")
         st.write(data_df.describe())
 
-        # Visualisasi data
-        if 'Tanggal' in data_df.columns:
+        # Dropdown untuk memilih provinsi
+        province_options = data_df.columns.tolist()  # Ambil nama kolom sebagai pilihan provinsi
+        selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
+
+        if selected_province:
+            # Visualisasi data untuk provinsi terpilih
+            st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
             data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
             data_df.set_index('Tanggal', inplace=True)
 
-            st.write("Rata-rata harga per tanggal:")
-            average_prices = data_df.mean(axis=1)
-
-            # Plot average prices
+            # Plot average prices for the selected province
             fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(average_prices.index, average_prices, label='Rata-rata Harga')
-            ax.set_title("Rata-rata Harga Harian")
+            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
+            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
             ax.set_xlabel("Tanggal")
             ax.set_ylabel("Harga")
             ax.legend()
@@ -206,10 +208,10 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 # Function to compute accumulated cost matrix
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+    accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
 
-    # Initialize the first time point
-    accumulated_cost_matrix[0] = local_cost_matrix[0]
+    for i in range(num_provinces):
+        accumulated_cost_matrix[0, i, :] = local_cost_matrix[0, i, :]
 
     for t in range(1, num_time_points):
         for i in range(num_provinces):
