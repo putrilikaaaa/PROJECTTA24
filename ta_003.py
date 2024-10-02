@@ -210,16 +210,17 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
 
-    for i in range(num_provinces):
-        accumulated_cost_matrix[0, i, :] = local_cost_matrix[0, i, :]
-
-    for t in range(1, num_time_points):
+    for t in range(num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],
-                    accumulated_cost_matrix[t - 1, j, i]
-                )
+                if t == 0:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
+                else:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                        accumulated_cost_matrix[t - 1, i, j],
+                        accumulated_cost_matrix[t - 1, i, (j - 1) % num_provinces],
+                        accumulated_cost_matrix[t - 1, (i - 1) % num_provinces, j]
+                    )
 
     return accumulated_cost_matrix
 
@@ -234,31 +235,17 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main App
-def main():
-    st.title("Aplikasi Pemetaan Clustering dan Statistika Deskriptif")
-    
-    # Create a sidebar with a custom layout
-    st.sidebar.markdown("<h2 style='text-align: left;'>Main Menu</h2>", unsafe_allow_html=True)
-    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"), index=0, key="page")
-    
-    # Custom button for Upload
-    if st.sidebar.button("Upload", key="upload"):
-        # Implement upload functionality here
-        st.sidebar.info("Upload functionality goes here.")
+# Main Streamlit App
+st.title("Aplikasi Clustering Provinsi di Indonesia")
 
-    # Other sidebar options
-    st.sidebar.markdown("<hr>", unsafe_allow_html=True)
-    st.sidebar.markdown("<h5>Tasks</h5>", unsafe_allow_html=True)
-    st.sidebar.markdown("<h5>Settings</h5>", unsafe_allow_html=True)
+# Sidebar for navigation
+selected_page = st.sidebar.radio("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
 
-    # Load data
-    data_df = upload_csv_file()
+# Upload data
+data_df = upload_csv_file()
 
-    if page == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif page == "Pemetaan":
-        pemetaan(data_df)
-
-if __name__ == "__main__":
-    main()
+# Call appropriate page function
+if selected_page == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected_page == "Pemetaan":
+    pemetaan(data_df)
