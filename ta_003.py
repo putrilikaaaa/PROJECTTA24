@@ -1,34 +1,68 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
-from scipy.cluster.hierarchy import linkage, dendrogram
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
-import json
+from streamlit_option_menu import option_menu  # Import option_menu
 
+# Function to upload CSV files
+def upload_csv_file():
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)
+            return df
+        except Exception as e:
+            st.error(f"Error: {e}")
+    return None
+
+# Function to upload GeoJSON files
 def upload_geojson_file():
-    geojson_file = '/content/indonesia-prov.geojson'
-    return gpd.read_file(geojson_file)
+    gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
+    return gdf
 
-def compute_local_cost_matrix(data):
-    # Implement your DTW local cost matrix computation
-    pass
+# Ensure DTW distance matrix is symmetric
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
 
-def compute_accumulated_cost_matrix(local_cost_matrix):
-    # Implement your DTW accumulated cost matrix computation
-    pass
+# Statistika Deskriptif Page
+def statistika_deskriptif(data_df):
+    st.subheader("Statistika Deskriptif")
 
-def compute_dtw_distance_matrix(accumulated_cost_matrix):
-    # Implement your DTW distance matrix computation
-    pass
+    if data_df is not None:
+        st.write("Data yang diunggah:")
+        st.write(data_df)
 
-def symmetrize(dtw_distance_matrix):
-    # Implement your symmetrization of the distance matrix
-    pass
+        # Statistika deskriptif
+        st.write("Statistika deskriptif data:")
+        st.write(data_df.describe())
 
+        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
+        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
+        selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
+
+        if selected_province:
+            # Visualisasi data untuk provinsi terpilih
+            st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
+            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+            data_df.set_index('Tanggal', inplace=True)
+
+            # Plot average prices for the selected province
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
+            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
+            ax.set_xlabel("Tanggal")
+            ax.set_ylabel("Harga")
+            ax.legend()
+
+            st.pyplot(fig)
+
+# Pemetaan Page
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
 
@@ -76,13 +110,13 @@ def pemetaan(data_df):
         plt.grid(True)
         st.pyplot(plt)
 
-        # Determine optimal number of clusters and highest silhouette score
+        # Determine optimal number of clusters
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        highest_silhouette_score = silhouette_scores[optimal_n_clusters]
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
         # Display the highest silhouette score below the plot
-        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
-        st.write(f"Silhouette Score tertinggi adalah: {highest_silhouette_score:.4f}")
+        highest_score = silhouette_scores[optimal_n_clusters]
+        st.write(f"Silhouette Score tertinggi: {highest_score:.4f}")
 
         # Clustering and dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
@@ -160,21 +194,65 @@ def pemetaan(data_df):
         else:
             st.warning("Silakan upload file GeoJSON.")
 
-# Main function to run the Streamlit app
-def main():
-    st.title("Aplikasi Clustering dan Pemetaan")
-    
-    # Upload data
-    uploaded_file = st.file_uploader("Upload Data", type=['csv', 'xlsx'])
-    
-    if uploaded_file is not None:
-        if uploaded_file.name.endswith('csv'):
-            data_df = pd.read_csv(uploaded_file)
-        else:
-            data_df = pd.read_excel(uploaded_file)
+# Function to compute local cost matrix for DTW
+def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
+    num_provinces = data_df.shape[1]
+    num_time_points = data_df.shape[0]
+    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-        # Call pemetaan function
-        pemetaan(data_df)
+    for t in range(num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                if i != j:
+                    local_cost_matrix[t, i, j] = (data_df.iloc[t, i] - data_df.iloc[t, j]) ** 2
+
+    return local_cost_matrix
+
+# Function to compute accumulated cost matrix for DTW
+def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
+    num_time_points, num_provinces, _ = local_cost_matrix.shape
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                    accumulated_cost_matrix[t - 1, i, j],  # from above
+                    accumulated_cost_matrix[t - 1, i, j],  # from left
+                    accumulated_cost_matrix[t - 1, i, j]   # from diagonal
+                )
+
+    return accumulated_cost_matrix
+
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
+    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
+    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+
+    return dtw_distance_matrix
+
+# Main app
+def main():
+    st.title("Aplikasi Clustering dengan DTW dan Visualisasi")
+    data_df = upload_csv_file()
+
+    if data_df is not None:
+        # Sidebar options for different pages
+        with st.sidebar:
+            selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                                           icons=["bar-chart-line", "map"], 
+                                           menu_icon="cast", default_index=0)
+
+        if selected_option == "Statistika Deskriptif":
+            statistika_deskriptif(data_df)
+        elif selected_option == "Pemetaan":
+            pemetaan(data_df)
+    else:
+        st.warning("Silakan unggah file CSV.")
 
 if __name__ == "__main__":
     main()
