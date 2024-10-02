@@ -29,6 +29,37 @@ def upload_geojson_file():
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
+# Statistika Deskriptif Page
+def statistika_deskriptif():
+    st.subheader("Statistika Deskriptif")
+    data_df = upload_csv_file(key="statistika_upload")
+    
+    if data_df is not None:
+        st.write("Data yang diunggah:")
+        st.write(data_df)
+
+        # Statistika deskriptif
+        st.write("Statistika deskriptif data:")
+        st.write(data_df.describe())
+
+        # Visualisasi data
+        if 'Tanggal' in data_df.columns:
+            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+            data_df.set_index('Tanggal', inplace=True)
+
+            st.write("Rata-rata harga per tanggal:")
+            average_prices = data_df.mean(axis=1)
+
+            # Plot average prices
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(average_prices.index, average_prices, label='Rata-rata Harga')
+            ax.set_title("Rata-rata Harga Harian")
+            ax.set_xlabel("Tanggal")
+            ax.set_ylabel("Harga")
+            ax.legend()
+
+            st.pyplot(fig)
+
 # Pemetaan Page
 def pemetaan():
     st.subheader("Pemetaan Clustering dengan DTW")
@@ -176,17 +207,15 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 
 # Function to compute accumulated cost matrix
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
+    num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
 
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                min_cost = min(accumulated_cost_matrix[t-1, i, k] for k in range(num_provinces)) + local_cost_matrix[t, i, j]
-                accumulated_cost_matrix[t, i, j] = min_cost
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + np.min(
+                    [accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i-1, j], accumulated_cost_matrix[t-1, i, j-1]]
+                )
 
     return accumulated_cost_matrix
 
@@ -201,9 +230,12 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Streamlit main function
+# Main function
 def main():
-    st.title("Aplikasi Pemetaan dan Clustering")
+    st.title("Aplikasi Statistika Deskriptif dan Pemetaan Clustering")
+
+    # Display both pages: Statistika Deskriptif and Pemetaan
+    statistika_deskriptif()
     pemetaan()
 
 if __name__ == "__main__":
