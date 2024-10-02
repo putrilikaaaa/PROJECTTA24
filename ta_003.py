@@ -41,8 +41,8 @@ def statistika_deskriptif(data_df):
         st.write("Statistika deskriptif data:")
         st.write(data_df.describe())
 
-        # Dropdown untuk memilih provinsi
-        province_options = data_df.columns.tolist()  # Ambil nama kolom sebagai pilihan provinsi
+        # Dropdown untuk memilih provinsi, mengecualikan kolom 'Tanggal'
+        province_options = data_df.columns[data_df.columns != 'Tanggal'].tolist()  # Ambil nama kolom provinsi kecuali 'Tanggal'
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
         if selected_province:
@@ -205,50 +205,53 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 
     return local_cost_matrix
 
-# Function to compute accumulated cost matrix
+# Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
+    num_time_points = local_cost_matrix.shape[0]
+    num_provinces = local_cost_matrix.shape[1]
 
-    for i in range(num_provinces):
-        accumulated_cost_matrix[0, i, :] = local_cost_matrix[0, i, :]
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+    accumulated_cost_matrix[0] = local_cost_matrix[0]
 
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
                 accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],  # Cost from the same province
-                    accumulated_cost_matrix[t - 1, i, :].min(),  # Cost from all provinces
-                    accumulated_cost_matrix[t - 1, :, j].min()   # Cost to all provinces
+                    accumulated_cost_matrix[t - 1, i, j],
+                    accumulated_cost_matrix[t - 1, i - 1, j] if i > 0 else np.inf,
+                    accumulated_cost_matrix[t - 1, i, j - 1] if j > 0 else np.inf
                 )
 
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
+    num_time_points = accumulated_cost_matrix.shape[0]
     num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]  # Get the last time point cost
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Main function to run the Streamlit app
+# Main application
 def main():
-    st.title("Aplikasi Analisis Data Clustering dengan DTW")
+    st.title("Aplikasi Klustering dan Statistika Deskriptif")
 
-    # Upload Data
+    # Upload data CSV
     data_df = upload_csv_file()
 
-    # Show pages
-    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
-    
-    if page == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif page == "Pemetaan":
-        pemetaan(data_df)
+    if data_df is not None:
+        # Sidebar Navigation
+        pages = {
+            "Statistika Deskriptif": statistika_deskriptif,
+            "Pemetaan": pemetaan
+        }
+
+        page = st.sidebar.selectbox("Pilih Halaman", options=list(pages.keys()))
+        pages[page](data_df)
 
 if __name__ == "__main__":
     main()
