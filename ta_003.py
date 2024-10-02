@@ -32,7 +32,7 @@ def symmetrize(matrix):
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
-    
+
     if data_df is not None:
         st.write("Data yang diunggah:")
         st.write(data_df)
@@ -193,9 +193,9 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     num_time_points = data_df.shape[0]
     local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            for t in range(num_time_points):
+    for t in range(num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
                 if i == j:
                     local_cost_matrix[t, i, j] = 0
                 else:
@@ -208,12 +208,16 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
+    # Initialize the first time point
+    accumulated_cost_matrix[0] = local_cost_matrix[0]
+
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
                 accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],  # Same province
-                    accumulated_cost_matrix[t - 1, i, :]  # Other provinces
+                    accumulated_cost_matrix[t - 1, i, j],  # Cost from the same province
+                    accumulated_cost_matrix[t - 1, i, :].min(),  # Cost from all provinces
+                    accumulated_cost_matrix[t - 1, :, j].min()   # Cost to all provinces
                 )
 
     return accumulated_cost_matrix
@@ -225,22 +229,20 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]  # Get the last time point cost
 
     return dtw_distance_matrix
 
-# Main function to control page navigation
+# Main function to run the Streamlit app
 def main():
-    st.title("Aplikasi Clustering dan Visualisasi Data")
+    st.title("Aplikasi Analisis Data Clustering dengan DTW")
 
-    # Upload data file once
+    # Upload Data
     data_df = upload_csv_file()
 
-    # Sidebar for navigation
-    st.sidebar.title("Navigasi")
-    page = st.sidebar.radio("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
-
-    # Show the selected page
+    # Show pages
+    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+    
     if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
     elif page == "Pemetaan":
