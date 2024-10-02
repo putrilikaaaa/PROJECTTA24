@@ -10,8 +10,8 @@ from scipy.spatial.distance import squareform
 import geopandas as gpd
 
 # Function to upload CSV files
-def upload_csv_file(key=None):
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"], key=key)
+def upload_csv_file():
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
     if uploaded_file is not None:
         try:
             df = pd.read_csv(uploaded_file)
@@ -206,15 +206,14 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 # Function to compute accumulated cost matrix
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces))
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for t in range(num_time_points):
-        for j in range(num_provinces):
-            if t == 0:
-                accumulated_cost_matrix[t, j] = local_cost_matrix[t, j, j]
-            else:
-                accumulated_cost_matrix[t, j] = local_cost_matrix[t, j, j] + min(
-                    accumulated_cost_matrix[t - 1, :].tolist()
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                    accumulated_cost_matrix[t - 1, i, j],  # Same province
+                    accumulated_cost_matrix[t - 1, i, :]  # Other provinces
                 )
 
     return accumulated_cost_matrix
@@ -226,20 +225,22 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i] + accumulated_cost_matrix[-1, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Main Streamlit app
+# Main function to control page navigation
 def main():
-    st.title("Aplikasi Clustering Provinsi di Indonesia")
+    st.title("Aplikasi Clustering dan Visualisasi Data")
 
-    # Upload data CSV file
+    # Upload data file once
     data_df = upload_csv_file()
 
-    # Navigation
-    page = st.sidebar.radio("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+    # Sidebar for navigation
+    st.sidebar.title("Navigasi")
+    page = st.sidebar.radio("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
 
+    # Show the selected page
     if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
     elif page == "Pemetaan":
