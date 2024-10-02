@@ -12,3 +12,4 @@ scikit-learn
 geopandas
 scikit-learn-extra
 kmedoids
+fastdtw
