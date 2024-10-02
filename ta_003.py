@@ -30,38 +30,35 @@ def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
-def statistika_deskriptif(data_df):
+def statistika_deskriptif():
     st.subheader("Statistika Deskriptif")
-
+    data_df = upload_csv_file(key="statistika_upload")
+    
     if data_df is not None:
         st.write("Data yang diunggah:")
         st.write(data_df)
 
-        # Dropdown for selecting province
-        province = st.selectbox("Pilih Provinsi:", data_df.columns)
+        # Statistika deskriptif
+        st.write("Statistika deskriptif data:")
+        st.write(data_df.describe())
 
-        if province:
-            # Statistika deskriptif
-            st.write("Statistika deskriptif untuk provinsi:", province)
-            st.write(data_df[province].describe())
+        # Visualisasi data
+        if 'Tanggal' in data_df.columns:
+            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+            data_df.set_index('Tanggal', inplace=True)
 
-            # Visualisasi data
-            if 'Tanggal' in data_df.columns:
-                data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-                data_df.set_index('Tanggal', inplace=True)
+            st.write("Rata-rata harga per tanggal:")
+            average_prices = data_df.mean(axis=1)
 
-                st.write("Rata-rata harga per tanggal:")
-                average_prices = data_df[province].resample('D').mean()
+            # Plot average prices
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(average_prices.index, average_prices, label='Rata-rata Harga')
+            ax.set_title("Rata-rata Harga Harian")
+            ax.set_xlabel("Tanggal")
+            ax.set_ylabel("Harga")
+            ax.legend()
 
-                # Plot average prices
-                fig, ax = plt.subplots(figsize=(10, 5))
-                ax.plot(average_prices.index, average_prices, label='Rata-rata Harga')
-                ax.set_title(f"Rata-rata Harga Harian - {province}")
-                ax.set_xlabel("Tanggal")
-                ax.set_ylabel("Harga")
-                ax.legend()
-
-                st.pyplot(fig)
+            st.pyplot(fig)
 
 # Pemetaan Page
 def pemetaan():
@@ -216,10 +213,8 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],
-                    accumulated_cost_matrix[t - 1, i, j],
-                    accumulated_cost_matrix[t - 1, j, j]
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + np.min(
+                    [accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i-1, j], accumulated_cost_matrix[t-1, i, j-1]]
                 )
 
     return accumulated_cost_matrix
@@ -235,21 +230,13 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main function to run the Streamlit app
+# Main function
 def main():
-    st.title("Aplikasi Clustering dengan DTW")
+    st.title("Aplikasi Statistika Deskriptif dan Pemetaan Clustering")
 
-    # Select page
-    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
-
-    # Load the uploaded data
-    data_df = upload_csv_file()
-
-    # Render selected page
-    if page == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif page == "Pemetaan":
-        pemetaan()
+    # Display both pages: Statistika Deskriptif and Pemetaan
+    statistika_deskriptif()
+    pemetaan()
 
 if __name__ == "__main__":
     main()
