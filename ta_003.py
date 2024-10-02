@@ -37,65 +37,30 @@ def statistika_deskriptif(data_df):
         st.write("Data yang diunggah:")
         st.write(data_df)
 
-        # Pastikan kolom 'Tanggal' ada dan dalam format datetime
-        if 'Tanggal' in data_df.columns:
+        # Statistika deskriptif
+        st.write("Statistika deskriptif data:")
+        st.write(data_df.describe())
+
+        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
+        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
+        selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
+
+        if selected_province:
+            # Visualisasi data untuk provinsi terpilih
+            st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
             data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-            # Hapus baris dengan nilai 'Tanggal' yang tidak valid
-            data_df = data_df.dropna(subset=['Tanggal'])
+            data_df.set_index('Tanggal', inplace=True)
 
-            # Periksa apakah ada nilai 'Tanggal' setelah pembersihan
-            if not data_df['Tanggal'].empty:
-                st.write("Statistika deskriptif data:")
-                st.write(data_df.describe())
+            # Plot average prices for the selected province
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
+            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
+            ax.set_xlabel("Tanggal")
+            ax.set_ylabel("Harga")
+            ax.legend()
 
-                # Pilih tanggal menggunakan kalender
-                selected_date = st.date_input("Pilih Tanggal", 
-                                               min_value=data_df['Tanggal'].min().date(), 
-                                               max_value=data_df['Tanggal'].max().date())
+            st.pyplot(fig)
 
-                # Filter data untuk tanggal yang dipilih
-                selected_data = data_df[data_df['Tanggal'] == pd.to_datetime(selected_date)]
-
-                if not selected_data.empty:
-                    st.write(f"Data pada tanggal: {selected_date}")
-                    st.write(selected_data)
-
-                    # Peta yang menunjukkan nilai setiap provinsi berdasarkan tanggal yang dipilih
-                    gdf = upload_geojson_file()
-                    if gdf is not None:
-                        gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
-                        gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-                        # Rename inconsistent provinces
-                        gdf['Province'] = gdf['Province'].replace({
-                            'DI ACEH': 'ACEH',
-                            'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                            'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-                        })
-
-                        # Remove provinces that are None (i.e., GORONTALO)
-                        gdf = gdf[gdf['Province'].notna()]
-
-                        # Merge selected data with GeoDataFrame
-                        selected_data_melt = pd.melt(selected_data, id_vars=['Tanggal'], var_name='Province', value_name='Value')
-                        gdf = gdf.merge(selected_data_melt, on='Province', how='left')
-
-                        # Plot map with color gradient (light pink to red)
-                        fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-                        gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-
-                        gdf.plot(ax=ax, column='Value', cmap='Reds', edgecolor='black', legend=True, alpha=0.7)
-                        plt.title(f"Peta Provinsi Berdasarkan Nilai pada Tanggal {selected_date}")
-                        st.pyplot(fig)
-                else:
-                    st.write(f"Tidak ada data untuk tanggal {selected_date}")
-            else:
-                st.error("Tidak ada data yang valid di kolom 'Tanggal'.")
-        else:
-            st.error("Kolom 'Tanggal' tidak ditemukan dalam data yang diunggah.")
-            
 # Pemetaan Page
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
@@ -209,44 +174,82 @@ def pemetaan(data_df):
                 0: 'red',
                 1: 'yellow',
                 2: 'green',
+                3: 'blue',
+                4: 'purple',
+                5: 'orange',
+                6: 'pink',
+                7: 'brown',
+                8: 'cyan',
+                9: 'magenta'
             })
+            gdf['color'].fillna('grey', inplace=True)
+
+            # Display provinces colored grey
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
 
             # Plot map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], legend=True, alpha=0.7)
-            plt.title(f"Peta Clustering Provinsi - Linkage: {linkage_method.capitalize()}")
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
+            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
             st.pyplot(fig)
 
-# Sidebar
-def sidebar():
-    selected_page = option_menu(
-        "Menu", ["Statistika Deskriptif", "Pemetaan"],
-        icons=["bar-chart", "map"],
-        menu_icon="cast", default_index=0, orientation="horizontal",
-        styles={
-            "container": {"padding": "5px", "background-color": "#fafafa"},
-            "icon": {"color": "black", "font-size": "25px"},
-            "nav-link": {"font-size": "20px", "text-align": "center", "margin": "0px", "--hover-color": "#eee"},
-            "nav-link-selected": {"background-color": "#ff4b4b"},
-        }
-    )
-    return selected_page
+# Function to compute local cost matrix for DTW
+def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
+    num_time_points, num_provinces = data_df.shape
+    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-# Main Function
-def main():
-    st.title("Analisis Data dengan Clustering DTW dan Statistika Deskriptif")
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i != j:
+                for t in range(num_time_points):
+                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
 
-    # Upload data file
-    data_df = upload_csv_file()
+    return local_cost_matrix
 
-    # Select page from sidebar
-    selected_page = sidebar()
+# Function to compute accumulated cost matrix for DTW
+def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
+    num_time_points, num_provinces, _ = local_cost_matrix.shape
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    if selected_page == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected_page == "Pemetaan":
-        pemetaan(data_df)
+    for i in range(num_provinces):
+        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
 
-if __name__ == "__main__":
-    main()
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                    accumulated_cost_matrix[t - 1, i, j],
+                    accumulated_cost_matrix[t - 1, j, i],
+                    accumulated_cost_matrix[t - 1, i, i]
+                )
+
+    return accumulated_cost_matrix
+
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
+    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
+    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[num_time_points - 1, i, j]
+
+    return dtw_distance_matrix
+
+# Streamlit App
+st.title("Aplikasi Clustering Provinsi")
+with st.sidebar:
+    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["bar-chart", "map"], default_index=0)
+
+data_df = upload_csv_file()
+
+if selected == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected == "Pemetaan":
+    pemetaan(data_df)
