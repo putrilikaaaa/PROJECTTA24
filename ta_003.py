@@ -8,7 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
-from streamlit_option_menu import option_menu  # Import the option menu
+from streamlit_option_menu import option_menu
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -25,10 +25,6 @@ def upload_csv_file():
 def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
-
-# Ensure DTW distance matrix is symmetric
-def symmetrize(matrix):
-    return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -231,6 +227,10 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
                 dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
+
+# Function to ensure symmetric distance matrix
+def symmetrize(distance_matrix: np.array) -> np.array:
+    return (distance_matrix + distance_matrix.T) / 2
 
 # Main function to run the app
 def main():
