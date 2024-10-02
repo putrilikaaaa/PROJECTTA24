@@ -169,8 +169,8 @@ def pemetaan(data_df):
             # Merge clustered data with GeoDataFrame
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Modify color mapping to support up to 10 clusters with different colors
-            color_map = {
+            # Set colors for clusters
+            gdf['color'] = gdf['Cluster'].map({
                 0: 'red',
                 1: 'yellow',
                 2: 'green',
@@ -181,10 +181,7 @@ def pemetaan(data_df):
                 7: 'brown',
                 8: 'cyan',
                 9: 'magenta'
-            }
-
-            # Apply the color mapping based on cluster
-            gdf['color'] = gdf['Cluster'].map(color_map)
+            })
             gdf['color'].fillna('grey', inplace=True)
 
             # Display provinces colored grey
@@ -220,51 +217,39 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    accumulated_cost_matrix[0] = local_cost_matrix[0]
+    for i in range(num_provinces):
+        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
+
     for t in range(1, num_time_points):
-        accumulated_cost_matrix[t] = local_cost_matrix[t] + np.min([
-            np.roll(accumulated_cost_matrix[t-1], shift=1, axis=0),
-            np.roll(accumulated_cost_matrix[t-1], shift=-1, axis=0),
-            accumulated_cost_matrix[t-1]
-        ], axis=0)
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                    accumulated_cost_matrix[t - 1, i, j],
+                    accumulated_cost_matrix[t - 1, j, i],
+                    accumulated_cost_matrix[t - 1, i, i]
+                )
 
     return accumulated_cost_matrix
 
-# Function to compute DTW distance matrix for multiple time series
+# Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
-        for j in range(i+1, num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
-            dtw_distance_matrix[j, i] = dtw_distance_matrix[i, j]
+        for j in range(num_provinces):
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[num_time_points - 1, i, j]
 
     return dtw_distance_matrix
 
-# Main App
-def main():
-    st.title("Aplikasi Pemetaan Clustering dengan DTW")
+# Streamlit App
+st.title("Aplikasi Clustering Provinsi")
+with st.sidebar:
+    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["bar-chart", "map"], default_index=0)
 
-    # Sidebar
-    with st.sidebar:
-        selected_page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                    icons=["bar-chart-line", "map"], 
-                                    menu_icon="cast", 
-                                    default_index=0, 
-                                    styles={
-                                        "container": {"padding": "5px", "background-color": "#f0f2f6"},
-                                        "nav-link-selected": {"background-color": "red"},
-                                    })
+data_df = upload_csv_file()
 
-    # Upload CSV file (only upload once for both pages)
-    data_df = upload_csv_file()
-
-    # Page Navigation
-    if selected_page == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected_page == "Pemetaan":
-        pemetaan(data_df)
-
-if __name__ == "__main__":
-    main()
+if selected == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected == "Pemetaan":
+    pemetaan(data_df)
