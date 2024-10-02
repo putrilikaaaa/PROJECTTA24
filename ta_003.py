@@ -8,7 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
-from streamlit_option_menu import option_menu
+from streamlit_option_menu import option_menu  # Import the option menu
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -199,14 +199,12 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     for t in range(num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                if i == j:
-                    local_cost_matrix[t, i, j] = 0
-                else:
+                if i != j:
                     local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
 
     return local_cost_matrix
 
-# Function to compute accumulated cost matrix
+# Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
@@ -217,11 +215,9 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
                 if t == 0:
                     accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
                 else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                        accumulated_cost_matrix[t - 1, i, j],
-                        accumulated_cost_matrix[t - 1, i, (j - 1) % num_provinces],
-                        accumulated_cost_matrix[t - 1, (i - 1) % num_provinces, j]
-                    )
+                    min_cost = np.min([accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, j, i]])
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
+
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
@@ -231,33 +227,33 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            if i != j:
+                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Main Function
+# Main function to run the app
 def main():
-    st.title("Aplikasi Clustering Provinsi di Indonesia")
+    st.title("Aplikasi Clustering dengan DTW")
 
-    # Sidebar Menu
-    with st.sidebar:
-        selected = option_menu(
-            menu_title="Navigasi",
-            options=["Statistika Deskriptif", "Pemetaan"],
-            icons=["bar-chart", "map"],
-            menu_icon="cast",
-            default_index=0,
-            orientation="vertical",
-        )
-
-    # Upload data
+    # Upload data file only once
     data_df = upload_csv_file()
 
-    if selected == "Statistika Deskriptif":
+    # Option menu for selecting pages
+    with st.sidebar:
+        selected_page = option_menu(
+            menu_title="Menu",
+            options=["Statistika Deskriptif", "Pemetaan"],
+            icons=["file-earmark-text", "map"],
+            menu_icon="cast",
+            default_index=0
+        )
+
+    # Display selected page
+    if selected_page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected == "Pemetaan":
+    elif selected_page == "Pemetaan":
         pemetaan(data_df)
 
-# Run the application
 if __name__ == "__main__":
     main()
