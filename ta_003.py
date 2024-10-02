@@ -216,11 +216,7 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
                 if t == 0:
                     accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
                 else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                        accumulated_cost_matrix[t - 1, i, j],
-                        accumulated_cost_matrix[t - 1, j, i],
-                        accumulated_cost_matrix[t - 1, i, i],
-                    )
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i, j])
 
     return accumulated_cost_matrix
 
@@ -235,18 +231,22 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main App
+# Main Application
 def main():
-    st.title("Aplikasi Pemetaan Clustering dan Statistika Deskriptif")
+    st.title("Analisis Clustering dan Statistika Deskriptif")
+
+    # Sidebar menu
+    menu = ['Statistika Deskriptif', 'Pemetaan']
+    selected_page = st.sidebar.radio("Pilih Halaman", menu)
+
+    # Upload CSV file
     data_df = upload_csv_file()
 
-    # Menu selection for pages
-    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
-
-    if page == "Statistika Deskriptif":
+    if selected_page == 'Statistika Deskriptif':
         statistika_deskriptif(data_df)
-    elif page == "Pemetaan":
+    elif selected_page == 'Pemetaan':
         pemetaan(data_df)
 
+# Run the application
 if __name__ == "__main__":
     main()
