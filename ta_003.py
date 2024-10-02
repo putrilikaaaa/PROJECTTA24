@@ -10,8 +10,8 @@ from scipy.spatial.distance import squareform
 import geopandas as gpd
 
 # Function to upload CSV files
-def upload_csv_file():
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
+def upload_csv_file(key=None):
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"], key=key)
     if uploaded_file is not None:
         try:
             df = pd.read_csv(uploaded_file)
@@ -37,30 +37,36 @@ def statistika_deskriptif(data_df):
         st.write("Data yang diunggah:")
         st.write(data_df)
 
-        # Statistika deskriptif
-        st.write("Statistika deskriptif data:")
-        st.write(data_df.describe())
-
         # Dropdown for selecting province
-        province_selection = st.selectbox("Pilih Provinsi", options=data_df.columns)
+        province = st.selectbox("Pilih Provinsi:", data_df.columns)
 
-        # Visualisasi data for the selected province
-        st.write(f"Rata-rata harga untuk provinsi {province_selection}:")
-        average_prices = data_df[province_selection].mean()
+        if province:
+            # Statistika deskriptif
+            st.write("Statistika deskriptif untuk provinsi:", province)
+            st.write(data_df[province].describe())
 
-        # Plot average prices
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.plot(data_df.index, data_df[province_selection], label=province_selection)
-        ax.set_title(f"Rata-rata Harga Harian - {province_selection}")
-        ax.set_xlabel("Tanggal")
-        ax.set_ylabel("Harga")
-        ax.legend()
+            # Visualisasi data
+            if 'Tanggal' in data_df.columns:
+                data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+                data_df.set_index('Tanggal', inplace=True)
 
-        st.pyplot(fig)
+                st.write("Rata-rata harga per tanggal:")
+                average_prices = data_df[province].resample('D').mean()
+
+                # Plot average prices
+                fig, ax = plt.subplots(figsize=(10, 5))
+                ax.plot(average_prices.index, average_prices, label='Rata-rata Harga')
+                ax.set_title(f"Rata-rata Harga Harian - {province}")
+                ax.set_xlabel("Tanggal")
+                ax.set_ylabel("Harga")
+                ax.legend()
+
+                st.pyplot(fig)
 
 # Pemetaan Page
-def pemetaan(data_df):
+def pemetaan():
     st.subheader("Pemetaan Clustering dengan DTW")
+    data_df = upload_csv_file(key="pemetaan_upload")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -212,15 +218,15 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
             for j in range(num_provinces):
                 accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
                     accumulated_cost_matrix[t - 1, i, j],
-                    accumulated_cost_matrix[t - 1, i, j] + local_cost_matrix[t, i, j],
-                    accumulated_cost_matrix[t - 1, j, i] + local_cost_matrix[t, j, i]
+                    accumulated_cost_matrix[t - 1, i, j],
+                    accumulated_cost_matrix[t - 1, j, j]
                 )
 
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
+    num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
@@ -229,20 +235,21 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main function
+# Main function to run the Streamlit app
 def main():
-    st.title("Aplikasi Streamlit untuk Clustering Data Harian")
+    st.title("Aplikasi Clustering dengan DTW")
+
+    # Select page
+    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
+
+    # Load the uploaded data
     data_df = upload_csv_file()
 
-    if data_df is not None:
-        option = st.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
-
-        if option == "Statistika Deskriptif":
-            statistika_deskriptif(data_df)
-        elif option == "Pemetaan":
-            pemetaan(data_df)
-    else:
-        st.warning("Silakan unggah file CSV untuk melanjutkan.")
+    # Render selected page
+    if page == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif page == "Pemetaan":
+        pemetaan()
 
 if __name__ == "__main__":
     main()
