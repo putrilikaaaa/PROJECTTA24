@@ -103,6 +103,11 @@ def pemetaan(data_df):
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        
+        # Adding data labels to the silhouette score plot
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+        
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
@@ -113,10 +118,6 @@ def pemetaan(data_df):
         # Determine optimal number of clusters
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
-
-        # Display the highest silhouette score below the plot
-        highest_score = silhouette_scores[optimal_n_clusters]
-        st.write(f"Silhouette Score tertinggi: {highest_score:.4f}")
 
         # Clustering and dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
@@ -205,7 +206,6 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
             for j in range(num_provinces):
                 if i != j:
                     local_cost_matrix[t, i, j] = (data_df.iloc[t, i] - data_df.iloc[t, j]) ** 2
-
     return local_cost_matrix
 
 # Function to compute accumulated cost matrix for DTW
@@ -213,46 +213,40 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for t in range(1, num_time_points):
+    for t in range(num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],  # from above
-                    accumulated_cost_matrix[t - 1, i, j],  # from left
-                    accumulated_cost_matrix[t - 1, i, j]   # from diagonal
-                )
-
+                if t == 0:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
+                elif i == 0 and j == 0:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(accumulated_cost_matrix[t - 1, 0, 0], accumulated_cost_matrix[t - 1, 0, 1], accumulated_cost_matrix[t - 1, 1, 0])
+                else:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                        accumulated_cost_matrix[t - 1, i, j],  # from top
+                        accumulated_cost_matrix[t - 1, i - 1, j],  # from top-left
+                        accumulated_cost_matrix[t - 1, i, j - 1]  # from left
+                    )
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
+    num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
             dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
-
     return dtw_distance_matrix
 
-# Main app
-def main():
-    st.title("Aplikasi Clustering dengan DTW dan Visualisasi")
-    data_df = upload_csv_file()
+# Sidebar options
+with st.sidebar:
+    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"],
+                            icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
 
-    if data_df is not None:
-        # Sidebar options for different pages
-        with st.sidebar:
-            selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                           icons=["bar-chart-line", "map"], 
-                                           menu_icon="cast", default_index=0)
+# Main application
+data_df = upload_csv_file()
 
-        if selected_option == "Statistika Deskriptif":
-            statistika_deskriptif(data_df)
-        elif selected_option == "Pemetaan":
-            pemetaan(data_df)
-    else:
-        st.warning("Silakan unggah file CSV.")
-
-if __name__ == "__main__":
-    main()
+if selected == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected == "Pemetaan":
+    pemetaan(data_df)
