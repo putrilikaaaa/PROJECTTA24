@@ -210,22 +210,20 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    # Initialize the first row of the accumulated cost matrix
-    for i in range(num_provinces):
-        accumulated_cost_matrix[0, i, :] = local_cost_matrix[0, i, :]
-
-    # Fill the accumulated cost matrix
     for t in range(1, num_time_points):
-        for j in range(num_provinces):
-            for i in range(num_provinces):
-                min_cost = np.min(accumulated_cost_matrix[t - 1, :, j])
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
-
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                    accumulated_cost_matrix[t - 1, i, j],
+                    accumulated_cost_matrix[t - 1, j, i],
+                    accumulated_cost_matrix[t - 1, i, i],
+                    accumulated_cost_matrix[t - 1, j, j]
+                )
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
+    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
@@ -234,21 +232,19 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main application
+# Main function to run the Streamlit app
 def main():
-    st.title("Aplikasi Analisis Data")
+    st.title("Aplikasi Clustering dengan DTW dan Streamlit")
     
-    # Upload data file
-    data_df = upload_csv_file()
+    # Upload Data
+    data_df = upload_csv_file("data_upload")
 
-    # Create tabs for Statistika Deskriptif and Pemetaan
-    tab1, tab2 = st.tabs(["Statistika Deskriptif", "Pemetaan"])
-    
-    with tab1:
+    # Display the pages
+    if st.sidebar.button("Statistika Deskriptif"):
         statistika_deskriptif(data_df)
-
-    with tab2:
+    if st.sidebar.button("Pemetaan"):
         pemetaan(data_df)
 
+# Run the main function
 if __name__ == "__main__":
     main()
