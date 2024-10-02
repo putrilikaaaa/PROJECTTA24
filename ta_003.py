@@ -96,12 +96,14 @@ def pemetaan(data_df):
         # Clustering and silhouette score calculation for daily data
         max_n_clusters = 10
         silhouette_scores = {}
+        cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
+            cluster_labels_dict[n_clusters] = labels
 
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
@@ -134,7 +136,7 @@ def pemetaan(data_df):
         st.pyplot(plt)
 
         # Table of provinces per cluster
-        cluster_labels = AgglomerativeClustering(n_clusters=optimal_n_clusters, metric='precomputed', linkage=linkage_method).fit_predict(dtw_distance_matrix_daily)
+        cluster_labels = cluster_labels_dict[optimal_n_clusters]
         clustered_data = pd.DataFrame({
             'Province': data_daily_standardized.columns,
             'Cluster': cluster_labels
@@ -188,20 +190,13 @@ def pemetaan(data_df):
             # Plot map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.6)  # Plot provinces with colors
-
-            # Add title and labels
-            plt.title('Peta Kluster Provinsi di Indonesia', fontsize=15)
-            plt.xlabel('Longitude', fontsize=12)
-            plt.ylabel('Latitude', fontsize=12)
-            st.pyplot(plt)
-        else:
-            st.warning("Silakan upload file GeoJSON.")
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
+            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
+            st.pyplot(fig)
 
 # Function to compute local cost matrix for DTW
 def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_provinces = data_df.shape[1]
-    num_time_points = data_df.shape[0]
+    num_time_points, num_provinces = data_df.shape
     local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for i in range(num_provinces):
