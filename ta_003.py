@@ -37,54 +37,65 @@ def statistika_deskriptif(data_df):
         st.write("Data yang diunggah:")
         st.write(data_df)
 
-        # Statistika deskriptif
-        st.write("Statistika deskriptif data:")
-        st.write(data_df.describe())
+        # Pastikan kolom 'Tanggal' ada dan dalam format datetime
+        if 'Tanggal' in data_df.columns:
+            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+            # Hapus baris dengan nilai 'Tanggal' yang tidak valid
+            data_df = data_df.dropna(subset=['Tanggal'])
 
-        # Pilih tanggal menggunakan kalender
-        st.write("Pilih tanggal untuk melihat data:")
-        selected_date = st.date_input("Pilih Tanggal", min_value=data_df['Tanggal'].min(), max_value=data_df['Tanggal'].max())
+            # Periksa apakah ada nilai 'Tanggal' setelah pembersihan
+            if not data_df['Tanggal'].empty:
+                st.write("Statistika deskriptif data:")
+                st.write(data_df.describe())
 
-        # Filter data untuk tanggal yang dipilih
-        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-        selected_data = data_df[data_df['Tanggal'] == pd.to_datetime(selected_date)]
+                # Pilih tanggal menggunakan kalender
+                selected_date = st.date_input("Pilih Tanggal", 
+                                               min_value=data_df['Tanggal'].min().date(), 
+                                               max_value=data_df['Tanggal'].max().date())
 
-        if not selected_data.empty:
-            st.write(f"Data pada tanggal: {selected_date}")
-            st.write(selected_data)
+                # Filter data untuk tanggal yang dipilih
+                selected_data = data_df[data_df['Tanggal'] == pd.to_datetime(selected_date)]
 
-            # Peta yang menunjukkan nilai setiap provinsi berdasarkan tanggal yang dipilih
-            gdf = upload_geojson_file()
-            if gdf is not None:
-                gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
-                gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+                if not selected_data.empty:
+                    st.write(f"Data pada tanggal: {selected_date}")
+                    st.write(selected_data)
 
-                # Rename inconsistent provinces
-                gdf['Province'] = gdf['Province'].replace({
-                    'DI ACEH': 'ACEH',
-                    'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                    'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                    'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                    'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-                })
+                    # Peta yang menunjukkan nilai setiap provinsi berdasarkan tanggal yang dipilih
+                    gdf = upload_geojson_file()
+                    if gdf is not None:
+                        gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
+                        gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-                # Remove provinces that are None (i.e., GORONTALO)
-                gdf = gdf[gdf['Province'].notna()]
+                        # Rename inconsistent provinces
+                        gdf['Province'] = gdf['Province'].replace({
+                            'DI ACEH': 'ACEH',
+                            'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                            'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+                        })
 
-                # Merge selected data with GeoDataFrame
-                selected_data_melt = pd.melt(selected_data, id_vars=['Tanggal'], var_name='Province', value_name='Value')
-                gdf = gdf.merge(selected_data_melt, on='Province', how='left')
+                        # Remove provinces that are None (i.e., GORONTALO)
+                        gdf = gdf[gdf['Province'].notna()]
 
-                # Plot map with color gradient (light pink to red)
-                fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-                gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
+                        # Merge selected data with GeoDataFrame
+                        selected_data_melt = pd.melt(selected_data, id_vars=['Tanggal'], var_name='Province', value_name='Value')
+                        gdf = gdf.merge(selected_data_melt, on='Province', how='left')
 
-                gdf.plot(ax=ax, column='Value', cmap='Reds', edgecolor='black', legend=True, alpha=0.7)
-                plt.title(f"Peta Provinsi Berdasarkan Nilai pada Tanggal {selected_date}")
-                st.pyplot(fig)
+                        # Plot map with color gradient (light pink to red)
+                        fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+                        gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
+
+                        gdf.plot(ax=ax, column='Value', cmap='Reds', edgecolor='black', legend=True, alpha=0.7)
+                        plt.title(f"Peta Provinsi Berdasarkan Nilai pada Tanggal {selected_date}")
+                        st.pyplot(fig)
+                else:
+                    st.write(f"Tidak ada data untuk tanggal {selected_date}")
+            else:
+                st.error("Tidak ada data yang valid di kolom 'Tanggal'.")
         else:
-            st.write(f"Tidak ada data untuk tanggal {selected_date}")
-
+            st.error("Kolom 'Tanggal' tidak ditemukan dalam data yang diunggah.")
+            
 # Pemetaan Page
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
