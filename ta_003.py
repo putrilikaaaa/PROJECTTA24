@@ -41,8 +41,8 @@ def statistika_deskriptif(data_df):
         st.write("Statistika deskriptif data:")
         st.write(data_df.describe())
 
-        # Dropdown untuk memilih provinsi (tanpa 'Tanggal')
-        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Filter out 'Tanggal'
+        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
+        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
         if selected_province:
@@ -216,8 +216,11 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
                 if t == 0:
                     accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
                 else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + \
-                        min(accumulated_cost_matrix[t - 1, i, j], accumulated_cost_matrix[t - 1, j, i])
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                        accumulated_cost_matrix[t - 1, i, j],
+                        accumulated_cost_matrix[t - 1, j, i],
+                        accumulated_cost_matrix[t - 1, i, i],
+                    )
 
     return accumulated_cost_matrix
 
@@ -232,13 +235,13 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main Streamlit application
+# Main App
 def main():
-    st.title("Aplikasi Clustering dan Statistika Deskriptif")
+    st.title("Aplikasi Pemetaan Clustering dan Statistika Deskriptif")
     data_df = upload_csv_file()
 
-    # Sidebar for page selection
-    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+    # Menu selection for pages
+    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
 
     if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
