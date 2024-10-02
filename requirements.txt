@@ -13,3 +13,4 @@ geopandas
 scikit-learn-extra
 kmedoids
 fastdtw
+folium
