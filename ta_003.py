@@ -63,12 +63,19 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
         for i in range(num_provinces):
             for j in range(num_provinces):
                 if i == j:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + \
-                        min(accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i-1, j], accumulated_cost_matrix[t-1, i+1, j])
+                    # Check bounds for i-1 and i+1
+                    min_prev_accumulated = accumulated_cost_matrix[t-1, i, j]
+                    if i > 0:
+                        min_prev_accumulated = min(min_prev_accumulated, accumulated_cost_matrix[t-1, i-1, j])
+                    if i < num_provinces - 1:
+                        min_prev_accumulated = min(min_prev_accumulated, accumulated_cost_matrix[t-1, i+1, j])
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_prev_accumulated
                 else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                        accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i-1, j], accumulated_cost_matrix[t-1, i+1, j]
-                    )
+                    # Check bounds for i-1 and i+1
+                    min_prev_accumulated = min(accumulated_cost_matrix[t-1, i, j],
+                                               accumulated_cost_matrix[t-1, i-1, j] if i > 0 else np.inf,
+                                               accumulated_cost_matrix[t-1, i+1, j] if i < num_provinces - 1 else np.inf)
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_prev_accumulated
 
     return accumulated_cost_matrix
 
@@ -194,47 +201,27 @@ def pemetaan(data_df):
             'Province': data_daily_standardized.columns,
             'Cluster': cluster_labels
         })
+        st.write("Daftar Provinsi per Kluster:")
+        st.write(clustered_data.groupby('Cluster')['Province'].apply(list))
 
-        # Display cluster table
-        st.subheader("Tabel Provinsi per Cluster")
-        st.write(clustered_data)
+# Main Streamlit app
+def main():
+    st.title("Analisis Data Provinsi di Indonesia")
+    
+    # Sidebar navigation
+    with st.sidebar:
+        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                                       icons=["bar-chart", "map"], 
+                                       menu_icon="cast", default_index=0)
 
-        # Load GeoJSON file from GitHub
-        gdf = upload_geojson_file()
+    # Upload data
+    data_df = upload_csv_file()
 
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+    # Handle page selection
+    if selected_option == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected_option == "Pemetaan":
+        pemetaan(data_df)
 
-            # Calculate cluster from clustering results
-            clustered_data['Province'] = clustered_data['Province'].str.upper()
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
-
-            # Plotting clusters on the map
-            st.subheader("Peta Provinsi dengan Cluster")
-            fig, ax = plt.subplots(1, 1, figsize=(15, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color="black")
-
-            # Assign colors based on clusters
-            color_map = {0: 'red', 1: 'yellow', 2: 'green'}
-            gdf['Color'] = gdf['Cluster'].map(color_map)
-
-            # Plot provinces with their clusters
-            gdf.plot(column='Color', ax=ax, legend=True, missing_kwds={"color": "lightgrey"}, alpha=0.5)
-            plt.title("Peta Kluster Provinsi")
-            st.pyplot(fig)
-
-# Sidebar Navigation
-with st.sidebar:
-    selected_page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                 icons=["info", "map"], 
-                                 menu_icon="cast", 
-                                 default_index=0)
-
-# Main Application Logic
-data_df = upload_csv_file()
-
-if selected_page == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
-elif selected_page == "Pemetaan":
-    pemetaan(data_df)
+if __name__ == "__main__":
+    main()
