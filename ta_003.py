@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
@@ -29,6 +28,61 @@ def upload_geojson_file():
 # Ensure DTW distance matrix is symmetric
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
+
+# Standardization using the provided formulas
+def standardize(data_df: pd.DataFrame) -> pd.DataFrame:
+    n = len(data_df)
+    Z_bar = data_df.mean()
+    S_z = np.sqrt(((data_df - Z_bar) ** 2).mean())
+    standardized_data = (data_df - Z_bar) / S_z
+    return standardized_data
+
+# Function to compute local cost matrix for DTW
+def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
+    num_time_points, num_provinces = data_df.shape
+    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i != j:
+                for t in range(num_time_points):
+                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+
+    return local_cost_matrix
+
+# Function to compute accumulated cost matrix for DTW
+def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
+    num_time_points, num_provinces, _ = local_cost_matrix.shape
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            accumulated_cost_matrix[0, i, j] = local_cost_matrix[0, i, j]
+
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                if i == j:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + \
+                        min(accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i-1, j], accumulated_cost_matrix[t-1, i+1, j])
+                else:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                        accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i-1, j], accumulated_cost_matrix[t-1, i+1, j]
+                    )
+
+    return accumulated_cost_matrix
+
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
+    num_provinces = accumulated_cost_matrix.shape[1]
+    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i != j:
+                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+
+    return dtw_distance_matrix
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -76,15 +130,14 @@ def pemetaan(data_df):
         # Handle missing data by forward filling
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Normalize daily data
-        scaler = MinMaxScaler()
-        data_daily_normalized = pd.DataFrame(scaler.fit_transform(data_daily), index=data_daily.index, columns=data_daily.columns)
+        # Standardize daily data
+        data_daily_standardized = standardize(data_daily)
 
         # Dropdown for choosing linkage method
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
         # Compute local cost matrix and accumulated cost matrix
-        local_cost_matrix_daily = compute_local_cost_matrix(data_daily_normalized)
+        local_cost_matrix_daily = compute_local_cost_matrix(data_daily_standardized)
         accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
 
         # Compute DTW distance matrix for daily data
@@ -129,7 +182,7 @@ def pemetaan(data_df):
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
         plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily_normalized.columns, leaf_rotation=90)
+        dendrogram(Z, labels=data_daily_standardized.columns, leaf_rotation=90)
         plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
         plt.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
@@ -138,7 +191,7 @@ def pemetaan(data_df):
         # Table of provinces per cluster
         cluster_labels = cluster_labels_dict[optimal_n_clusters]
         clustered_data = pd.DataFrame({
-            'Province': data_daily_normalized.columns,
+            'Province': data_daily_standardized.columns,
             'Cluster': cluster_labels
         })
 
@@ -154,108 +207,34 @@ def pemetaan(data_df):
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Calculate cluster from clustering results
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-            # Rename inconsistent provinces
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
-
-            # Remove provinces that are None (i.e., GORONTALO)
-            gdf = gdf[gdf['Province'].notna()]
-
-            # Merge clustered data with GeoDataFrame
+            clustered_data['Province'] = clustered_data['Province'].str.upper()
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Set colors for clusters
-            gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green'
-            })
-            gdf['color'].fillna('grey', inplace=True)
+            # Plotting clusters on the map
+            st.subheader("Peta Provinsi dengan Cluster")
+            fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color="black")
 
-            # Display provinces colored grey
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
+            # Assign colors based on clusters
+            color_map = {0: 'red', 1: 'yellow', 2: 'green'}
+            gdf['Color'] = gdf['Cluster'].map(color_map)
 
-            # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
-            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
+            # Plot provinces with their clusters
+            gdf.plot(column='Color', ax=ax, legend=True, missing_kwds={"color": "lightgrey"}, alpha=0.5)
+            plt.title("Peta Kluster Provinsi")
             st.pyplot(fig)
 
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_time_points, num_provinces = data_df.shape
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+# Sidebar Navigation
+with st.sidebar:
+    selected_page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                                 icons=["info", "map"], 
+                                 menu_icon="cast", 
+                                 default_index=0)
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            if i != j:
-                for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+# Main Application Logic
+data_df = upload_csv_file()
 
-    return local_cost_matrix
-
-# Function to compute accumulated cost matrix for DTW
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0:2]
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    # Initialize the first frame of the accumulated cost matrix
-    for i in range(num_provinces):
-        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
-
-    # Compute accumulated cost
-    for t in range(1, num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                min_cost = min(
-                    accumulated_cost_matrix[t - 1, i, j],  # Cost from left
-                    accumulated_cost_matrix[t - 1, j, i],  # Cost from above
-                    accumulated_cost_matrix[t - 1, i, i]   # Cost from diagonal
-                )
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
-
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]  # Final accumulated cost
-
-    return dtw_distance_matrix
-
-# Main Streamlit app layout
-def main():
-    st.title("Aplikasi Clustering dengan DTW")
-
-    # Upload CSV
-    data_df = upload_csv_file()
-
-    if data_df is not None:
-        selected_page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"],
-                                     icons=['info-circle', 'map'], 
-                                     menu_icon="cast", default_index=0)
-
-        if selected_page == "Statistika Deskriptif":
-            statistika_deskriptif(data_df)
-        elif selected_page == "Pemetaan":
-            pemetaan(data_df)
-
-if __name__ == "__main__":
-    main()
+if selected_page == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected_page == "Pemetaan":
+    pemetaan(data_df)
