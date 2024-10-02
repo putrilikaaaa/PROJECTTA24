@@ -8,6 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
+from streamlit_option_menu import option_menu  # Import option_menu
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -89,10 +90,6 @@ def pemetaan(data_df):
         # Ensure DTW distance matrix is symmetric
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
-        # Debug: Output the DTW distance matrix
-        st.write("DTW Distance Matrix:")
-        st.write(dtw_distance_matrix_daily)
-
         # Clustering and silhouette score calculation for daily data
         max_n_clusters = 10
         silhouette_scores = {}
@@ -102,10 +99,6 @@ def pemetaan(data_df):
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
-
-        # Debug: Output silhouette scores
-        st.write("Silhouette Scores:")
-        st.write(silhouette_scores)
 
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
@@ -206,10 +199,8 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     for t in range(num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                if i == j:
-                    local_cost_matrix[t, i, j] = 0
-                else:
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+                if i != j:
+                    local_cost_matrix[t, i, j] = (data_df.iloc[t, i] - data_df.iloc[t, j]) ** 2
 
     return local_cost_matrix
 
@@ -219,43 +210,53 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for t in range(num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                else:
+        if t == 0:
+            accumulated_cost_matrix[t] = local_cost_matrix[t]
+        else:
+            for i in range(num_provinces):
+                for j in range(num_provinces):
                     accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
                         accumulated_cost_matrix[t-1, i, j],
-                        accumulated_cost_matrix[t-1, i-1, j] if i > 0 else float('inf'),
-                        accumulated_cost_matrix[t-1, i, j-1] if j > 0 else float('inf')
+                        accumulated_cost_matrix[t-1, i-1, j],
+                        accumulated_cost_matrix[t-1, i, j-1]
                     )
 
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
+    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[num_time_points - 1, i, j]
 
     return dtw_distance_matrix
 
-# Streamlit App
+# Main application
 def main():
-    st.title("Aplikasi Pemetaan dan Klustering dengan DTW")
+    st.title("Aplikasi Clustering Data Harga Provinsi di Indonesia")
+
+    # Create option menu in the sidebar
+    selected_option = option_menu(
+        menu_title=None,  # No title
+        options=["Statistika Deskriptif", "Pemetaan"],
+        icons=["bar-chart", "map"],
+        menu_icon="cast",  # Optional: icon for the menu
+        default_index=0,  # Default selected option
+        orientation="horizontal",  # Display options horizontally
+    )
 
     # Upload CSV file
     data_df = upload_csv_file()
 
-    # Tabs for different pages
-    tabs = st.sidebar.radio("Pilih Halaman:", ("Statistika Deskriptif", "Pemetaan"))
-    if tabs == "Statistika Deskriptif":
+    # Display selected page
+    if selected_option == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif tabs == "Pemetaan":
+    elif selected_option == "Pemetaan":
         pemetaan(data_df)
 
+# Run the main function
 if __name__ == "__main__":
     main()
