@@ -25,43 +25,11 @@ def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
 
-# Descriptive Statistics Page
-def statistik_deskriptif():
-    st.subheader("Statistika Deskriptif")
-    data_df = upload_csv_file()
+# Ensure DTW distance matrix is symmetric
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
 
-    if data_df is not None:
-        st.write("Dataframe:")
-        st.write(data_df)
-
-        # Convert 'Tanggal' column to datetime and set as index
-        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-        data_df.set_index('Tanggal', inplace=True)
-
-        if data_df.isnull().any().any():
-            st.warning("Terdapat tanggal yang tidak valid, silakan periksa data Anda.")
-
-        # Dropdown for selecting province
-        selected_province = st.selectbox("Pilih Provinsi", options=data_df.columns.tolist())
-
-        if selected_province:
-            # Display descriptive statistics
-            st.subheader(f"Statistika Deskriptif untuk {selected_province}")
-            st.write(data_df[selected_province].describe())
-
-            # Display line chart
-            st.subheader(f"Line Chart untuk {selected_province}")
-            plt.figure(figsize=(12, 6))
-            plt.plot(data_df.index, data_df[selected_province], label=selected_province, color='blue')
-            plt.title(f"Line Chart - {selected_province}")
-            plt.xlabel('Tanggal')
-            plt.ylabel('Nilai')
-            plt.legend()
-            plt.xticks(rotation=45)
-            plt.tight_layout()
-            st.pyplot(plt)
-
-# Mapping Page
+# Pemetaan Page
 def pemetaan():
     st.subheader("Pemetaan Clustering dengan DTW")
     data_df = upload_csv_file(key="pemetaan_upload")
@@ -87,6 +55,9 @@ def pemetaan():
         # Compute DTW distance matrix for daily data
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
 
+        # Ensure DTW distance matrix is symmetric
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+
         # Clustering and silhouette score calculation for daily data
         max_n_clusters = 10
         silhouette_scores = {}
@@ -100,7 +71,7 @@ def pemetaan():
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        plt.title(f'Silhouette Score vs. Number of Clusters ({linkage_method.capitalize()} Linkage)')
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -117,7 +88,7 @@ def pemetaan():
 
         plt.figure(figsize=(16, 10))
         dendrogram(Z, labels=data_daily_standardized.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW ({linkage_method.capitalize()} Linkage)')
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
         plt.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
@@ -209,14 +180,14 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for i in range(num_provinces):
-        for j in range(num_provinces):
-            accumulated_cost_matrix[0, i, j] = local_cost_matrix[0, i, j]
-            for t in range(1, num_time_points):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t-1, i, j],
-                    accumulated_cost_matrix[t-1, i, j-1] if j-1 >= 0 else np.inf,
-                    accumulated_cost_matrix[t, i-1, j] if i-1 >= 0 else np.inf
-                )
+        accumulated_cost_matrix[0, i, i] = local_cost_matrix[0, i, i]
+
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                min_cost = min(accumulated_cost_matrix[t-1, i, k] for k in range(num_provinces)) + local_cost_matrix[t, i, j]
+                accumulated_cost_matrix[t, i, j] = min_cost
+
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
@@ -230,17 +201,10 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main function
+# Streamlit main function
 def main():
-    st.title("Aplikasi Clustering Provinsi di Indonesia")
-
-    # Sidebar for navigation
-    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
-
-    if page == "Statistika Deskriptif":
-        statistik_deskriptif()
-    elif page == "Pemetaan":
-        pemetaan()
+    st.title("Aplikasi Pemetaan dan Clustering")
+    pemetaan()
 
 if __name__ == "__main__":
     main()
