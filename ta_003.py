@@ -41,8 +41,8 @@ def statistika_deskriptif(data_df):
         st.write("Statistika deskriptif data:")
         st.write(data_df.describe())
 
-        # Dropdown untuk memilih provinsi (kecuali kolom "Tanggal")
-        province_options = [col for col in data_df.columns.tolist() if col != "Tanggal"]
+        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
+        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
         if selected_province:
@@ -208,7 +208,7 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 # Function to compute accumulated cost matrix
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for t in range(num_time_points):
         for i in range(num_provinces):
@@ -218,8 +218,8 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
                 else:
                     accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
                         accumulated_cost_matrix[t - 1, i, j],
-                        accumulated_cost_matrix[t - 1, i, (j - 1) % num_provinces],
-                        accumulated_cost_matrix[t - 1, (i - 1) % num_provinces, j]
+                        accumulated_cost_matrix[t - 1, j, i],
+                        accumulated_cost_matrix[t - 1, i, i],
                     )
 
     return accumulated_cost_matrix
@@ -235,17 +235,18 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main Streamlit App
-st.title("Aplikasi Clustering Provinsi di Indonesia")
+# Main App
+def main():
+    st.title("Aplikasi Pemetaan Clustering dan Statistika Deskriptif")
+    data_df = upload_csv_file()
 
-# Sidebar for navigation
-selected_page = st.sidebar.radio("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+    # Menu selection for pages
+    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
 
-# Upload data
-data_df = upload_csv_file()
+    if page == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif page == "Pemetaan":
+        pemetaan(data_df)
 
-# Call appropriate page function
-if selected_page == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
-elif selected_page == "Pemetaan":
-    pemetaan(data_df)
+if __name__ == "__main__":
+    main()
