@@ -41,8 +41,8 @@ def statistika_deskriptif(data_df):
         st.write("Statistika deskriptif data:")
         st.write(data_df.describe())
 
-        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
-        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
+        # Dropdown untuk memilih provinsi (kecuali kolom "Tanggal")
+        province_options = [col for col in data_df.columns.tolist() if col != "Tanggal"]
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
         if selected_province:
@@ -208,19 +208,18 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 # Function to compute accumulated cost matrix
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+    accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
 
-    for t in range(num_time_points):
+    for i in range(num_provinces):
+        accumulated_cost_matrix[0, i, :] = local_cost_matrix[0, i, :]
+
+    for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                        accumulated_cost_matrix[t - 1, i, j],
-                        accumulated_cost_matrix[t - 1, j, i],
-                        accumulated_cost_matrix[t - 1, i, i],
-                    )
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                    accumulated_cost_matrix[t - 1, i, j],
+                    accumulated_cost_matrix[t - 1, j, i]
+                )
 
     return accumulated_cost_matrix
 
@@ -238,10 +237,23 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 # Main App
 def main():
     st.title("Aplikasi Pemetaan Clustering dan Statistika Deskriptif")
-    data_df = upload_csv_file()
+    
+    # Create a sidebar with a custom layout
+    st.sidebar.markdown("<h2 style='text-align: left;'>Main Menu</h2>", unsafe_allow_html=True)
+    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"), index=0, key="page")
+    
+    # Custom button for Upload
+    if st.sidebar.button("Upload", key="upload"):
+        # Implement upload functionality here
+        st.sidebar.info("Upload functionality goes here.")
 
-    # Menu selection for pages
-    page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan"))
+    # Other sidebar options
+    st.sidebar.markdown("<hr>", unsafe_allow_html=True)
+    st.sidebar.markdown("<h5>Tasks</h5>", unsafe_allow_html=True)
+    st.sidebar.markdown("<h5>Settings</h5>", unsafe_allow_html=True)
+
+    # Load data
+    data_df = upload_csv_file()
 
     if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
