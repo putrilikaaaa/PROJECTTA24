@@ -30,9 +30,8 @@ def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
-def statistika_deskriptif():
+def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
-    data_df = upload_csv_file(key="statistika_upload")
     
     if data_df is not None:
         st.write("Data yang diunggah:")
@@ -61,9 +60,8 @@ def statistika_deskriptif():
             st.pyplot(fig)
 
 # Pemetaan Page
-def pemetaan():
+def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
-    data_df = upload_csv_file(key="pemetaan_upload")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -208,13 +206,15 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 # Function to compute accumulated cost matrix
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces))
 
-    for t in range(1, num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + np.min(
-                    [accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i-1, j], accumulated_cost_matrix[t-1, i, j-1]]
+    for t in range(num_time_points):
+        for j in range(num_provinces):
+            if t == 0:
+                accumulated_cost_matrix[t, j] = local_cost_matrix[t, j, j]
+            else:
+                accumulated_cost_matrix[t, j] = local_cost_matrix[t, j, j] + min(
+                    accumulated_cost_matrix[t - 1, :].tolist()
                 )
 
     return accumulated_cost_matrix
@@ -226,17 +226,24 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i] + accumulated_cost_matrix[-1, j]
 
     return dtw_distance_matrix
 
-# Main function
+# Main Streamlit app
 def main():
-    st.title("Aplikasi Statistika Deskriptif dan Pemetaan Clustering")
+    st.title("Aplikasi Clustering Provinsi di Indonesia")
 
-    # Display both pages: Statistika Deskriptif and Pemetaan
-    statistika_deskriptif()
-    pemetaan()
+    # Upload data CSV file
+    data_df = upload_csv_file()
+
+    # Navigation
+    page = st.sidebar.radio("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+
+    if page == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif page == "Pemetaan":
+        pemetaan(data_df)
 
 if __name__ == "__main__":
     main()
