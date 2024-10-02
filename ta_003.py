@@ -10,8 +10,8 @@ from scipy.spatial.distance import squareform
 import geopandas as gpd
 
 # Function to upload CSV files
-def upload_csv_file(key=None):
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"], key=key)
+def upload_csv_file():
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
     if uploaded_file is not None:
         try:
             df = pd.read_csv(uploaded_file)
@@ -41,8 +41,8 @@ def statistika_deskriptif(data_df):
         st.write("Statistika deskriptif data:")
         st.write(data_df.describe())
 
-        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
-        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Ambil semua kolom kecuali 'Tanggal'
+        # Dropdown untuk memilih provinsi
+        province_options = data_df.columns.tolist()  # Ambil nama kolom sebagai pilihan provinsi
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
         if selected_province:
@@ -64,7 +64,7 @@ def statistika_deskriptif(data_df):
 # Pemetaan Page
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
-    
+
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
@@ -195,9 +195,9 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     num_time_points = data_df.shape[0]
     local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            for t in range(num_time_points):
+    for t in range(num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
                 if i == j:
                     local_cost_matrix[t, i, j] = 0
                 else:
@@ -208,43 +208,47 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 # Function to compute accumulated cost matrix
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+    accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
+
+    for i in range(num_provinces):
+        accumulated_cost_matrix[0, i, :] = local_cost_matrix[0, i, :]
 
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
                 accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],
-                    accumulated_cost_matrix[t - 1, j, i],
-                    accumulated_cost_matrix[t - 1, i, i],
-                    accumulated_cost_matrix[t - 1, j, j]
+                    accumulated_cost_matrix[t - 1, i, j],  # Cost from the same province
+                    accumulated_cost_matrix[t - 1, i, :].min(),  # Cost from all provinces
+                    accumulated_cost_matrix[t - 1, :, j].min()   # Cost to all provinces
                 )
+
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
+    num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]  # Get the last time point cost
 
     return dtw_distance_matrix
 
 # Main function to run the Streamlit app
 def main():
-    st.title("Aplikasi Clustering dengan DTW dan Streamlit")
-    
-    # Upload Data
-    data_df = upload_csv_file("data_upload")
+    st.title("Aplikasi Analisis Data Clustering dengan DTW")
 
-    # Display the pages
-    if st.sidebar.button("Statistika Deskriptif"):
+    # Upload Data
+    data_df = upload_csv_file()
+
+    # Show pages
+    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+    
+    if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    if st.sidebar.button("Pemetaan"):
+    elif page == "Pemetaan":
         pemetaan(data_df)
 
-# Run the main function
 if __name__ == "__main__":
     main()
