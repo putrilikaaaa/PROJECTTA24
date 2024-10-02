@@ -41,8 +41,10 @@ def statistika_deskriptif(data_df):
         st.write("Statistika deskriptif data:")
         st.write(data_df.describe())
 
-        # Dropdown untuk memilih provinsi, excluding 'Tanggal'
-        province_options = [col for col in data_df.columns if col != "Tanggal"]  # Exclude 'Tanggal'
+        # Dropdown untuk memilih provinsi
+        province_options = data_df.columns.tolist()  # Ambil nama kolom sebagai pilihan provinsi
+        # Menghapus 'Tanggal' dari pilihan
+        province_options.remove('Tanggal')
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
         if selected_province:
@@ -76,15 +78,8 @@ def pemetaan(data_df):
         scaler = StandardScaler()
         data_daily_standardized = pd.DataFrame(scaler.fit_transform(data_daily), index=data_daily.index, columns=data_daily.columns)
 
-        # Dropdown for choosing linkage method
-        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-
-        # Compute local cost matrix and accumulated cost matrix
-        local_cost_matrix_daily = compute_local_cost_matrix(data_daily_standardized)
-        accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
-
         # Compute DTW distance matrix for daily data
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_standardized)
 
         # Ensure DTW distance matrix is symmetric
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
@@ -94,7 +89,7 @@ def pemetaan(data_df):
         silhouette_scores = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, affinity='precomputed', linkage='average')
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
@@ -115,17 +110,17 @@ def pemetaan(data_df):
 
         # Clustering and dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+        Z = linkage(condensed_dtw_distance_matrix, method='average')
 
         plt.figure(figsize=(16, 10))
         dendrogram(Z, labels=data_daily_standardized.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian)')
         plt.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
         # Table of provinces per cluster
-        cluster_labels = AgglomerativeClustering(n_clusters=optimal_n_clusters, metric='precomputed', linkage=linkage_method).fit_predict(dtw_distance_matrix_daily)
+        cluster_labels = AgglomerativeClustering(n_clusters=optimal_n_clusters, affinity='precomputed', linkage='average').fit_predict(dtw_distance_matrix_daily)
         clustered_data = pd.DataFrame({
             'Province': data_daily_standardized.columns,
             'Cluster': cluster_labels
@@ -210,44 +205,39 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
 
-    # Initialize the first time point
-    accumulated_cost_matrix[0] = local_cost_matrix[0]
+    for i in range(num_provinces):
+        accumulated_cost_matrix[0, i, :] = local_cost_matrix[0, i, :]
 
-    # Fill in the accumulated cost matrix
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
                 accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
                     accumulated_cost_matrix[t - 1, i, j],
-                    accumulated_cost_matrix[t - 1, j, i]
+                    accumulated_cost_matrix[t - 1, j, i],
+                    accumulated_cost_matrix[t - 1, j, j]
                 )
 
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
+def compute_dtw_distance_matrix(data_df: pd.DataFrame) -> np.array:
+    local_cost_matrix = compute_local_cost_matrix(data_df)
+    accumulated_cost_matrix = compute_accumulated_cost_matrix(local_cost_matrix)
+    return accumulated_cost_matrix[-1, :, :]
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
-
-    return dtw_distance_matrix
-
-# Main function to run Streamlit app
+# Main Function
 def main():
-    st.title("Aplikasi Analisis Clustering")
-    st.sidebar.title("Menu")
-    menu_options = ["Statistika Deskriptif", "Pemetaan"]
-    selected_menu = st.sidebar.radio("Pilih Halaman", menu_options)
+    st.title("Aplikasi Clustering dan Analisis Data Provinsi di Indonesia")
 
-    # Upload data file
+    # Upload data
     data_df = upload_csv_file()
 
-    if selected_menu == "Statistika Deskriptif":
+    # Navigation
+    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+
+    if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_menu == "Pemetaan":
+    elif page == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
