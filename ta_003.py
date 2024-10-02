@@ -9,6 +9,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
+from fastdtw import fastdtw  # Import fastdtw untuk perhitungan DTW
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -81,10 +82,9 @@ def pemetaan(data_df):
 
         # Compute local cost matrix and accumulated cost matrix
         local_cost_matrix_daily = compute_local_cost_matrix(data_daily_standardized)
-        accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
 
         # Compute DTW distance matrix for daily data
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
+        dtw_distance_matrix_daily = squareform(local_cost_matrix_daily)
 
         # Ensure DTW distance matrix is symmetric
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
@@ -196,7 +196,7 @@ def pemetaan(data_df):
                 plt.ylabel('Latitude', fontsize=12)
                 st.pyplot(plt)
             else:
-                st.warning("Silakan upload file GeoJSON.")
+                st.warning("Silakan upload file GeoJSON dengan benar.")
 
 # Function to compute local cost matrix for DTW
 def compute_local_cost_matrix(data):
@@ -207,7 +207,7 @@ def compute_local_cost_matrix(data):
         for j in range(n_series):
             # Calculate DTW distance for each pair of series
             if i != j:
-                local_cost_matrix[i, j] = dtw(data.iloc[:, i].values, data.iloc[:, j].values)
+                local_cost_matrix[i, j] = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)[0]
 
     return local_cost_matrix
 
@@ -230,10 +230,6 @@ def compute_accumulated_cost_matrix(local_cost_matrix):
             )
 
     return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix):
-    return accumulated_cost_matrix[-1, -1]
 
 # Streamlit Layout
 def main():
