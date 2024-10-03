@@ -208,7 +208,6 @@ def pemetaan(data_df):
         else:
             st.error("Kolom 'Tanggal' tidak ditemukan dalam data.")
 
-
 # Fungsi utama Streamlit
 def main():
     st.title("Aplikasi Statistika Deskriptif dan Pemetaan Kluster dengan DTW")
@@ -218,9 +217,11 @@ def main():
     if data_file:
         data_df = pd.read_csv(data_file)
         
-        if 'Statistika Deskriptif' in st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan']):
+        page_selection = st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan'])
+        
+        if page_selection == 'Statistika Deskriptif':
             statistika_deskriptif(data_df)
-        elif 'Pemetaan' in st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan']):
+        elif page_selection == 'Pemetaan':
             pemetaan(data_df)
 
 if __name__ == '__main__':
