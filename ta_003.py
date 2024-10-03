@@ -53,14 +53,23 @@ def statistika_deskriptif(data_df):
             data_df.set_index('Tanggal', inplace=True)
 
             # Plot average prices for the selected province
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
-            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
-            ax.set_xlabel("Tanggal")
-            ax.set_ylabel("Harga")
-            ax.legend()
+                        fig = go.Figure()
 
-            st.pyplot(fig)
+            fig.add_trace(go.Scatter(
+                x=data_df.index,
+                y=data_df[selected_province],
+                mode='lines+markers',
+                name=selected_province
+            ))
+
+            fig.update_layout(
+                title=f"Rata-rata Harga Harian - Provinsi {selected_province}",
+                xaxis_title="Tanggal",
+                yaxis_title="Harga",
+                hovermode="x unified"
+            )
+
+            st.plotly_chart(fig)
 
 # Pemetaan Page
 def pemetaan(data_df):
