@@ -42,45 +42,32 @@ def statistika_deskriptif(data_df):
         st.write("Statistika deskriptif data:")
         st.write(data_df.describe())
 
-        # Date selection
-        date_selection = st.date_input("Pilih Tanggal", min_value=data_df['Tanggal'].min(), max_value=data_df['Tanggal'].max())
-        date_selection = pd.to_datetime(date_selection)
-
-        # Filter data for the selected date
-        selected_date_data = data_df[data_df['Tanggal'] == date_selection]
-
-        # Check if data exists for the selected date
-        if not selected_date_data.empty:
-            # Bar chart for average prices on the selected date
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.bar(selected_date_data.columns[1:], selected_date_data.iloc[0, 1:], color='skyblue')
-            ax.set_title(f"Rata-rata Harga pada Tanggal {date_selection.date()}")
-            ax.set_xlabel("Provinsi")
-            ax.set_ylabel("Harga")
-
-            st.pyplot(fig)
-        else:
-            st.write("Tidak ada data untuk tanggal yang dipilih.")
-
+        # Convert 'Tanggal' to datetime format
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        
         # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
         province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
-        if selected_province:
-            # Visualisasi data untuk provinsi terpilih
-            st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
-            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-            data_df.set_index('Tanggal', inplace=True)
+        # Calendar date picker for selecting a date
+        selected_date = st.date_input("Pilih Tanggal:", value=data_df['Tanggal'].min(), min_value=data_df['Tanggal'].min(), max_value=data_df['Tanggal'].max())
 
-            # Plot average prices for the selected province
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
-            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
-            ax.set_xlabel("Tanggal")
-            ax.set_ylabel("Harga")
-            ax.legend()
+        if selected_date:
+            # Filter data for the selected date
+            daily_data = data_df[data_df['Tanggal'] == pd.to_datetime(selected_date)]
 
-            st.pyplot(fig)
+            if not daily_data.empty:
+                # Plot average prices for the selected date for all provinces
+                fig, ax = plt.subplots(figsize=(10, 5))
+                daily_values = daily_data.iloc[0, 1:]  # Get the first row's values except 'Tanggal'
+                ax.bar(daily_values.index, daily_values.values, color='skyblue')
+                ax.set_title(f"Nilai pada Tanggal {selected_date}")
+                ax.set_xlabel("Provinsi")
+                ax.set_ylabel("Nilai")
+                ax.set_xticklabels(daily_values.index, rotation=45)
+                st.pyplot(fig)
+            else:
+                st.write(f"Tidak ada data untuk tanggal {selected_date}.")
 
 # Pemetaan Page
 def pemetaan(data_df):
@@ -168,72 +155,30 @@ def pemetaan(data_df):
 
         # Load GeoJSON file from GitHub
         gdf = upload_geojson_file()
-
         if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            st.write("Peta Clustering:")
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf['Cluster'] = cluster_labels  # Add cluster data to GeoDataFrame
 
-            # Calculate cluster from clustering results
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-            # Rename inconsistent provinces
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
-
-            # Remove provinces that are None (i.e., GORONTALO)
-            gdf = gdf[gdf['Province'].notna()]
-
-            # Merge clustered data with GeoDataFrame
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
-
-            # Set colors for clusters
-            gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green',
-                3: 'blue',
-                4: 'purple',
-                5: 'orange',
-                6: 'pink',
-                7: 'brown',
-                8: 'cyan',
-                9: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
-
-            # Display provinces colored grey
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
-
-            # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
-            gdf.boundary.plot(ax=ax, linewidth=1)
-            gdf.plot(column='color', ax=ax, legend=True, alpha=0.5)
-
-            ax.set_title('Pemetaan Provinsi Berdasarkan Kluster')
+            # Plotting the clusters on the map
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(column='Cluster', ax=ax, legend=True, cmap='RdYlGn', edgecolor='black')
+            ax.set_title("Peta Clustering Berdasarkan DTW")
+            plt.axis('off')
             st.pyplot(fig)
 
-# Main Streamlit application
+# Sidebar Menu
+with st.sidebar:
+    selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
+
+# Main function to control navigation between pages
 def main():
-    st.title("Aplikasi Analisis Data Provinsi")
-    with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["bar-chart", "map"], default_index=0)
-
-    data_df = upload_csv_file()  # Upload data file
-
-    if selected == "Statistika Deskriptif":
+    data_df = upload_csv_file()
+    if selected_option == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected == "Pemetaan":
+    elif selected_option == "Pemetaan":
         pemetaan(data_df)
 
+# Run the app
 if __name__ == "__main__":
     main()
