@@ -1,14 +1,14 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import geopandas as gpd
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
-from sklearn.preprocessing import StandardScaler
+import geopandas as gpd
 from streamlit_option_menu import option_menu
-import plotly.graph_objects as go
+from sklearn.preprocessing import StandardScaler
+import plotly.graph_objs as go
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -54,11 +54,13 @@ def statistika_deskriptif(data_df):
 
             # Plot average prices for the selected province using Plotly
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=data_df.index, y=data_df[selected_province], mode='lines+markers', name=selected_province))
+            fig.add_trace(go.Scatter(x=data_df.index, y=data_df[selected_province],
+                                     mode='lines+markers',
+                                     name=selected_province))
             fig.update_layout(title=f"Rata-rata Harga Harian - Provinsi {selected_province}",
                               xaxis_title="Tanggal",
                               yaxis_title="Harga",
-                              hovermode="x unified")
+                              hovermode='x unified')  # Unified hover mode
             st.plotly_chart(fig)
 
 # Pemetaan Page
@@ -104,15 +106,20 @@ def pemetaan(data_df):
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
-        # Plot Silhouette Scores using Plotly
-        fig_silhouette = go.Figure()
-        fig_silhouette.add_trace(go.Scatter(x=list(silhouette_scores.keys()), y=list(silhouette_scores.values()), mode='lines+markers'))
-        fig_silhouette.update_layout(title='Silhouette Score vs. Number of Clusters (Data Harian)',
-                                      xaxis_title='Number of Clusters',
-                                      yaxis_title='Silhouette Score',
-                                      xaxis=dict(tickmode='linear', tick0=2, dtick=1),
-                                      yaxis=dict(range=[0, 1]))
-        st.plotly_chart(fig_silhouette)
+        # Plot Silhouette Scores
+        plt.figure(figsize=(10, 6))
+        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        
+        # Adding data labels to the silhouette score plot
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+        
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('Silhouette Score')
+        plt.xticks(range(2, max_n_clusters + 1))
+        plt.grid(True)
+        st.pyplot(plt)
 
         # Determine optimal number of clusters
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
@@ -122,14 +129,12 @@ def pemetaan(data_df):
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
-        # Plot dendrogram using Plotly
-        fig_dendrogram = go.Figure()
-        dendro_data = dendrogram(Z, no_plot=True)  # Get dendrogram data without plotting
-        fig_dendrogram.add_trace(go.Scatter(x=dendro_data['icoord'], y=dendro_data['dcoord'], mode='lines'))
-        fig_dendrogram.update_layout(title=f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}',
-                                      xaxis_title='Provinsi',
-                                      yaxis_title='Jarak DTW')
-        st.plotly_chart(fig_dendrogram)
+        plt.figure(figsize=(16, 10))
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.xlabel('Provinsi')
+        plt.ylabel('Jarak DTW')
+        st.pyplot(plt)
 
         # Table of provinces per cluster
         cluster_labels = cluster_labels_dict[optimal_n_clusters]
@@ -190,84 +195,66 @@ def pemetaan(data_df):
             else:
                 st.write("Semua provinsi termasuk dalam kluster.")
 
-            # Plot map using Plotly
-            fig_map = go.Figure()
-            for i, row in gdf.iterrows():
-                fig_map.add_trace(go.Choropleth(
-                    locations=[row['Province']],
-                    locationmode='country names',
-                    z=[row['Cluster']],
-                    hoverinfo='location+z',
-                    colorscale=[[0, 'red'], [0.5, 'yellow'], [1, 'green']],
-                    colorbar=dict(title='Cluster'),
-                    showscale=False,
-                    marker=dict(line=dict(width=0)),
-                ))
-
-            fig_map.update_layout(title='Pemetaan Kluster Provinsi', geo=dict(showland=True))
-            st.plotly_chart(fig_map)
+            # Plot map
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
+            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
+            st.pyplot(fig)
 
 # Function to compute local cost matrix for DTW
 def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_provinces = data_df.shape[1]
-    local_cost_matrix = np.zeros((num_provinces, num_provinces))
+    num_time_points, num_provinces = data_df.shape
+    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                cost = np.sum(np.abs(data_df.iloc[:, i] - data_df.iloc[:, j]))
-                local_cost_matrix[i, j] = cost
+            for k in range(num_time_points):
+                local_cost_matrix[k, i, j] = abs(data_df.iloc[k, i] - data_df.iloc[k, j])
 
     return local_cost_matrix
 
 # Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_provinces = local_cost_matrix.shape[0]
-    accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
+    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    # Initialize first row and column
-    accumulated_cost_matrix[0, 0] = local_cost_matrix[0, 0]
-
-    for j in range(1, num_provinces):
-        accumulated_cost_matrix[0, j] = accumulated_cost_matrix[0, j - 1] + local_cost_matrix[0, j]
-    
-    for i in range(1, num_provinces):
-        accumulated_cost_matrix[i, 0] = accumulated_cost_matrix[i - 1, 0] + local_cost_matrix[i, 0]
-
-    for i in range(1, num_provinces):
-        for j in range(1, num_provinces):
-            accumulated_cost_matrix[i, j] = local_cost_matrix[i, j] + min(
-                accumulated_cost_matrix[i - 1, j],     # from above
-                accumulated_cost_matrix[i, j - 1],     # from left
-                accumulated_cost_matrix[i - 1, j - 1]  # from diagonal
-            )
+    for i in range(num_time_points):
+        for j in range(num_provinces):
+            for k in range(num_provinces):
+                if i == 0:
+                    accumulated_cost_matrix[i, j, k] = local_cost_matrix[i, j, k]
+                else:
+                    accumulated_cost_matrix[i, j, k] = local_cost_matrix[i, j, k] + min(
+                        accumulated_cost_matrix[i - 1, j, k],
+                        accumulated_cost_matrix[i, j - 1, k],
+                        accumulated_cost_matrix[i, j, k - 1]
+                    )
 
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[0]
+    num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[i, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
 # Main application
 def main():
-    st.title("Aplikasi Pemetaan dan Analisis Data")
-    
-    selected_page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                  icons=["clipboard-data", "geo-alt"], 
-                                  menu_icon="cast", default_index=0)
+    st.title("Aplikasi Clustering dan Visualisasi Data")
+    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["bar-chart", "map"], default_index=0)
 
+    # Upload CSV data
     data_df = upload_csv_file()
 
-    if selected_page == "Statistika Deskriptif":
+    if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_page == "Pemetaan":
+    elif selected == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
