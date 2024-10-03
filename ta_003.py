@@ -54,7 +54,7 @@ def statistika_deskriptif(data_df):
             data_df.set_index('Tanggal', inplace=True)
 
             # Plot average prices for the selected province
-                        fig = go.Figure()
+            fig = go.Figure()
 
             fig.add_trace(go.Scatter(
                 x=data_df.index,
@@ -220,23 +220,26 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
         for j in range(num_provinces):
             if i != j:
                 for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+                    local_cost_matrix[t, i, j] = abs(data_df.iloc[t, i] - data_df.iloc[t, j])
 
     return local_cost_matrix
 
-# Function to compute accumulated cost matrix for DTW
+# Function to compute accumulated cost matrix
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
+    num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],  # from the same province
-                    accumulated_cost_matrix[t - 1, j, i],  # from the other province
-                    accumulated_cost_matrix[t - 1, i, i]   # from previous time point of the same province
-                )
+                if i == j:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                        accumulated_cost_matrix[t - 1, i, j],
+                        accumulated_cost_matrix[t - 1, i - 1, j] if i > 0 else float('inf'),
+                        accumulated_cost_matrix[t - 1, i + 1, j] if i < num_provinces - 1 else float('inf')
+                    )
+                else:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + accumulated_cost_matrix[t - 1, i, j]
 
     return accumulated_cost_matrix
 
@@ -247,28 +250,23 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Main function to run the Streamlit app
+# Main Application
 def main():
-    st.title("Aplikasi Pemodelan dan Pemetaan Data")
+    st.title("Aplikasi Clustering dengan DTW")
     
-    # Sidebar menu for navigation
-    with st.sidebar:
-        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                       icons=["bar-chart", "map"], 
-                                       menu_icon="cast", default_index=0)
+    # Menu options
+    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=['graph-up', 'geo-alt'], menu_icon="cast", default_index=0)
 
-    # Upload data file once
+    # Upload data
     data_df = upload_csv_file()
 
-    # Call the appropriate page based on the selected option
-    if selected_option == "Statistika Deskriptif":
+    if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_option == "Pemetaan":
+    elif selected == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
