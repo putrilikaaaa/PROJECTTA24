@@ -13,7 +13,7 @@ def compute_accumulated_cost_matrix(local_cost_matrix):
     accumulated_cost = np.zeros((n, n))
 
     # Pengecekan ukuran matriks lokal
-    if local_cost_matrix.size == 0 or local_cost_matrix.shape[0] != local_cost_matrix.shape[1]:
+    if n == 0 or local_cost_matrix.shape[1] != n:
         raise ValueError("Matriks biaya lokal tidak valid.")
 
     for i in range(n):
@@ -53,6 +53,11 @@ def pemetaan(data_df):
             data_daily = data_df.resample('D').mean()
             data_daily.fillna(method='ffill', inplace=True)
 
+            # Memastikan ada data untuk pemrosesan
+            if data_daily.empty:
+                st.error("Data harian kosong setelah resampling.")
+                return
+
             # Standardisasi data
             data_daily_values = standardize_data(data_daily.values)
 
@@ -73,10 +78,14 @@ def pemetaan(data_df):
             # Memastikan dtw_distance_matrix_daily adalah array 2D sebelum disimetrisasi
             dtw_distance_matrix_daily = symmetrize(np.expand_dims(dtw_distance_matrix_daily, axis=0))
 
-            num_samples = dtw_distance_matrix_daily.shape[0]
+            # Memastikan kita memiliki label untuk silhouette score
+            # Ganti dengan logika yang tepat untuk mendapatkan labels
+            labels = ...  # Pastikan Anda memiliki label untuk clustering
+            if len(labels) != dtw_distance_matrix_daily.shape[0]:
+                st.error("Jumlah label tidak cocok dengan jumlah data.")
+                return
 
             # Menghitung silhouette score
-            labels = ...  # Pastikan Anda memiliki label untuk clustering
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
 
             st.write(f"Silhouette Score: {score}")
