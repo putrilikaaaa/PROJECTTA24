@@ -6,6 +6,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
+import geopandas as gpd
 
 # Fungsi untuk menghitung matriks biaya lokal
 def compute_local_cost_matrix(data):
@@ -40,6 +41,13 @@ def symmetrize(matrix):
 # Fungsi untuk menstandarisasi data
 def standardize_data(data):
     return (data - np.mean(data, axis=0)) / np.std(data, axis=0)
+
+# Fungsi untuk mengunggah file GeoJSON
+def upload_geojson_file():
+    geojson_file = st.file_uploader("Upload GeoJSON", type=["geojson"])
+    if geojson_file is not None:
+        return gpd.read_file(geojson_file)
+    return None
 
 # Fungsi Pemetaan
 def pemetaan(data_df):
@@ -189,11 +197,13 @@ def main():
         data_df = pd.read_csv(uploaded_file)
 
         # Pilih halaman
-        if 'Statistika Deskriptif' in st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan']):
-            # Tampilkan statistika deskriptif di sini
+        page_selection = st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan'])
+        
+        if page_selection == 'Statistika Deskriptif':
+            # Tampilkan statistika deskriptif
             st.subheader("Statistika Deskriptif")
             st.write(data_df.describe())
-        elif 'Pemetaan' in st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan']):
+        elif page_selection == 'Pemetaan':
             pemetaan(data_df)
 
 if __name__ == "__main__":
