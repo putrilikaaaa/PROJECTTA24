@@ -8,6 +8,8 @@ from sklearn_extra.cluster import KMedoids  # Import K-Medoids
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
+import folium
+from streamlit_folium import folium_static
 from streamlit_option_menu import option_menu
 from sklearn.preprocessing import StandardScaler
 
@@ -30,6 +32,30 @@ def upload_geojson_file():
 # Ensure DTW distance matrix is symmetric
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
+
+# Compute local cost matrix (placeholder implementation)
+def compute_local_cost_matrix(data):
+    # Example implementation of local cost matrix calculation
+    n = data.shape[0]
+    cost_matrix = np.zeros((n, n))
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            cost = np.sum(np.abs(data.iloc[i] - data.iloc[j]))  # Example distance
+            cost_matrix[i, j] = cost
+            cost_matrix[j, i] = cost  # Symmetric matrix
+
+    return cost_matrix
+
+# Compute accumulated cost matrix (placeholder implementation)
+def compute_accumulated_cost_matrix(local_cost_matrix):
+    # Placeholder implementation: simply return the local cost matrix
+    return np.cumsum(local_cost_matrix, axis=0)
+
+# Compute DTW distance matrix (placeholder implementation)
+def compute_dtw_distance_matrix(accumulated_cost_matrix):
+    # Placeholder implementation: simply return the accumulated cost matrix
+    return accumulated_cost_matrix
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -178,54 +204,40 @@ def pemetaan(data_df):
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
 
-            # Remove provinces that are None (i.e., GORONTALO)
-            gdf = gdf[gdf['Province'].notna()]
+            # Merge GeoDataFrame with clustering data
+            merged = gdf.set_index('Province').join(clustered_data.set_index('Province'))
 
-            # Merge clustered data with GeoDataFrame
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+            # Create Folium map
+            map_cluster = folium.Map(location=[-5.0, 115.0], zoom_start=5)
 
-            # Set colors for clusters
-            gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green',
-                3: 'blue',
-                4: 'purple',
-                5: 'orange',
-                6: 'pink',
-                7: 'brown',
-                8: 'cyan',
-                9: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
+            # Add clusters to the map
+            colors = {0: 'red', 1: 'yellow', 2: 'green'}  # Cluster color mapping
+            for _, row in merged.iterrows():
+                cluster = row['Cluster']
+                color = colors.get(cluster, 'gray')  # Default to gray if cluster not found
+                geo_json = folium.GeoJson(row.geometry, style_function=lambda x, color=color: {
+                    'fillColor': color,
+                    'color': color,
+                    'weight': 2,
+                    'fillOpacity': 0.6,
+                })
+                geo_json.add_to(map_cluster)
 
-            # Display provinces colored grey
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
+            folium_static(map_cluster)
 
-            # Create folium map for clusters
-            st.subheader("Peta Klustering Provinsi")
-            m = folium.Map(location=[-5.5, 120], zoom_start=5)
+# Main Streamlit Application
+def main():
+    st.title("Aplikasi Analisis Data dengan Clustering")
+    page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                        icons=['bar-chart', 'map'], 
+                        menu_icon="cast", default_index=0)
 
-            # Add GeoJSON to the map
-            folium.GeoJson(gdf).add_to(m)
-            folium.LayerControl().add_to(m)
+    data_df = upload_csv_file()
 
-            # Display the map in Streamlit
-            folium_static(m)
+    if page == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif page == "Pemetaan":
+        pemetaan(data_df)
 
-# Sidebar navigation
-with st.sidebar:
-    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                           icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
-
-# Load data
-data_df = upload_csv_file()
-
-# Display pages based on selection
-if selected == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
-elif selected == "Pemetaan":
-    pemetaan(data_df)
+if __name__ == "__main__":
+    main()
