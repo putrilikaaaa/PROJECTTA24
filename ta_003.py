@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
@@ -9,6 +8,7 @@ from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
 from sklearn.preprocessing import StandardScaler
+import plotly.graph_objs as go  # Importing Plotly
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -52,8 +52,15 @@ def statistika_deskriptif(data_df):
             data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
             data_df.set_index('Tanggal', inplace=True)
 
-            # Plot average prices for the selected province
-            st.line_chart(data_df[selected_province])
+            # Create interactive line chart using Plotly
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=data_df.index, y=data_df[selected_province], mode='lines', name=selected_province))
+
+            fig.update_layout(title=f"Rata-rata Harga Harian - Provinsi {selected_province}",
+                              xaxis_title="Tanggal",
+                              yaxis_title="Harga")
+
+            st.plotly_chart(fig)  # Use Streamlit to display Plotly figure
 
 # Pemetaan Page
 def pemetaan(data_df):
@@ -204,51 +211,48 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
             if i != j:
                 for t in range(num_time_points):
                     local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
-
     return local_cost_matrix
 
 # Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
-    accumulated_cost_matrix = np.zeros((num_provinces, num_provinces))
+    num_time_points, num_provinces = local_cost_matrix.shape[1:3]
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for j in range(num_provinces):
-        for k in range(num_provinces):
-            if j != k:
-                accumulated_cost_matrix[j, k] = np.sum(local_cost_matrix[:, j, k])
-
+    for t in range(num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                if t == 0:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
+                else:
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + \
+                        min(accumulated_cost_matrix[t - 1, i, j], 
+                            accumulated_cost_matrix[t - 1, i, i],
+                            accumulated_cost_matrix[t - 1, j, j])
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[0]
+    num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                dtw_distance_matrix[i, j] = np.sum(accumulated_cost_matrix[i, j])
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Main function to run the Streamlit app
-def main():
-    st.title("Aplikasi Analisis Data Provinsi")
-    
-    # Sidebar menu
-    with st.sidebar:
-        selected_page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                     icons=["bar-chart", "map"], 
-                                     menu_icon="cast", default_index=0)
-    
-    # File upload
-    data_df = upload_csv_file()
+# Main application
+st.title("Aplikasi Clustering dan Pemetaan")
+selected = option_menu(
+    menu_title=None,
+    options=["Statistika Deskriptif", "Pemetaan"],
+    icons=["bar-chart", "map"],
+    orientation="horizontal",
+)
 
-    # Render selected page
-    if selected_page == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected_page == "Pemetaan":
-        pemetaan(data_df)
+data_df = upload_csv_file()  # Upload file CSV
 
-if __name__ == "__main__":
-    main()
+if selected == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected == "Pemetaan":
+    pemetaan(data_df)
