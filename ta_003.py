@@ -83,8 +83,12 @@ def pemetaan(data_df):
         # Dropdown for choosing linkage method
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
-        # Compute DTW distance matrix for standardized daily data
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        # Compute local cost matrix and accumulated cost matrix
+        local_cost_matrix_daily = compute_local_cost_matrix(pd.DataFrame(data_daily_values, columns=data_daily.columns))
+        accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
+
+        # Compute DTW distance matrix for daily data
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
 
         # Ensure DTW distance matrix is symmetric
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
@@ -104,11 +108,11 @@ def pemetaan(data_df):
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-
+        
         # Adding data labels to the silhouette score plot
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-
+        
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
@@ -197,31 +201,61 @@ def pemetaan(data_df):
             plt.title("Pemetaan Provinsi Berdasarkan Kluster")
             st.pyplot(fig)
 
-# Function to compute DTW distance matrix for standardized data
-def compute_dtw_distance_matrix(data: np.array) -> np.array:
-    from fastdtw import fastdtw  # FastDTW library can improve performance
-    num_provinces = data.shape[1]
+# Function to compute local cost matrix for DTW
+def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
+    num_time_points, num_provinces = data_df.shape
+    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i != j:
+                for t in range(num_time_points):
+                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+
+    return local_cost_matrix
+
+# Function to compute accumulated cost matrix for DTW
+def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
+    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                    accumulated_cost_matrix[t - 1, i, j],  # from the same province
+                    accumulated_cost_matrix[t - 1, j, i],  # from the other province
+                    accumulated_cost_matrix[t - 1, i, i]   # from previous time point of the same province
+                )
+
+    return accumulated_cost_matrix
+
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
+    num_provinces = accumulated_cost_matrix.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
-        for j in range(i + 1, num_provinces):  # Only compute upper triangle
-            distance, _ = fastdtw(data[:, i], data[:, j])  # Compute DTW for each pair of provinces
-            dtw_distance_matrix[i, j] = distance
-            dtw_distance_matrix[j, i] = distance  # Mirror value to the lower triangle
+        for j in range(num_provinces):
+            if i != j:
+                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Main app
+# Main function to run the Streamlit app
 def main():
-    st.title("Aplikasi Pemetaan Clustering DTW")
+    st.title("Aplikasi Pemodelan dan Pemetaan Data")
+    
+    # Sidebar menu for navigation
+    with st.sidebar:
+        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                                       icons=["bar-chart", "map"], 
+                                       menu_icon="cast", default_index=0)
+
+    # Upload data file once
     data_df = upload_csv_file()
 
-    # Sidebar Menu
-    with st.sidebar:
-        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"],
-                                       icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
-
-    # Display selected page
+    # Call the appropriate page based on the selected option
     if selected_option == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
     elif selected_option == "Pemetaan":
