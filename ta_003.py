@@ -65,7 +65,7 @@ def statistika_deskriptif(data_df):
 
 # Pemetaan Linkage Page
 def pemetaan_linkage(data_df):
-    st.subheader("Pemetaan Clustering dengan DTW (Linkage)")
+    st.subheader("Pemetaan Clustering dengan DTW")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -109,11 +109,11 @@ def pemetaan_linkage(data_df):
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-
+        
         # Adding data labels to the silhouette score plot
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-
+        
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
@@ -220,18 +220,13 @@ def pemetaan_kmedoids(data_df):
         scaler = StandardScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # Number of clusters selection
-        n_clusters = st.slider("Pilih Jumlah Kluster", min_value=2, max_value=10, value=3)
+        # KMedoids Clustering
+        n_clusters = st.slider("Pilih Jumlah Kluster KMedoids", 2, 10, 3)
+        kmedoids = KMedoids(n_clusters=n_clusters, random_state=42, metric='euclidean')
+        kmedoids.fit(data_daily_values)
 
-        # KMedoids clustering
-        kmedoids = KMedoids(n_clusters=n_clusters, random_state=0)
-        cluster_labels = kmedoids.fit_predict(data_daily_values)
-
-        # Create DataFrame for cluster results
-        cluster_results = pd.DataFrame({
-            'Province': data_daily.columns,
-            'Cluster': cluster_labels
-        })
+        # Display cluster labels
+        data_daily['Cluster'] = kmedoids.labels_
 
         # Load GeoJSON file from GitHub
         gdf = upload_geojson_file()
@@ -239,6 +234,12 @@ def pemetaan_kmedoids(data_df):
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Calculate cluster from clustering results
+            clustered_data = pd.DataFrame({
+                'Province': data_daily.columns,
+                'Cluster': data_daily['Cluster']
+            })
 
             # Rename inconsistent provinces
             gdf['Province'] = gdf['Province'].replace({
@@ -253,7 +254,7 @@ def pemetaan_kmedoids(data_df):
             gdf = gdf[gdf['Province'].notna()]
 
             # Merge clustered data with GeoDataFrame
-            gdf = gdf.merge(cluster_results, on='Province', how='left')
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             # Set colors for clusters
             gdf['color'] = gdf['Cluster'].map({
@@ -285,20 +286,24 @@ def pemetaan_kmedoids(data_df):
             plt.title("Pemetaan Provinsi Berdasarkan Kluster KMedoids")
             st.pyplot(fig)
 
-# Sidebar for navigation
-with st.sidebar:
-    selected = option_menu("Menu",
-                           ["Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
-                           icons=['bar-chart', 'map', 'map'], 
-                           menu_icon="cast", default_index=0)
+# Main function to control the app
+def main():
+    st.title("Aplikasi Clustering Data Provinsi")
 
-# File upload
-data_df = upload_csv_file()
+    # Sidebar for navigation
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"], 
+                                icons=["graph-up-arrow", "map", "map"], menu_icon="cast", default_index=0)
 
-# Page selection
-if selected == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
-elif selected == "Pemetaan Linkage":
-    pemetaan_linkage(data_df)
-elif selected == "Pemetaan KMedoids":
-    pemetaan_kmedoids(data_df)
+    # Upload CSV file
+    data_df = upload_csv_file()
+
+    if selected == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected == "Pemetaan Linkage":
+        pemetaan_linkage(data_df)
+    elif selected == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data_df)
+
+if __name__ == "__main__":
+    main()
