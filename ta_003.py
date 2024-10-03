@@ -26,9 +26,52 @@ def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
 
+# Function to compute local cost matrix for DTW
+def compute_local_cost_matrix(data):
+    n = data.shape[0]
+    local_cost_matrix = np.zeros((n, n))
+    
+    for i in range(n):
+        for j in range(n):
+            # Assuming we compute the distance as the absolute difference for simplicity
+            local_cost_matrix[i, j] = np.sum(np.abs(data.iloc[i] - data.iloc[j]))
+    
+    return local_cost_matrix
+
 # Ensure DTW distance matrix is symmetric
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
+
+# Function to compute accumulated cost matrix
+def compute_accumulated_cost_matrix(local_cost_matrix):
+    n = local_cost_matrix.shape[0]
+    accumulated_cost_matrix = np.zeros((n, n))
+    accumulated_cost_matrix[0, 0] = local_cost_matrix[0, 0]
+    
+    for i in range(1, n):
+        accumulated_cost_matrix[i, 0] = accumulated_cost_matrix[i-1, 0] + local_cost_matrix[i, 0]
+        accumulated_cost_matrix[0, i] = accumulated_cost_matrix[0, i-1] + local_cost_matrix[0, i]
+    
+    for i in range(1, n):
+        for j in range(1, n):
+            accumulated_cost_matrix[i, j] = min(
+                accumulated_cost_matrix[i-1, j],
+                accumulated_cost_matrix[i, j-1],
+                accumulated_cost_matrix[i-1, j-1]
+            ) + local_cost_matrix[i, j]
+    
+    return accumulated_cost_matrix
+
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix):
+    n = accumulated_cost_matrix.shape[0]
+    dtw_distance_matrix = np.zeros((n, n))
+    
+    for i in range(n):
+        for j in range(n):
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[i, j]
+    
+    return dtw_distance_matrix
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -87,11 +130,10 @@ def pemetaan(data_df):
         scaler = StandardScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # Dropdown for choosing linkage method
-        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-
-        # Compute local cost matrix and accumulated cost matrix
+        # Compute local cost matrix
         local_cost_matrix_daily = compute_local_cost_matrix(pd.DataFrame(data_daily_values, columns=data_daily.columns))
+
+        # Compute accumulated cost matrix
         accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
 
         # Compute DTW distance matrix for daily data
@@ -106,7 +148,7 @@ def pemetaan(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='average')
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
@@ -133,11 +175,11 @@ def pemetaan(data_df):
 
         # Clustering and dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+        Z = linkage(condensed_dtw_distance_matrix, method='average')
 
         plt.figure(figsize=(16, 10))
         dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: Average')
         plt.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
