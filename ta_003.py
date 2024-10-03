@@ -65,21 +65,17 @@ def pemetaan(data_df):
             # Standardisasi data
             data_daily_values = standardize_data(data_daily.values)
 
-            linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-
             # Menghitung matriks biaya lokal
             local_cost_matrix_daily = compute_local_cost_matrix(data_daily_values)
 
             # Menghitung matriks biaya terakumulasi
             accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
 
+            # Menghitung matriks jarak DTW
             dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
 
             # Memastikan dtw_distance_matrix_daily adalah array 2D sebelum disimetrisasi
-            if dtw_distance_matrix_daily.ndim == 1:
-                dtw_distance_matrix_daily = np.expand_dims(dtw_distance_matrix_daily, axis=0)
-
-            dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+            dtw_distance_matrix_daily = symmetrize(np.expand_dims(dtw_distance_matrix_daily, axis=0))
 
             num_samples = dtw_distance_matrix_daily.shape[0]
 
@@ -88,8 +84,8 @@ def pemetaan(data_df):
             cluster_labels_dict = {}
 
             for n_clusters in range(2, max_n_clusters + 1):
-                clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
-                labels = clustering.fit_predict(dtw_distance_matrix_daily)
+                clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='complete')
+                labels = clustering.fit_predict(squareform(dtw_distance_matrix_daily))
 
                 if len(labels) == num_samples:
                     try:
@@ -120,11 +116,11 @@ def pemetaan(data_df):
                 st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
                 condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-                Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+                Z = linkage(condensed_dtw_distance_matrix, method='complete')
 
                 plt.figure(figsize=(16, 10))
                 dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-                plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+                plt.title(f'Dendrogram Clustering dengan DTW (Data Harian)')
                 plt.xlabel('Provinsi')
                 plt.ylabel('Jarak DTW')
                 st.pyplot(plt)
