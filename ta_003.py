@@ -105,20 +105,16 @@ def pemetaan(data_df):
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
-        # Plot Silhouette Scores
-        plt.figure(figsize=(10, 6))
-        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        
-        # Adding data labels to the silhouette score plot
-        for n_clusters, score in silhouette_scores.items():
-            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-        
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
-        plt.xlabel('Number of Clusters')
-        plt.ylabel('Silhouette Score')
-        plt.xticks(range(2, max_n_clusters + 1))
-        plt.grid(True)
-        st.pyplot(plt)
+        # Plot Silhouette Scores using Plotly
+        fig_silhouette = go.Figure()
+        fig_silhouette.add_trace(go.Scatter(x=list(silhouette_scores.keys()), 
+                                             y=list(silhouette_scores.values()), 
+                                             mode='lines+markers', 
+                                             name='Silhouette Score'))
+        fig_silhouette.update_layout(title='Silhouette Score vs. Number of Clusters (Data Harian)',
+                                      xaxis_title='Number of Clusters',
+                                      yaxis_title='Silhouette Score')
+        st.plotly_chart(fig_silhouette)
 
         # Determine optimal number of clusters
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
@@ -128,12 +124,23 @@ def pemetaan(data_df):
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
-        plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
-        plt.xlabel('Provinsi')
-        plt.ylabel('Jarak DTW')
-        st.pyplot(plt)
+        # Plot dendrogram using Plotly
+        fig_dendrogram = go.Figure()
+        dendrogram_data = dendrogram(Z, labels=data_daily.columns, orientation='top', no_plot=True)
+        
+        for i in range(len(dendrogram_data['dcoord'])):
+            fig_dendrogram.add_trace(go.Scatter(
+                x=[dendrogram_data['icoord'][i][1], dendrogram_data['icoord'][i][2]],
+                y=[dendrogram_data['dcoord'][i][1], dendrogram_data['dcoord'][i][2]],
+                mode='lines',
+                line=dict(color='blue' if dendrogram_data['color_list'][i] == 'C0' else 'red'),
+                showlegend=False
+            ))
+
+        fig_dendrogram.update_layout(title=f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}',
+                                      xaxis_title='Provinsi',
+                                      yaxis_title='Jarak DTW')
+        st.plotly_chart(fig_dendrogram)
 
         # Table of provinces per cluster
         cluster_labels = cluster_labels_dict[optimal_n_clusters]
@@ -197,62 +204,21 @@ def pemetaan(data_df):
             # Plot map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
-            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
-            st.pyplot(fig)
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black')
 
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_time_points, num_provinces = data_df.shape
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+            plt.title('Pemetaan Kluster Provinsi')
+            st.pyplot(fig)  # Display the plot
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            if i != j:
-                for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
-    return local_cost_matrix
+# Sidebar Menu
+with st.sidebar:
+    selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"],
+                                   icons=['clipboard-data', 'map'], 
+                                   menu_icon="cast", default_index=0)
 
-# Function to compute accumulated cost matrix for DTW
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[1:3]
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+# Main Functionality
+data_df = upload_csv_file()  # Upload CSV file
 
-    for t in range(num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + \
-                        min(accumulated_cost_matrix[t - 1, i, j], 
-                            accumulated_cost_matrix[t - 1, i, i],
-                            accumulated_cost_matrix[t - 1, j, j])
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
-
-    return dtw_distance_matrix
-
-# Main application
-st.title("Aplikasi Clustering dan Pemetaan")
-selected = option_menu(
-    menu_title=None,
-    options=["Statistika Deskriptif", "Pemetaan"],
-    icons=["bar-chart", "map"],
-    orientation="horizontal",
-)
-
-data_df = upload_csv_file()  # Upload file CSV
-
-if selected == "Statistika Deskriptif":
+if selected_option == "Statistika Deskriptif":
     statistika_deskriptif(data_df)
-elif selected == "Pemetaan":
+elif selected_option == "Pemetaan":
     pemetaan(data_df)
