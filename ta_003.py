@@ -178,7 +178,7 @@ def pemetaan(data_df):
         Z = linkage(condensed_dtw_distance_matrix, method='average')
 
         # Make sure to use the correct number of labels (number of original provinces)
-        labels = data_daily.columns
+        labels = data_daily.columns.tolist()  # Ensure it matches the number of original data points
 
         plt.figure(figsize=(16, 10))
         dendrogram(Z, labels=labels, leaf_rotation=90)
@@ -207,27 +207,20 @@ def pemetaan(data_df):
 
             # Plotting the clusters on the map
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(column='Cluster', ax=ax, legend=True, cmap='RdYlGn', edgecolor='black')
-            ax.set_title("Peta Clustering Berdasarkan DTW")
+            gdf.plot(column='Cluster', ax=ax, legend=True, cmap='RdYlGn')
+            plt.title('Pemetaan Provinsi berdasarkan Kluster')
             plt.axis('off')
             st.pyplot(fig)
+        else:
+            st.error("GeoJSON file not found!")
 
-# Sidebar Menu
-with st.sidebar:
-    selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                   icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
+# Main App
+st.title("Aplikasi Clustering DTW")
+selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
 
-# Main function to control navigation between pages
-def main():
-    data_df = upload_csv_file()
-    if data_df is not None:
-        if selected_option == "Statistika Deskriptif":
-            statistika_deskriptif(data_df)
-        elif selected_option == "Pemetaan":
-            pemetaan(data_df)
-    else:
-        st.warning("Silakan unggah file CSV untuk melanjutkan.")
+data_df = upload_csv_file()
 
-# Run the app
-if __name__ == "__main__":
-    main()
+if selected == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected == "Pemetaan":
+    pemetaan(data_df)
