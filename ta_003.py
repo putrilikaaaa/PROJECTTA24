@@ -16,6 +16,11 @@ def compute_local_cost_matrix(data):
 def compute_accumulated_cost_matrix(local_cost_matrix):
     n = local_cost_matrix.shape[0]
     accumulated_cost = np.zeros((n, n))
+    
+    # Pengecekan ukuran matriks lokal
+    if local_cost_matrix.size == 0:
+        raise ValueError("Matriks biaya lokal kosong.")
+
     for i in range(n):
         for j in range(n):
             if i == 0 and j == 0:
@@ -67,6 +72,11 @@ def pemetaan(data_df):
 
             # Menghitung matriks biaya lokal
             local_cost_matrix_daily = compute_local_cost_matrix(data_daily_values)
+
+            # Memeriksa ukuran matriks biaya lokal
+            if local_cost_matrix_daily.size == 0 or local_cost_matrix_daily.shape[0] != local_cost_matrix_daily.shape[1]:
+                st.error("Matriks biaya lokal tidak valid. Pastikan data input Anda benar.")
+                return
 
             # Menghitung matriks biaya terakumulasi
             accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
@@ -186,21 +196,11 @@ def pemetaan(data_df):
 # Fungsi utama
 def main():
     st.title("Aplikasi Clustering Provinsi dengan DTW")
+    data_file = st.file_uploader("Unggah Data (CSV)", type=["csv"])
 
-    # Upload file data
-    uploaded_file = st.file_uploader("Upload Data", type=["csv"])
-    if uploaded_file is not None:
-        data_df = pd.read_csv(uploaded_file)
-
-        # Pilih halaman
-        page_selection = st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan'])
-        
-        if page_selection == 'Statistika Deskriptif':
-            # Tampilkan statistika deskriptif
-            st.subheader("Statistika Deskriptif")
-            st.write(data_df.describe())
-        elif page_selection == 'Pemetaan':
-            pemetaan(data_df)
+    if data_file is not None:
+        data_df = pd.read_csv(data_file)
+        pemetaan(data_df)
 
 if __name__ == "__main__":
     main()
