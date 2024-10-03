@@ -220,13 +220,15 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
         for j in range(num_provinces):
             if i != j:
                 for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = np.abs(data_df.values[t, i] - data_df.values[t, j])
+                    local_cost_matrix[t, i, j] = (data_df.iloc[t, i] - data_df.iloc[t, j]) ** 2
+            else:
+                local_cost_matrix[:, i, j] = 0  # Zero for self-comparison
 
     return local_cost_matrix
 
 # Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = local_cost_matrix.shape
+    num_time_points, num_provinces = local_cost_matrix.shape[0:2]
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
     for t in range(num_time_points):
@@ -235,11 +237,12 @@ def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
                 if t == 0:
                     accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
                 else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                        accumulated_cost_matrix[t - 1, i, j],  # from the left
-                        accumulated_cost_matrix[t - 1, i, (j - 1) % num_provinces],  # from the diagonal
-                        accumulated_cost_matrix[t - 1, (i - 1) % num_provinces, j]  # from above
-                    )
+                    min_cost = np.min([
+                        accumulated_cost_matrix[t - 1, i, j],  # previous time point, same province
+                        accumulated_cost_matrix[t - 1, i, :],  # previous time point, all provinces
+                        accumulated_cost_matrix[t - 1, :, j]   # previous time point, all provinces
+                    ])
+                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
 
     return accumulated_cost_matrix
 
@@ -254,26 +257,15 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main app
-def main():
-    st.title("Aplikasi Pemodelan Data")
+# Main App
+st.title("Aplikasi Pemetaan dan Analisis Data")
+selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["info", "map"], menu_icon="cast", default_index=0)
 
-    # Sidebar for navigation
-    with st.sidebar:
-        selected = option_menu(
-            menu_title="Navigasi",
-            options=["Statistika Deskriptif", "Pemetaan"],
-            default_index=0
-        )
+# Upload CSV file
+data_df = upload_csv_file()
 
-    # Upload data once
-    data_df = upload_csv_file()
-
-    # Display pages based on selection
-    if selected == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected == "Pemetaan":
-        pemetaan(data_df)
-
-if __name__ == "__main__":
-    main()
+# Render the selected page
+if selected == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected == "Pemetaan":
+    pemetaan(data_df)
