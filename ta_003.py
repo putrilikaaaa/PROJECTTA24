@@ -9,6 +9,7 @@ from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
 from sklearn.preprocessing import StandardScaler
+import plotly.graph_objects as go
 
 # Function to upload CSV files
 def upload_csv_file():
