@@ -9,6 +9,7 @@ import geopandas as gpd
 from streamlit_option_menu import option_menu
 from sklearn.preprocessing import StandardScaler
 import plotly.graph_objs as go  # Importing Plotly
+import matplotlib.pyplot as plt  # Importing Matplotlib
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -25,6 +26,22 @@ def upload_csv_file():
 def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
+
+# Placeholder for compute_local_cost_matrix function
+def compute_local_cost_matrix(data_df):
+    # Replace with the actual implementation for calculating the local cost matrix
+    # Here is a simple example that calculates the pairwise distance matrix
+    return np.linalg.norm(data_df[:, None] - data_df, axis=2)
+
+# Placeholder for compute_accumulated_cost_matrix function
+def compute_accumulated_cost_matrix(local_cost_matrix):
+    # Replace with the actual implementation for accumulating cost
+    return np.cumsum(local_cost_matrix, axis=1)
+
+# Placeholder for compute_dtw_distance_matrix function
+def compute_dtw_distance_matrix(accumulated_cost_matrix):
+    # Replace with the actual implementation for DTW distance matrix
+    return np.sqrt(np.sum((accumulated_cost_matrix[:, None] - accumulated_cost_matrix)**2, axis=-1))
 
 # Ensure DTW distance matrix is symmetric
 def symmetrize(matrix):
@@ -186,28 +203,17 @@ def pemetaan(data_df):
                 3: 'blue',
                 4: 'purple',
                 5: 'orange',
-                6: 'pink',
-                7: 'brown',
-                8: 'cyan',
-                9: 'magenta'
+                6: 'cyan',
+                7: 'magenta',
+                8: 'black',
+                9: 'brown'
             })
-            gdf['color'].fillna('grey', inplace=True)
 
-            # Display provinces colored grey
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
-
-            # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black')
-
+            # Plot GeoDataFrame with cluster colors
+            fig_map, ax = plt.subplots(1, 1, figsize=(10, 8))
+            gdf.plot(column='color', ax=ax, legend=True, cmap='Set1', edgecolor='black')
             plt.title('Pemetaan Kluster Provinsi')
-            st.pyplot(fig)  # Display the plot
+            st.pyplot(fig_map)  # Display the plot
 
 # Sidebar Menu
 with st.sidebar:
