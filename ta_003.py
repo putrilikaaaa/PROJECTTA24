@@ -177,8 +177,11 @@ def pemetaan(data_df):
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method='average')
 
+        # Make sure to use the correct number of labels (number of original provinces)
+        labels = data_daily.columns
+
         plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        dendrogram(Z, labels=labels, leaf_rotation=90)
         plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: Average')
         plt.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
@@ -211,15 +214,19 @@ def pemetaan(data_df):
 
 # Sidebar Menu
 with st.sidebar:
-    selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
+    selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                                   icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
 
 # Main function to control navigation between pages
 def main():
     data_df = upload_csv_file()
-    if selected_option == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected_option == "Pemetaan":
-        pemetaan(data_df)
+    if data_df is not None:
+        if selected_option == "Statistika Deskriptif":
+            statistika_deskriptif(data_df)
+        elif selected_option == "Pemetaan":
+            pemetaan(data_df)
+    else:
+        st.warning("Silakan unggah file CSV untuk melanjutkan.")
 
 # Run the app
 if __name__ == "__main__":
