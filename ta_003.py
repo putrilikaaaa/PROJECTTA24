@@ -1,37 +1,86 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from scipy.cluster.hierarchy import dendrogram, linkage
-from sklearn.preprocessing import StandardScaler
+import numpy as np
 from sklearn.metrics import silhouette_score
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
+import geopandas as gpd
+from streamlit_option_menu import option_menu
+from sklearn.preprocessing import StandardScaler
 
-# Function to compute local cost matrix
-def compute_local_cost_matrix(data):
-    # Your implementation of the local cost matrix calculation
-    pass
+# Function to upload CSV files
+def upload_csv_file():
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)
+            return df
+        except Exception as e:
+            st.error(f"Error: {e}")
+    return None
 
-# Function to compute accumulated cost matrix
-def compute_accumulated_cost_matrix(local_cost_matrix):
-    # Your implementation of the accumulated cost matrix calculation
-    pass
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix):
-    # Your implementation of the DTW distance matrix calculation
-    pass
-
-# Function to symmetrize the distance matrix
-def symmetrize(distance_matrix):
-    return (distance_matrix + distance_matrix.T) / 2
-
-# Function to upload GeoJSON file from GitHub
+# Function to upload GeoJSON files
 def upload_geojson_file():
-    # Your implementation to load the GeoJSON file
-    pass
+    gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
+    return gdf
 
-# Pemetaan function
+# Ensure DTW distance matrix is symmetric
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
+
+# Statistika Deskriptif Page
+def statistika_deskriptif(data_df):
+    st.subheader("Statistika Deskriptif")
+
+    if data_df is not None:
+        st.write("Data yang diunggah:")
+        st.write(data_df)
+
+        # Statistika deskriptif
+        st.write("Statistika deskriptif data:")
+        st.write(data_df.describe())
+
+        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
+        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
+        selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
+
+        if selected_province:
+            # Visualisasi data untuk provinsi terpilih
+            st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
+            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+            data_df.set_index('Tanggal', inplace=True)
+
+            # Plot average prices for the selected province
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
+            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
+            ax.set_xlabel("Tanggal")
+            ax.set_ylabel("Harga")
+            ax.legend()
+
+            st.pyplot(fig)
+
+        # Add calendar date picker
+        st.subheader("Pilih Tanggal untuk Visualisasi Semua Provinsi")
+        selected_date = st.date_input("Tanggal", value=pd.to_datetime(data_df.index[-1]).date())
+
+        # Filter the data for the selected date
+        if selected_date in data_df.index:
+            selected_data = data_df.loc[selected_date]
+            # Plot bar chart for all provinces on the selected date
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.bar(selected_data.index, selected_data.values)
+            ax.set_title(f"Nilai pada Tanggal {selected_date.strftime('%Y-%m-%d')}")
+            ax.set_xlabel("Provinsi")
+            ax.set_ylabel("Harga")
+            plt.xticks(rotation=45)
+            st.pyplot(fig)
+        else:
+            st.warning("Tanggal tidak tersedia dalam data yang diunggah.")
+
+# Pemetaan Page
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
 
@@ -49,10 +98,11 @@ def pemetaan(data_df):
         scaler = StandardScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # Compute local cost matrix
-        local_cost_matrix_daily = compute_local_cost_matrix(pd.DataFrame(data_daily_values, columns=data_daily.columns))
+        # Dropdown for choosing linkage method
+        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
-        # Compute accumulated cost matrix
+        # Compute local cost matrix and accumulated cost matrix
+        local_cost_matrix_daily = compute_local_cost_matrix(pd.DataFrame(data_daily_values, columns=data_daily.columns))
         accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
 
         # Compute DTW distance matrix for daily data
@@ -67,7 +117,7 @@ def pemetaan(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='average')
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
@@ -76,11 +126,11 @@ def pemetaan(data_df):
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-
+        
         # Adding data labels to the silhouette score plot
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-
+        
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
@@ -94,14 +144,11 @@ def pemetaan(data_df):
 
         # Clustering and dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-        Z = linkage(condensed_dtw_distance_matrix, method='average')
-
-        # Ensure labels match the number of data points (provinces)
-        labels = data_daily.columns.tolist()  # Get the names of the provinces
+        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
         plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=labels, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: Average')
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
         plt.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
@@ -119,29 +166,69 @@ def pemetaan(data_df):
 
         # Load GeoJSON file from GitHub
         gdf = upload_geojson_file()
+
         if gdf is not None:
-            st.write("Peta Clustering:")
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf['Cluster'] = cluster_labels  # Add cluster data to GeoDataFrame
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Plotting the clusters on the map
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(column='Cluster', ax=ax, legend=True, cmap='RdYlGn')
-            plt.title('Pemetaan Provinsi berdasarkan Kluster')
-            plt.axis('off')
+            # Calculate cluster from clustering results
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Rename inconsistent provinces
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
+
+            # Remove provinces that are None (i.e., GORONTALO)
+            gdf = gdf[gdf['Province'].notna()]
+
+            # Merge clustered data with GeoDataFrame
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+            # Set colors for clusters
+            gdf['color'] = gdf['Cluster'].map({
+                0: 'red',
+                1: 'yellow',
+                2: 'green',
+                3: 'blue',
+                4: 'purple',
+                5: 'orange',
+                6: 'pink',
+                7: 'brown',
+                8: 'cyan',
+                9: 'magenta'
+            })
+            gdf['color'].fillna('grey', inplace=True)
+
+            # Display provinces colored grey
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
+
+            # Plot map
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1)
+            gdf.plot(column='color', ax=ax, legend=True)
             st.pyplot(fig)
-        else:
-            st.error("GeoJSON file not found!")
 
-# Main function to run the Streamlit application
+# Main Streamlit application
 def main():
-    st.title("Aplikasi Pemetaan Clustering")
-    
-    # Upload data file
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
-    
-    if uploaded_file is not None:
-        data_df = pd.read_csv(uploaded_file)
+    st.title("Aplikasi Analisis Data Provinsi")
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["bar-chart", "map"], default_index=0)
+
+    data_df = upload_csv_file()  # Upload data file
+
+    if selected == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
