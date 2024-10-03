@@ -31,7 +31,7 @@ def symmetrize(matrix):
 # Fungsi untuk mengunggah file GeoJSON
 def upload_geojson_file():
     try:
-        gdf = gpd.read_file("/path/to/indonesia-prov.geojson")
+        gdf = gpd.read_file("/path/to/indonesia-prov.geojson")  # Ubah ke path yang benar
         return gdf
     except Exception as e:
         st.error(f"Error loading GeoJSON file: {e}")
@@ -90,20 +90,22 @@ def pemetaan(data_df):
             data_daily = data_df.resample('D').mean()
             data_daily.fillna(method='ffill', inplace=True)
 
-            data_daily = standardize_data(data_daily)
-
-            data_daily_values = data_daily.values
+            # Standardisasi data
+            data_daily_values = standardize_data(data_daily.values)
 
             linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
-            local_cost_matrix_daily = compute_local_cost_matrix(data_daily)
+            # Menghitung matriks jarak lokal dengan data yang telah distandarisasi
+            local_cost_matrix_daily = compute_local_cost_matrix(data_daily_values)
+
+            # Hitung matriks jarak terakumulasi
             accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
 
             dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
             dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
             num_samples = dtw_distance_matrix_daily.shape[0]
-            
+
             max_n_clusters = 10
             silhouette_scores = {}
             cluster_labels_dict = {}
@@ -139,7 +141,7 @@ def pemetaan(data_df):
             if silhouette_scores:
                 optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
                 st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
-            
+                
                 condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
                 Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
@@ -210,15 +212,20 @@ def pemetaan(data_df):
 
 # Fungsi utama Streamlit
 def main():
-    st.title("Aplikasi Statistika Deskriptif dan Pemetaan Kluster dengan DTW")
+    st.title("Aplikasi Statistika Deskriptif dan Pemetaan")
 
-    data_file = st.file_uploader("Unggah file CSV", type=["csv"])
-    
-    if data_file:
-        data_df = pd.read_csv(data_file)
-        
+    uploaded_file = st.file_uploader("Unggah File Data", type=["csv"])
+
+    if uploaded_file is not None:
+        data_df = pd.read_csv(uploaded_file)
+
+        # Memastikan kolom 'Tanggal' ada
+        if 'Tanggal' in data_df.columns:
+            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+
+        # Pilihan Halaman
         page_selection = st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan'])
-        
+
         if page_selection == 'Statistika Deskriptif':
             statistika_deskriptif(data_df)
         elif page_selection == 'Pemetaan':
