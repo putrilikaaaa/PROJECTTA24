@@ -199,46 +199,33 @@ def pemetaan(data_df):
 
 # Function to compute DTW distance matrix for standardized data
 def compute_dtw_distance_matrix(data: np.array) -> np.array:
+    from fastdtw import fastdtw  # FastDTW library can improve performance
     num_provinces = data.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
-        for j in range(num_provinces):
-            if i != j:
-                dtw_distance_matrix[i, j] = dtw(data[:, i], data[:, j])  # Compute DTW for each pair of provinces
+        for j in range(i + 1, num_provinces):  # Only compute upper triangle
+            distance, _ = fastdtw(data[:, i], data[:, j])  # Compute DTW for each pair of provinces
+            dtw_distance_matrix[i, j] = distance
+            dtw_distance_matrix[j, i] = distance  # Mirror value to the lower triangle
 
     return dtw_distance_matrix
 
-# Function to compute local cost matrix for DTW
-def dtw(series_a, series_b):
-    n = len(series_a)
-    m = len(series_b)
-    dtw_matrix = np.zeros((n + 1, m + 1))
-    dtw_matrix.fill(np.inf)
-    dtw_matrix[0, 0] = 0
-
-    for i in range(1, n + 1):
-        for j in range(1, m + 1):
-            cost = np.abs(series_a[i - 1] - series_b[j - 1])
-            dtw_matrix[i, j] = cost + min(dtw_matrix[i - 1, j], dtw_matrix[i, j - 1], dtw_matrix[i - 1, j - 1])
-
-    return dtw_matrix[n, m]
-
 # Main app
 def main():
-    st.title("Aplikasi Pemodelan Clustering dengan DTW")
+    st.title("Aplikasi Pemetaan Clustering DTW")
     data_df = upload_csv_file()
 
-    if data_df is not None:
-        with st.sidebar:
-            selected_page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                         icons=["bar-chart-line", "map"], 
-                                         menu_icon="cast", default_index=0)
+    # Sidebar Menu
+    with st.sidebar:
+        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"],
+                                       icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
 
-        if selected_page == "Statistika Deskriptif":
-            statistika_deskriptif(data_df)
-        elif selected_page == "Pemetaan":
-            pemetaan(data_df)
+    # Display selected page
+    if selected_option == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected_option == "Pemetaan":
+        pemetaan(data_df)
 
 if __name__ == "__main__":
     main()
