@@ -9,7 +9,6 @@ from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
 from sklearn.preprocessing import StandardScaler
-import plotly.graph_objects as go
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -54,23 +53,14 @@ def statistika_deskriptif(data_df):
             data_df.set_index('Tanggal', inplace=True)
 
             # Plot average prices for the selected province
-            fig = go.Figure()
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
+            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
+            ax.set_xlabel("Tanggal")
+            ax.set_ylabel("Harga")
+            ax.legend()
 
-            fig.add_trace(go.Scatter(
-                x=data_df.index,
-                y=data_df[selected_province],
-                mode='lines+markers',
-                name=selected_province
-            ))
-
-            fig.update_layout(
-                title=f"Rata-rata Harga Harian - Provinsi {selected_province}",
-                xaxis_title="Tanggal",
-                yaxis_title="Harga",
-                hovermode="x unified"
-            )
-
-            st.plotly_chart(fig)
+            st.pyplot(fig)
 
 # Pemetaan Page
 def pemetaan(data_df):
@@ -220,29 +210,23 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
         for j in range(num_provinces):
             if i != j:
                 for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = (data_df.iloc[t, i] - data_df.iloc[t, j]) ** 2
-            else:
-                local_cost_matrix[:, i, j] = 0  # Zero for self-comparison
+                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
 
     return local_cost_matrix
 
 # Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0:2]
+    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for t in range(num_time_points):
+    for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                else:
-                    min_cost = np.min([
-                        accumulated_cost_matrix[t - 1, i, j],  # previous time point, same province
-                        accumulated_cost_matrix[t - 1, i, :],  # previous time point, all provinces
-                        accumulated_cost_matrix[t - 1, :, j]   # previous time point, all provinces
-                    ])
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                    accumulated_cost_matrix[t - 1, i, j],  # from the same province
+                    accumulated_cost_matrix[t - 1, j, i],  # from the other province
+                    accumulated_cost_matrix[t - 1, i, i]   # from previous time point of the same province
+                )
 
     return accumulated_cost_matrix
 
@@ -253,19 +237,29 @@ def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            if i != j:
+                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
 
     return dtw_distance_matrix
 
-# Main App
-st.title("Aplikasi Pemetaan dan Analisis Data")
-selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["info", "map"], menu_icon="cast", default_index=0)
+# Main function to run the Streamlit app
+def main():
+    st.title("Aplikasi Pemodelan dan Pemetaan Data")
+    
+    # Sidebar menu for navigation
+    with st.sidebar:
+        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                                       icons=["bar-chart", "map"], 
+                                       menu_icon="cast", default_index=0)
 
-# Upload CSV file
-data_df = upload_csv_file()
+    # Upload data file once
+    data_df = upload_csv_file()
 
-# Render the selected page
-if selected == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
-elif selected == "Pemetaan":
-    pemetaan(data_df)
+    # Call the appropriate page based on the selected option
+    if selected_option == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected_option == "Pemetaan":
+        pemetaan(data_df)
+
+if __name__ == "__main__":
+    main()
