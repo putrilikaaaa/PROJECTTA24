@@ -1,14 +1,15 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
+from sklearn_extra.cluster import KMedoids  # Import K-Medoids
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
 from sklearn.preprocessing import StandardScaler
-import plotly.graph_objects as go  # Import Plotly for interactive plots
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -52,18 +53,15 @@ def statistika_deskriptif(data_df):
             data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
             data_df.set_index('Tanggal', inplace=True)
 
-            # Create an interactive plot using Plotly
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=data_df.index, y=data_df[selected_province],
-                                     mode='lines+markers',
-                                     name=selected_province))
+            # Plot average prices for the selected province
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
+            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
+            ax.set_xlabel("Tanggal")
+            ax.set_ylabel("Harga")
+            ax.legend()
 
-            fig.update_layout(title=f"Rata-rata Harga Harian - Provinsi {selected_province}",
-                              xaxis_title="Tanggal",
-                              yaxis_title="Harga",
-                              hovermode='x unified')
-
-            st.plotly_chart(fig)  # Use Streamlit's plotly_chart to display the Plotly figure
+            st.pyplot(fig)
 
 # Pemetaan Page
 def pemetaan(data_df):
@@ -102,28 +100,36 @@ def pemetaan(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
+            # Agglomerative Clustering
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
+            # K-Medoids Clustering
+            kmedoids = KMedoids(n_clusters=n_clusters, metric='precomputed')
+            kmedoids_labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
+            kmedoids_score = silhouette_score(dtw_distance_matrix_daily, kmedoids_labels, metric='precomputed')
+            silhouette_scores[n_clusters + 0.1] = kmedoids_score  # Offset for visualization
+            cluster_labels_dict[n_clusters + 0.1] = kmedoids_labels
+
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        
+
         # Adding data labels to the silhouette score plot
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-        
+
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
-        plt.xticks(range(2, max_n_clusters + 1))
+        plt.xticks(np.arange(2, max_n_clusters + 2, step=0.1))  # Adjusted ticks for K-Medoids
         plt.grid(True)
         st.pyplot(plt)
 
-        # Determine optimal number of clusters
+        # Determine optimal number of clusters for both methods
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
@@ -139,7 +145,11 @@ def pemetaan(data_df):
         st.pyplot(plt)
 
         # Table of provinces per cluster
-        cluster_labels = cluster_labels_dict[optimal_n_clusters]
+        if optimal_n_clusters in cluster_labels_dict:
+            cluster_labels = cluster_labels_dict[optimal_n_clusters]
+        else:
+            cluster_labels = cluster_labels_dict[optimal_n_clusters - 0.1]  # For K-Medoids
+
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': cluster_labels
@@ -194,72 +204,28 @@ def pemetaan(data_df):
             if grey_provinces:
                 st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
                 st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
 
-            # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
-            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
-            st.pyplot(fig)
+            # Create folium map for clusters
+            st.subheader("Peta Klustering Provinsi")
+            m = folium.Map(location=[-5.5, 120], zoom_start=5)
 
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_time_points, num_provinces = data_df.shape
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+            # Add GeoJSON to the map
+            folium.GeoJson(gdf).add_to(m)
+            folium.LayerControl().add_to(m)
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            if i != j:
-                for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+            # Display the map in Streamlit
+            folium_static(m)
 
-    return local_cost_matrix
+# Sidebar navigation
+with st.sidebar:
+    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                           icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
 
-# Function to compute accumulated cost matrix for DTW
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+# Load data
+data_df = upload_csv_file()
 
-    for t in range(num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                        accumulated_cost_matrix[t - 1, i, j],
-                        accumulated_cost_matrix[t - 1, i, j - 1] if j > 0 else np.inf,
-                        accumulated_cost_matrix[t - 1, i - 1, j] if i > 0 else np.inf,
-                    )
-
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
-
-    return dtw_distance_matrix
-
-# Main Streamlit app
-def main():
-    st.title("Aplikasi Clustering dengan DTW")
-
-    with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
-
-    data_df = upload_csv_file()
-
-    if selected == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected == "Pemetaan":
-        pemetaan(data_df)
-
-if __name__ == "__main__":
-    main()
+# Display pages based on selection
+if selected == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected == "Pemetaan":
+    pemetaan(data_df)
