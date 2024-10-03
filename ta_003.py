@@ -42,6 +42,26 @@ def statistika_deskriptif(data_df):
         st.write("Statistika deskriptif data:")
         st.write(data_df.describe())
 
+        # Date selection
+        date_selection = st.date_input("Pilih Tanggal", min_value=data_df['Tanggal'].min(), max_value=data_df['Tanggal'].max())
+        date_selection = pd.to_datetime(date_selection)
+
+        # Filter data for the selected date
+        selected_date_data = data_df[data_df['Tanggal'] == date_selection]
+
+        # Check if data exists for the selected date
+        if not selected_date_data.empty:
+            # Bar chart for average prices on the selected date
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.bar(selected_date_data.columns[1:], selected_date_data.iloc[0, 1:], color='skyblue')
+            ax.set_title(f"Rata-rata Harga pada Tanggal {date_selection.date()}")
+            ax.set_xlabel("Provinsi")
+            ax.set_ylabel("Harga")
+
+            st.pyplot(fig)
+        else:
+            st.write("Tidak ada data untuk tanggal yang dipilih.")
+
         # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
         province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
@@ -195,53 +215,12 @@ def pemetaan(data_df):
                 st.write("Semua provinsi termasuk dalam kluster.")
 
             # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
-            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
+            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+            gdf.boundary.plot(ax=ax, linewidth=1)
+            gdf.plot(column='color', ax=ax, legend=True, alpha=0.5)
+
+            ax.set_title('Pemetaan Provinsi Berdasarkan Kluster')
             st.pyplot(fig)
-
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_time_points, num_provinces = data_df.shape
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            if i != j:
-                for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
-
-    return local_cost_matrix
-
-# Function to compute accumulated cost matrix for DTW
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for t in range(num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                else:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + \
-                        min(accumulated_cost_matrix[t - 1, i, j], 
-                            accumulated_cost_matrix[t - 1, j, i])  # Allowing the possibility of swapping
-
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix from accumulated cost matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            if i != j:
-                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]  # Last time point
-
-    return dtw_distance_matrix
 
 # Main Streamlit application
 def main():
