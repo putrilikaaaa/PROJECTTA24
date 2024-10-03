@@ -1,73 +1,45 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import silhouette_score
+import matplotlib.pyplot as plt
 from sklearn.cluster import AgglomerativeClustering
-from scipy.cluster.hierarchy import dendrogram, linkage
+from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import squareform
+from scipy.cluster.hierarchy import dendrogram, linkage
 import geopandas as gpd
-from streamlit_option_menu import option_menu
-from sklearn.preprocessing import StandardScaler
 
-# Function to upload CSV files
-def upload_csv_file():
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
-    if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
-            return df
-        except Exception as e:
-            st.error(f"Error: {e}")
-    return None
+# Fungsi untuk standardisasi data
+def standardize_data(data):
+    return (data - data.mean()) / data.std()
 
-# Function to upload GeoJSON files
-def upload_geojson_file():
-    gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
-    return gdf
+# Fungsi untuk menghitung matriks jarak lokal (local cost matrix)
+def compute_local_cost_matrix(data):
+    # Contoh implementasi
+    return np.abs(data[:, None] - data[None, :])
 
-# Ensure DTW distance matrix is symmetric
+# Fungsi untuk menghitung matriks jarak terakumulasi (accumulated cost matrix)
+def compute_accumulated_cost_matrix(local_cost_matrix):
+    # Contoh implementasi
+    return np.cumsum(local_cost_matrix, axis=1)
+
+# Fungsi untuk menghitung matriks jarak DTW
+def compute_dtw_distance_matrix(accumulated_cost_matrix):
+    # Contoh implementasi
+    return accumulated_cost_matrix[:, -1]
+
+# Fungsi untuk memastikan matriks jarak simetris
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
-# Function to standardize data before DTW calculation
-def standardize_data(data_df: pd.DataFrame) -> pd.DataFrame:
-    scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(data_df)  # Standardize the data (mean=0, std=1)
-    standardized_df = pd.DataFrame(scaled_data, index=data_df.index, columns=data_df.columns)
-    return standardized_df
-
-# Statistika Deskriptif Page
-def statistika_deskriptif(data_df):
-    st.subheader("Statistika Deskriptif")
-
-    if data_df is not None:
-        st.write("Data yang diunggah:")
-        st.write(data_df)
-
-        # Statistika deskriptif
-        st.write("Statistika deskriptif data:")
-        st.write(data_df.describe())
-
-        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
-        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
-        selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
-
-        if selected_province:
-            # Visualisasi data untuk provinsi terpilih
-            st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
-            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-            data_df.set_index('Tanggal', inplace=True)
-
-            # Plot average prices for the selected province
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
-            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
-            ax.set_xlabel("Tanggal")
-            ax.set_ylabel("Harga")
-            ax.legend()
-
-            st.pyplot(fig)
+# Fungsi untuk mengunggah file GeoJSON
+def upload_geojson_file():
+    # Mengambil file GeoJSON dari GitHub (path lokal atau URL di sini)
+    try:
+        gdf = gpd.read_file("/path/to/indonesia-prov.geojson")
+        return gdf
+    except Exception as e:
+        st.error(f"Error loading GeoJSON file: {e}")
+        return None
 
 # Pemetaan Page
 def pemetaan(data_df):
@@ -222,65 +194,16 @@ def pemetaan(data_df):
                 plt.title("Pemetaan Provinsi Berdasarkan Kluster")
                 st.pyplot(fig)
 
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_time_points, num_provinces = data_df.shape
-    local_cost_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(i, num_provinces):
-            local_cost_matrix[i, j] = np.sum(np.abs(data_df.iloc[:, i] - data_df.iloc[:, j]))
-            local_cost_matrix[j, i] = local_cost_matrix[i, j]
-    
-    return local_cost_matrix
-
-# Function to compute accumulated cost matrix for DTW
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_provinces = local_cost_matrix.shape[0]
-    accumulated_cost_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(i, num_provinces):
-            accumulated_cost_matrix[i, j] = np.sum(local_cost_matrix[:i + 1, :j + 1])
-            accumulated_cost_matrix[j, i] = accumulated_cost_matrix[i, j]
-    
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[0]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(i, num_provinces):
-            dtw_distance_matrix[i, j] = np.sqrt(accumulated_cost_matrix[i, j])
-            dtw_distance_matrix[j, i] = dtw_distance_matrix[i, j]
-    
-    return dtw_distance_matrix
-
-# Main function to run the Streamlit app
+# Fungsi utama Streamlit
 def main():
-    st.title("Aplikasi Clustering dengan DTW dan Visualisasi GeoJSON")
+    st.title("Aplikasi Pemetaan Kluster dengan DTW")
 
-    # Sidebar menu
-    menu_options = option_menu(
-        menu_title=None,
-        options=["Statistika Deskriptif", "Pemetaan"],
-        icons=["bar-chart-line", "map"],
-        menu_icon="cast",
-        default_index=0,
-        orientation="horizontal"
-    )
-
-    # Upload CSV file
-    data_df = upload_csv_file()
-
-    if menu_options == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-
-    elif menu_options == "Pemetaan":
+    # Upload file data
+    data_file = st.file_uploader("Unggah file CSV", type=["csv"])
+    
+    if data_file:
+        data_df = pd.read_csv(data_file)
         pemetaan(data_df)
 
-# Run the app
 if __name__ == "__main__":
     main()
