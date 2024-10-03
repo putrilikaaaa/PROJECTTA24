@@ -46,21 +46,25 @@ def statistika_deskriptif(data_df):
         province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
-        if selected_province:
-            # Visualisasi data untuk provinsi terpilih
-            st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
-            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-            data_df.set_index('Tanggal', inplace=True)
+        # Date selection
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        selected_date = st.date_input("Pilih Tanggal", min_value=data_df['Tanggal'].min(), max_value=data_df['Tanggal'].max())
 
+        # Filter the data for the selected date
+        filtered_data = data_df[data_df['Tanggal'] == pd.Timestamp(selected_date)]
+
+        if not filtered_data.empty:
             # Plot average prices for the selected province
+            st.write(f"Rata-rata harga untuk provinsi: {selected_province} pada tanggal {selected_date}")
             fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
-            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
-            ax.set_xlabel("Tanggal")
+            ax.bar(filtered_data.columns[1:], filtered_data.iloc[0, 1:], color='skyblue')  # Skip the 'Tanggal' column for bar plot
+            ax.set_title(f"Nilai pada {selected_date}")
+            ax.set_xlabel("Provinsi")
             ax.set_ylabel("Harga")
-            ax.legend()
-
+            plt.xticks(rotation=45)
             st.pyplot(fig)
+        else:
+            st.warning("Tidak ada data untuk tanggal yang dipilih.")
 
 # Pemetaan Page
 def pemetaan(data_df):
@@ -204,41 +208,42 @@ def pemetaan(data_df):
 # Function to compute local cost matrix for DTW
 def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     num_time_points, num_provinces = data_df.shape
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+    local_cost_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+            # Calculate DTW distance between each pair of provinces
+            local_cost_matrix[i, j] = dtw_distance(data_df.iloc[:, i].values, data_df.iloc[:, j].values)
 
     return local_cost_matrix
 
 # Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+    num_provinces = local_cost_matrix.shape[0]
+    accumulated_cost_matrix = np.zeros((num_provinces, num_provinces))
 
-    for t in range(1, num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],  # from the same province
-                    accumulated_cost_matrix[t - 1, j, i],  # from the other province
-                    accumulated_cost_matrix[t - 1, i, i]   # from previous time point of the same province
-                )
-
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i == 0 and j == 0:
+                accumulated_cost_matrix[i, j] = local_cost_matrix[i, j]
+            elif i == 0:
+                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i, j - 1] + local_cost_matrix[i, j]
+            elif j == 0:
+                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i - 1, j] + local_cost_matrix[i, j]
+            else:
+                accumulated_cost_matrix[i, j] = min(accumulated_cost_matrix[i - 1, j], 
+                                                      accumulated_cost_matrix[i, j - 1], 
+                                                      accumulated_cost_matrix[i - 1, j - 1]) + local_cost_matrix[i, j]
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
+    num_provinces = accumulated_cost_matrix.shape[0]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, -1]  # DTW distance is stored in the last cell
 
     return dtw_distance_matrix
 
