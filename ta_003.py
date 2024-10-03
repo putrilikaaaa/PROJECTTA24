@@ -69,8 +69,12 @@ def statistika_deskriptif(data_df):
         selected_province = st.selectbox("Pilih Provinsi", province_options)
 
         if selected_province:
-            province_value = selected_data[selected_province].values[0]
-            st.write(f"Nilai untuk {selected_province} pada {selected_date}: {province_value}")
+            # Check if selected province exists in selected data
+            if selected_province in selected_data.columns:
+                province_value = selected_data[selected_province].values[0]
+                st.write(f"Nilai untuk {selected_province} pada {selected_date}: {province_value}")
+            else:
+                st.error("Provinsi yang dipilih tidak ada dalam data untuk tanggal yang dipilih.")
 
 # Pemetaan Page
 def pemetaan(data_df):
@@ -205,66 +209,26 @@ def pemetaan(data_df):
                 st.write("Semua provinsi termasuk dalam kluster.")
 
             # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
+            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+            gdf.boundary.plot(ax=ax, linewidth=1)
+            gdf.plot(column='color', ax=ax, legend=True)
             plt.title("Pemetaan Provinsi Berdasarkan Kluster")
             st.pyplot(fig)
 
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_time_points, num_provinces = data_df.shape
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for t in range(num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
-                    
-    return local_cost_matrix
-
-# Function to compute accumulated cost matrix for DTW
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for t in range(num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                if t == 0:
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j]
-                else:
-                    min_cost = np.min([accumulated_cost_matrix[t-1, i, k] + local_cost_matrix[t, k, j] for k in range(num_provinces)])
-                    accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min_cost
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
-    return dtw_distance_matrix
-
-# Main function to run the Streamlit app
+# Main app
 def main():
-    st.title("Aplikasi Pemodelan dan Pemetaan Data")
-    
-    # Sidebar menu for navigation
-    with st.sidebar:
-        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                       icons=["bar-chart", "map"], 
-                                       menu_icon="cast", default_index=0)
+    st.title("Analisis Data dengan Streamlit")
 
-    # Upload data file once
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                               icons=["info-circle", "map"], menu_icon="cast", default_index=0)
+
+    # Upload data
     data_df = upload_csv_file()
 
-    # Call the appropriate page based on the selected option
-    if selected_option == "Statistika Deskriptif":
+    if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_option == "Pemetaan":
+    elif selected == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
