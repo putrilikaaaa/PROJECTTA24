@@ -64,6 +64,14 @@ def statistika_deskriptif(data_df):
         else:
             st.write("Tidak ada data untuk tanggal yang dipilih.")
 
+        # Dropdown for selecting a province
+        province_options = selected_data.columns[1:]  # Exclude the 'Tanggal' column
+        selected_province = st.selectbox("Pilih Provinsi", province_options)
+
+        if selected_province:
+            province_value = selected_data[selected_province].values[0]
+            st.write(f"Nilai untuk {selected_province} pada {selected_date}: {province_value}")
+
 # Pemetaan Page
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
@@ -208,11 +216,10 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
     num_time_points, num_provinces = data_df.shape
     local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            if i != j:
-                for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+    for t in range(num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
                     
     return local_cost_matrix
 
