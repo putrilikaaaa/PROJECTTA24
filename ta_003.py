@@ -1,83 +1,47 @@
-import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import streamlit as st
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
-from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import dendrogram, linkage
-import geopandas as gpd
+from scipy.spatial.distance import squareform
 
-# Fungsi untuk standardisasi data
-def standardize_data(data):
-    return (data - data.mean()) / data.std()
-
-# Fungsi untuk menghitung matriks jarak lokal (local cost matrix)
+# Fungsi untuk menghitung matriks biaya lokal
 def compute_local_cost_matrix(data):
     return np.abs(data[:, None] - data[None, :])
 
-# Fungsi untuk menghitung matriks jarak terakumulasi (accumulated cost matrix)
+# Fungsi untuk menghitung matriks biaya terakumulasi
 def compute_accumulated_cost_matrix(local_cost_matrix):
-    return np.cumsum(local_cost_matrix, axis=1)
+    n = local_cost_matrix.shape[0]
+    accumulated_cost = np.zeros((n, n))
+    for i in range(n):
+        for j in range(n):
+            if i == 0 and j == 0:
+                accumulated_cost[i, j] = local_cost_matrix[i, j]
+            elif i == 0:
+                accumulated_cost[i, j] = accumulated_cost[i, j - 1] + local_cost_matrix[i, j]
+            elif j == 0:
+                accumulated_cost[i, j] = accumulated_cost[i - 1, j] + local_cost_matrix[i, j]
+            else:
+                accumulated_cost[i, j] = min(accumulated_cost[i - 1, j], accumulated_cost[i, j - 1]) + local_cost_matrix[i, j]
+    return accumulated_cost
 
 # Fungsi untuk menghitung matriks jarak DTW
 def compute_dtw_distance_matrix(accumulated_cost_matrix):
-    return accumulated_cost_matrix[:, -1]
+    return accumulated_cost_matrix[-1, -1]
 
-# Fungsi untuk memastikan matriks jarak simetris
+# Fungsi untuk menyimetrisasi matriks jarak
 def symmetrize(matrix):
+    if len(matrix.shape) == 1:
+        matrix = np.expand_dims(matrix, axis=0)
     return (matrix + matrix.T) / 2
 
-# Fungsi untuk mengunggah file GeoJSON
-def upload_geojson_file():
-    try:
-        gdf = gpd.read_file("/path/to/indonesia-prov.geojson")  # Ubah ke path yang benar
-        return gdf
-    except Exception as e:
-        st.error(f"Error loading GeoJSON file: {e}")
-        return None
+# Fungsi untuk menstandarisasi data
+def standardize_data(data):
+    return (data - np.mean(data, axis=0)) / np.std(data, axis=0)
 
-# Statistika Deskriptif Page
-def statistika_deskriptif(data_df):
-    st.subheader("Statistika Deskriptif")
-
-    if data_df is not None:
-        if 'Tanggal' in data_df.columns:
-            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-            data_df.set_index('Tanggal', inplace=True)
-
-            st.write("Deskripsi Statistik Data:")
-            st.write(data_df.describe())
-
-            st.write("Visualisasi Data:")
-            selected_province = st.selectbox("Pilih Provinsi", options=data_df.columns)
-
-            plt.figure(figsize=(10, 5))
-            plt.plot(data_df.index, data_df[selected_province], marker='o', linestyle='-', color='b')
-            plt.title(f"Tren Harga di {selected_province}")
-            plt.xlabel("Tanggal")
-            plt.ylabel("Harga")
-            plt.grid(True)
-            st.pyplot(plt)
-
-            # Visualisasi Peta berdasarkan Tanggal
-            selected_date = st.date_input("Pilih Tanggal", value=data_df.index.min().date())
-
-            if pd.to_datetime(selected_date) in data_df.index:
-                plt.figure(figsize=(10, 5))
-                plt.bar(data_df.columns, data_df.loc[pd.to_datetime(selected_date)], color='b')
-                plt.title(f"Harga pada Tanggal {selected_date}")
-                plt.xlabel("Provinsi")
-                plt.ylabel("Harga")
-                plt.xticks(rotation=90)
-                st.pyplot(plt)
-            else:
-                st.warning(f"Tanggal {selected_date} tidak ada dalam data.")
-        else:
-            st.error("Kolom 'Tanggal' tidak ditemukan dalam data.")
-
-
-# Pemetaan Page
+# Fungsi Pemetaan
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
 
@@ -86,7 +50,7 @@ def pemetaan(data_df):
             data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
             data_df.set_index('Tanggal', inplace=True)
 
-            # Calculate daily averages
+            # Menghitung rata-rata harian
             data_daily = data_df.resample('D').mean()
             data_daily.fillna(method='ffill', inplace=True)
 
@@ -95,13 +59,18 @@ def pemetaan(data_df):
 
             linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
-            # Menghitung matriks jarak lokal dengan data yang telah distandarisasi
+            # Menghitung matriks biaya lokal
             local_cost_matrix_daily = compute_local_cost_matrix(data_daily_values)
 
-            # Hitung matriks jarak terakumulasi
+            # Menghitung matriks biaya terakumulasi
             accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
 
             dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
+
+            # Memastikan dtw_distance_matrix_daily adalah array 2D sebelum disimetrisasi
+            if dtw_distance_matrix_daily.ndim == 1:
+                dtw_distance_matrix_daily = np.expand_dims(dtw_distance_matrix_daily, axis=0)
+
             dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
             num_samples = dtw_distance_matrix_daily.shape[0]
@@ -141,7 +110,7 @@ def pemetaan(data_df):
             if silhouette_scores:
                 optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
                 st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
-                
+
                 condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
                 Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
@@ -210,26 +179,22 @@ def pemetaan(data_df):
         else:
             st.error("Kolom 'Tanggal' tidak ditemukan dalam data.")
 
-# Fungsi utama Streamlit
+# Fungsi utama
 def main():
-    st.title("Aplikasi Statistika Deskriptif dan Pemetaan")
+    st.title("Aplikasi Clustering Provinsi dengan DTW")
 
-    uploaded_file = st.file_uploader("Unggah File Data", type=["csv"])
-
+    # Upload file data
+    uploaded_file = st.file_uploader("Upload Data", type=["csv"])
     if uploaded_file is not None:
         data_df = pd.read_csv(uploaded_file)
 
-        # Memastikan kolom 'Tanggal' ada
-        if 'Tanggal' in data_df.columns:
-            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-
-        # Pilihan Halaman
-        page_selection = st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan'])
-
-        if page_selection == 'Statistika Deskriptif':
-            statistika_deskriptif(data_df)
-        elif page_selection == 'Pemetaan':
+        # Pilih halaman
+        if 'Statistika Deskriptif' in st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan']):
+            # Tampilkan statistika deskriptif di sini
+            st.subheader("Statistika Deskriptif")
+            st.write(data_df.describe())
+        elif 'Pemetaan' in st.sidebar.radio("Pilih Halaman", ['Statistika Deskriptif', 'Pemetaan']):
             pemetaan(data_df)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
