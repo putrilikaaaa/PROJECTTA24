@@ -150,6 +150,9 @@ def pemetaan(data_df):
             # Ensure DTW distance matrix is symmetric
             dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
+            # Convert DTW distance matrix to condensed form
+            condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+
             # Clustering and silhouette score calculation for daily data
             max_n_clusters = 10
             silhouette_scores = {}
@@ -157,8 +160,8 @@ def pemetaan(data_df):
 
             for n_clusters in range(2, max_n_clusters + 1):
                 clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
-                labels = clustering.fit_predict(dtw_distance_matrix_daily)
-                score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+                labels = clustering.fit_predict(condensed_dtw_distance_matrix)
+                score = silhouette_score(condensed_dtw_distance_matrix, labels, metric='precomputed')
                 silhouette_scores[n_clusters] = score
                 cluster_labels_dict[n_clusters] = labels
 
@@ -182,7 +185,6 @@ def pemetaan(data_df):
             st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
             # Clustering and dendrogram
-            condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
             Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
             plt.figure(figsize=(16, 10))
@@ -207,14 +209,13 @@ def pemetaan(data_df):
         gdf = upload_geojson_file()
 
         if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
 
-            # Merge with cluster data
-            merged_gdf = gdf.merge(clustered_data, on='Province')
+            # Merge the GeoDataFrame with the clustering result
+            merged_gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Visualize clusters on map
-            st.subheader("Pemetaan Clustering dengan DTW")
+            # Plot clustering result on map
+            st.subheader("Pemetaan Clustering")
             fig, ax = plt.subplots(figsize=(10, 10))
             merged_gdf.plot(column='Cluster', ax=ax, legend=True, legend_kwds={'label': "Cluster"})
             plt.title("Pemetaan Provinsi Berdasarkan Hasil Clustering")
