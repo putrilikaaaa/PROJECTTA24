@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, linkage
@@ -75,7 +76,6 @@ def pemetaan(data_df):
         # Handle missing data by forward filling
         data_daily.fillna(method='ffill', inplace=True)
 
-        # **Proses Standarisasi Data**
         # Standardization of data
         scaler = StandardScaler()
         data_daily_values = scaler.fit_transform(data_daily)
@@ -186,13 +186,75 @@ def pemetaan(data_df):
             })
             gdf['color'].fillna('grey', inplace=True)
 
-            # Create a GeoMap for clustering visualization
-            fig, ax = plt.subplots(figsize=(10, 10))
-            gdf.plot(ax=ax, color=gdf['color'], legend=True)
+            # Display provinces colored grey
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
 
-            st.subheader("Peta Clustering Berdasarkan DTW")
+            # Plot map
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
+            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
             st.pyplot(fig)
 
-# Add this condition to make sure `app()` runs only when the script is executed directly:
+# Function to compute local cost matrix for DTW
+def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
+    num_time_points, num_provinces = data_df.shape
+    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i != j:
+                for t in range(num_time_points):
+                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+    return local_cost_matrix
+
+# Function to compute accumulated cost matrix for DTW
+def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
+    time_points, num_provinces, _ = local_cost_matrix.shape
+    accumulated_cost_matrix = np.zeros((num_provinces, num_provinces, time_points))
+
+    for t in range(1, time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                accumulated_cost_matrix[i, j, t] = local_cost_matrix[t, i, j] + \
+                    min(accumulated_cost_matrix[i, j, t - 1],
+                        accumulated_cost_matrix[i, j, t - 1])
+    return accumulated_cost_matrix
+
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
+    num_provinces = accumulated_cost_matrix.shape[0]
+    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(i + 1, num_provinces):
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[i, j, -1]
+            dtw_distance_matrix[j, i] = dtw_distance_matrix[i, j]
+
+    return dtw_distance_matrix
+
+# Application
+def main():
+    st.title("Aplikasi Pemetaan dan Clustering Provinsi")
+
+    menu = option_menu(None, ["Statistika Deskriptif", "Pemetaan"], 
+                       icons=['house', 'map'], default_index=0, 
+                       orientation="horizontal", styles={
+                           "nav-link-selected": {"background-color": "red"},
+                           "nav-link": {"color": "black", "font-size": "16px"}})
+
+    # Upload file CSV
+    data_df = upload_csv_file()
+
+    if menu == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif menu == "Pemetaan":
+        pemetaan(data_df)
+
 if __name__ == "__main__":
-    app()
+    main()
