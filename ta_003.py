@@ -13,7 +13,7 @@ from fastdtw import fastdtw
 
 # Function to upload CSV files
 def upload_csv_file():
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
+    uploaded_file = st.sidebar.file_uploader("Upload file CSV", type=["csv"])
     if uploaded_file is not None:
         try:
             df = pd.read_csv(uploaded_file)
@@ -220,7 +220,7 @@ def pemetaan_kmedoids(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
         
-        plt.title('Silhouette Score vs. Number of Clusters (KMedoids)')
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -239,7 +239,6 @@ def pemetaan_kmedoids(data_df):
         st.subheader("Tabel Provinsi per Cluster")
         st.write(clustered_data)
 
-        # Peta for Pemetaan KMedoids
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -286,23 +285,18 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main application
-def main():
-    st.title("Analisis Data Per Provinsi")
+# Sidebar with Menu Options
+st.sidebar.title("Menu Utama")
+menu_options = ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"]
+page = st.sidebar.selectbox("Pilih Halaman", menu_options)
 
-    # Create a sidebar with options
-    menu_options = ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"]
-    menu_choice = st.sidebar.selectbox("Pilih Halaman", menu_options)
+# Load the CSV file
+data_df = upload_csv_file()
 
-    data = upload_csv_file()
-
-    if data is not None:
-        if menu_choice == "Statistika Deskriptif":
-            statistika_deskriptif(data)
-        elif menu_choice == "Pemetaan":
-            pemetaan(data)
-        elif menu_choice == "Pemetaan KMedoids":
-            pemetaan_kmedoids(data)
-
-if __name__ == '__main__':
-    main()
+# Display content based on the selected page
+if page == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif page == "Pemetaan":
+    pemetaan(data_df)
+elif page == "Pemetaan KMedoids":
+    pemetaan_kmedoids(data_df)
