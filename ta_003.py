@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn_extra.cluster import KMedoids  # Importing KMedoids
-from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
@@ -215,6 +215,7 @@ def pemetaan(data_df):
 # Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
     st.subheader("Pemetaan Clustering KMedoids")
+
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
@@ -239,17 +240,6 @@ def pemetaan_kmedoids(data_df):
         n_clusters = st.slider("Pilih jumlah kluster:", min_value=2, max_value=10, value=3)
         kmedoids = KMedoids(n_clusters=n_clusters, metric='precomputed')
         kmedoids_labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
-
-        # Dendrogram for KMedoids
-        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-        Z = linkage(condensed_dtw_distance_matrix, method='complete')
-
-        plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW KMedoids')
-        plt.xlabel('Provinsi')
-        plt.ylabel('Jarak DTW')
-        st.pyplot(plt)
 
         # Add KMedoids result to GeoJSON map
         gdf = upload_geojson_file()
