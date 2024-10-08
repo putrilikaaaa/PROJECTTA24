@@ -60,7 +60,7 @@ def statistika_deskriptif(data_df):
             st.pyplot(fig)
 
 # Pemetaan Page
-def pemetaan(data_df):
+def pemetaan(data_df, data_standardized):
     st.subheader("Pemetaan Clustering dengan DTW")
 
     if data_df is not None:
@@ -73,15 +73,8 @@ def pemetaan(data_df):
         # Handle missing data by forward filling
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Standardization of data
-        scaler = StandardScaler()
-        data_daily_values = scaler.fit_transform(data_daily)
-
-        # Dropdown for choosing linkage method
-        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-
         # Compute DTW distance matrix for daily data using fastdtw
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_standardized)
 
         # Ensure DTW distance matrix is symmetric
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
@@ -92,7 +85,7 @@ def pemetaan(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='complete')
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
@@ -119,11 +112,11 @@ def pemetaan(data_df):
 
         # Clustering and dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+        Z = linkage(condensed_dtw_distance_matrix, method='complete')
 
         plt.figure(figsize=(16, 10))
         dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: complete')
         plt.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
@@ -210,28 +203,41 @@ def compute_dtw_distance_matrix(data_df: np.array) -> np.array:
 
     return dtw_distance_matrix
 
-# Main function to run the Streamlit app
+# Main function to run Streamlit
 def main():
-    st.title("Aplikasi Pemodelan dan Pemetaan Data")
-    
-    # Sidebar menu for navigation
-    with st.sidebar:
-        selected_page = option_menu(
-            menu_title="Menu",
-            options=["Statistika Deskriptif", "Pemetaan"],
-            icons=["house", "map"],
-            default_index=0,
-            orientation="vertical",
-        )
-    
-    # Upload data file
+    st.set_page_config(page_title="Clustering with DTW", layout="wide")
+
+    # Upload CSV data
     data_df = upload_csv_file()
 
-    # Handle the selected page
+    # Upload GeoJSON file
+    gdf = upload_geojson_file()
+
+    # Standardize data
+    if data_df is not None:
+        st.write("Data yang diunggah:")
+        st.write(data_df)
+
+        # Standarisasi data
+        data_standardized = StandardScaler().fit_transform(data_df.values)
+
+    # Display options in sidebar
+    selected_page = option_menu(
+        menu_title=None,
+        options=["Statistika Deskriptif", "Pemetaan"],
+        icons=["bar-chart", "map"],
+        menu_icon="cast",
+        default_index=0,
+        orientation="horizontal",
+    )
+
+    # Show Statistika Deskriptif
     if selected_page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
+
+    # Show Pemetaan
     elif selected_page == "Pemetaan":
-        pemetaan(data_df)
+        pemetaan(data_df, data_standardized)
 
 if __name__ == "__main__":
     main()
