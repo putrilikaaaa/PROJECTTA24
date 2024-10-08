@@ -87,36 +87,35 @@ def pemetaan(data_df):
         # Ensure DTW distance matrix is symmetric
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
-        # Clustering and silhouette score calculation for daily data
+        # Clustering and silhouette score calculation for daily data using linkage methods
         max_n_clusters = 10
-        silhouette_scores = {}
-        cluster_labels_dict = {}
+        silhouette_scores_linkage = {}
+        cluster_labels_dict_linkage = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
-            silhouette_scores[n_clusters] = score
-            cluster_labels_dict[n_clusters] = labels
+            silhouette_scores_linkage[n_clusters] = score
+            cluster_labels_dict_linkage[n_clusters] = labels
 
-        # Plot Silhouette Scores
+        # Plot Silhouette Scores for linkage methods
         plt.figure(figsize=(10, 6))
-        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        plt.plot(list(silhouette_scores_linkage.keys()), list(silhouette_scores_linkage.values()), marker='o', linestyle='-')
         
-        # Adding data labels to the silhouette score plot
-        for n_clusters, score in silhouette_scores.items():
+        for n_clusters, score in silhouette_scores_linkage.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
         
-        plt.title('Silhouette Score vs. Jumlah Kluster (Data Harian)')
+        plt.title('Silhouette Score vs. Jumlah Kluster (Linkage Methods)')
         plt.xlabel('Jumlah Kluster')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
         st.pyplot(plt)
 
-        # Determine optimal number of clusters
-        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+        # Determine optimal number of clusters for linkage methods
+        optimal_n_clusters_linkage = max(silhouette_scores_linkage, key=silhouette_scores_linkage.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score (Linkage Methods) adalah: {optimal_n_clusters_linkage}")
 
         # Clustering and dendrogram for linkage method
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
@@ -131,29 +130,25 @@ def pemetaan(data_df):
             plt.ylabel('Jarak DTW')
             st.pyplot(plt)
 
-        # KMedoids clustering
+        # KMedoids clustering and silhouette score
         st.subheader("Clustering dengan KMedoids")
         n_clusters_kmedoids = st.slider("Jumlah Kluster KMedoids", 2, 10, 3)
 
         kmedoids = KMedoids(n_clusters=n_clusters_kmedoids, metric="precomputed", init="k-medoids++", random_state=42)
         kmedoids_labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
 
-        # Show the KMedoids clustering results (without dendrogram)
+        # Compute silhouette score for KMedoids clustering
+        kmedoids_silhouette_score = silhouette_score(dtw_distance_matrix_daily, kmedoids_labels, metric='precomputed')
+
+        # Show KMedoids results
         st.write(f"Cluster hasil KMedoids (Jumlah kluster = {n_clusters_kmedoids}):")
         st.write(pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': kmedoids_labels
         }))
 
-        # Silhouette Score Plot for KMedoids
-        silhouette_kmedoids = silhouette_score(dtw_distance_matrix_daily, kmedoids_labels, metric='precomputed')
-        st.write(f"Silhouette Score untuk KMedoids: {silhouette_kmedoids:.2f}")
-
-        plt.figure(figsize=(8, 6))
-        plt.bar([1], silhouette_kmedoids, color='skyblue')
-        plt.title('Silhouette Score untuk KMedoids')
-        plt.ylabel('Silhouette Score')
-        st.pyplot(plt)
+        # Display Silhouette score for KMedoids
+        st.write(f"Silhouette Score untuk KMedoids: {kmedoids_silhouette_score:.2f}")
 
         # GeoJSON mapping for linkage methods only
         if linkage_method in ["complete", "single", "average"]:
@@ -202,41 +197,44 @@ def pemetaan(data_df):
                 plt.title("Pemetaan Provinsi Berdasarkan Kluster")
                 st.pyplot(fig)
 
-# Compute DTW Distance Matrix
-def compute_dtw_distance_matrix(data):
-    n = data.shape[1]
-    dtw_distance_matrix = np.zeros((n, n))
-
-    for i in range(n):
-        for j in range(i, n):
-            dtw_distance_matrix[i, j] = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)[0]
-            dtw_distance_matrix[j, i] = dtw_distance_matrix[i, j]
-
-    return dtw_distance_matrix
-
-# Ensure the DTW matrix is symmetric
+# Ensure DTW distance matrix is symmetric
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
-# Main function to run Streamlit application
+# Function to compute DTW distance matrix using fastdtw
+def compute_dtw_distance_matrix(data_values):
+    num_provinces = data_values.shape[1]
+    distance_matrix = np.zeros((num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(i, num_provinces):
+            dist, _ = fastdtw(data_values[:, i], data_values[:, j])
+            distance_matrix[i, j] = dist
+            distance_matrix[j, i] = dist
+    return distance_matrix
+
+# Main
 def main():
-    st.sidebar.title("Menu Aplikasi")
-    selected_option = option_menu(
-        menu_title=None,
-        options=["Statistika Deskriptif", "Pemetaan"],
-        icons=["bar-chart-line", "map"],
-        menu_icon="cast",
-        default_index=0,
-        orientation="horizontal"
-    )
+    st.title("Aplikasi Streamlit Clustering")
 
     # Upload CSV file
-    df = upload_csv_file()
+    data_df = upload_csv_file()
 
-    if selected_option == "Statistika Deskriptif":
-        statistika_deskriptif(df)
-    elif selected_option == "Pemetaan":
-        pemetaan(df)
+    # Sidebar
+    with st.sidebar:
+        selected_page = option_menu(
+            "Navigasi",
+            ["Statistika Deskriptif", "Pemetaan"],
+            icons=["house", "map"],
+            menu_icon="cast",
+            default_index=0,
+        )
+
+    # Show selected page
+    if selected_page == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected_page == "Pemetaan":
+        pemetaan(data_df)
 
 if __name__ == "__main__":
     main()
