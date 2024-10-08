@@ -10,7 +10,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform, euclidean
 import geopandas as gpd
 from fastdtw import fastdtw
-from streamlit_option_menu import option_menu  # <-- Importing the component
+from streamlit_option_menu import option_menu
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -28,10 +28,16 @@ def upload_geojson_file():
     # Read the GeoJSON file from GitHub repository
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     
-    # Ensure the 'Province' column exists
+    # Check for the columns present in the GeoDataFrame
+    st.write("Kolom yang ada dalam GeoJSON:")
+    st.write(gdf.columns)
+    
+    # Find the relevant column containing province names
     if 'Province' not in gdf.columns:
-        st.error("GeoJSON file doesn't contain 'Province' column.")
+        # Adjust the column name if it's different (e.g., 'provinsi', 'province_name', etc.)
+        st.warning("Kolom 'Province' tidak ditemukan. Cek struktur file GeoJSON.")
         return None
+    
     return gdf
 
 # Ensure DTW distance matrix is symmetric
@@ -133,7 +139,7 @@ def pemetaan(data_df):
         data_daily_values = scaler.fit_transform(data_daily)
 
         # Dropdown for choosing linkage method or KMedoids
-        clustering_method = st.selectbox("Pilih Metode Clustering", options=["complete", "single", "average", "KMedoids"])
+        clustering_method = st.selectbox("Pilih Metode Clustering", options=["complete", "single", "average", "ward"])
 
         # Compute local cost matrix and accumulated cost matrix
         local_cost_matrix_daily = compute_local_cost_matrix(pd.DataFrame(data_daily_values, columns=data_daily.columns))
@@ -150,22 +156,13 @@ def pemetaan(data_df):
         silhouette_scores = {}
         cluster_labels_dict = {}
 
-        if clustering_method in ["complete", "single", "average"]:
-            # Agglomerative Clustering
-            for n_clusters in range(2, max_n_clusters + 1):
-                clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=clustering_method)
-                labels = clustering.fit_predict(dtw_distance_matrix_daily)
-                score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
-                silhouette_scores[n_clusters] = score
-                cluster_labels_dict[n_clusters] = labels
-        elif clustering_method == "KMedoids":
-            # KMedoids Clustering
-            for n_clusters in range(2, max_n_clusters + 1):
-                clustering = KMedoids(n_clusters=n_clusters, metric='precomputed', init='k-medoids++')
-                labels = clustering.fit_predict(dtw_distance_matrix_daily)
-                score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
-                silhouette_scores[n_clusters] = score
-                cluster_labels_dict[n_clusters] = labels
+        # Agglomerative Clustering with linkage method
+        for n_clusters in range(2, max_n_clusters + 1):
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=clustering_method)
+            labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+            silhouette_scores[n_clusters] = score
+            cluster_labels_dict[n_clusters] = labels
 
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
@@ -206,9 +203,9 @@ def pemetaan(data_df):
         gdf = upload_geojson_file()
         if gdf is not None:
             fig, ax = plt.subplots(figsize=(10, 10))
-            gdf = gdf[gdf['Province'].isin(data_daily.columns)]
+            # Adjusting the column name to 'Province' for GeoDataFrame
             gdf['Cluster'] = pd.Series(cluster_labels, index=gdf.index)
-            
+
             # Assign colors to clusters: red, yellow, green
             color_map = {0: 'red', 1: 'yellow', 2: 'green'}
             gdf.plot(column='Cluster', ax=ax, legend=True, legend_kwds={'label': "Clusters by Province", 'orientation': "horizontal"},
