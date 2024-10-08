@@ -44,6 +44,13 @@ def compute_dtw_distance_matrix(data):
 
     return dtw_distance_matrix
 
+# Function to symmetrize a matrix (making it symmetric)
+def symmetrize(matrix):
+    """
+    Ensure that the matrix is symmetric by averaging values at symmetric positions.
+    """
+    return (matrix + matrix.T) / 2
+
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
@@ -100,7 +107,7 @@ def pemetaan(data_df):
         # Compute DTW distance matrix for normalized daily data using fastdtw
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
 
-        # Ensure DTW distance matrix is symmetric
+        # Symmetrize the DTW distance matrix
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
         # Clustering and silhouette score calculation for daily data
@@ -206,12 +213,12 @@ def pemetaan(data_df):
 
             # Plot map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
-            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids (DTW)")
             st.pyplot(fig)
 
-# KMedoids Page
+# Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
     st.subheader("Pemetaan KMedoids")
 
@@ -247,7 +254,6 @@ def pemetaan_kmedoids(data_df):
             # Data manipulation similar to the 'pemetaan' page
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
             gdf['Province'] = gdf['Province'].str.upper()
-            cluster_data['Province'] = cluster_data['Province'].str.upper()
 
             # Merge the cluster data with the GeoDataFrame
             gdf = gdf.merge(cluster_data, on="Province", how="left")
