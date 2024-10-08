@@ -218,8 +218,15 @@ def main():
         st.write("Data yang diunggah:")
         st.write(data_df)
 
-        # Standarisasi data
-        data_standardized = StandardScaler().fit_transform(data_df.values)
+        # Select only numeric columns to standardize
+        numeric_data = data_df.select_dtypes(include=[np.number])
+
+        if not numeric_data.empty:
+            # Standarisasi data numerik
+            data_standardized = StandardScaler().fit_transform(numeric_data.values)
+        else:
+            st.error("Tidak ada data numerik yang dapat distandarisasi.")
+            return
 
     # Display options in sidebar
     selected_page = option_menu(
