@@ -195,20 +195,19 @@ def pemetaan_kmedoids(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
-            labels = kmedoids.fit_predict(data_daily_values.T)
-            score = silhouette_score(data_daily_values.T, labels)
+            clustering = KMedoids(n_clusters=n_clusters, metric='euclidean')
+            labels = clustering.fit_predict(data_daily_values)
+            score = silhouette_score(data_daily_values, labels)
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
-        plt.xlabel('Jumlah Kluster')
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian - KMedoids)')
+        plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
@@ -217,59 +216,14 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjust labels to start from 1
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
-            'Cluster': labels
+            'Cluster': cluster_labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster")
+        st.subheader("Tabel Provinsi per Cluster (KMedoids)")
         st.write(clustered_data)
-
-        gdf = upload_geojson_file()
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
-
-            gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
-
-            gdf['color'] = gdf['Cluster'].map({
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
-
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
-
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
-            st.pyplot(fig)
 
 # Main App
 def main():
@@ -278,9 +232,10 @@ def main():
     with st.sidebar:
         selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
                                icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
+        # Move the upload CSV functionality below the menu
+        data_df = upload_csv_file()  # Move this line here
 
-    data_df = upload_csv_file()
-
+    # Call the appropriate page based on the selected option
     if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
     elif selected == "Pemetaan":
