@@ -217,10 +217,10 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjust labels to start from 1
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
-            'Cluster': labels
+            'Cluster': cluster_labels
         })
 
         st.subheader("Tabel Provinsi per Cluster")
@@ -271,21 +271,27 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main App
+# Main function
 def main():
-    st.set_page_config(page_title="Clustering", page_icon="📊", layout="wide")
+    st.title("Analisis Data Provinsi")
+    st.markdown("## Template CSV Download")
+    st.markdown('[Download CSV Template](data/template.csv)')
 
-    with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
-
+    # Allow users to upload data
+    st.markdown("## Upload Data")
     data_df = upload_csv_file()
 
-    if selected == "Statistika Deskriptif":
+    # Create a sidebar menu for navigation
+    with st.sidebar:
+        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+                                       icons=["chart-bar", "map", "map"], default_index=0)
+
+    # Load the appropriate page based on user selection
+    if selected_option == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected == "Pemetaan":
+    elif selected_option == "Pemetaan":
         pemetaan(data_df)
-    elif selected == "Pemetaan KMedoids":
+    elif selected_option == "Pemetaan KMedoids":
         pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
