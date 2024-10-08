@@ -107,8 +107,8 @@ def pemetaan(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
         
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
-        plt.xlabel('Number of Clusters')
+        plt.title('Silhouette Score vs. Jumlah Kluster (Data Harian)')
+        plt.xlabel('Jumlah Kluster')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
@@ -122,12 +122,14 @@ def pemetaan(data_df):
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
-        plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
-        plt.xlabel('Provinsi')
-        plt.ylabel('Jarak DTW')
-        st.pyplot(plt)
+        # Dendrogram hanya untuk linkage methods
+        if linkage_method in ["complete", "single", "average"]:
+            plt.figure(figsize=(16, 10))
+            dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+            plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+            plt.xlabel('Provinsi')
+            plt.ylabel('Jarak DTW')
+            st.pyplot(plt)
 
         # KMedoids clustering
         st.subheader("Clustering dengan KMedoids")
@@ -136,58 +138,59 @@ def pemetaan(data_df):
         kmedoids = KMedoids(n_clusters=n_clusters_kmedoids, metric="precomputed", init="k-medoids++", random_state=42)
         kmedoids_labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
 
-        # Show the KMedoids clustering results
+        # Show the KMedoids clustering results (without dendrogram)
         st.write(f"Cluster hasil KMedoids (Jumlah kluster = {n_clusters_kmedoids}):")
         st.write(pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': kmedoids_labels
         }))
 
-        # GeoJSON mapping
-        gdf = upload_geojson_file()
+        # GeoJSON mapping for linkage methods only
+        if linkage_method in ["complete", "single", "average"]:
+            gdf = upload_geojson_file()
 
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            if gdf is not None:
+                gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
+                gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Calculate cluster from clustering results
-            clustered_data = pd.DataFrame({
-                'Province': data_daily.columns,
-                'Cluster': kmedoids_labels
-            })
+                # Calculate cluster from clustering results
+                clustered_data = pd.DataFrame({
+                    'Province': data_daily.columns,
+                    'Cluster': kmedoids_labels
+                })
 
-            # Merge clustered data with GeoDataFrame
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+                # Merge clustered data with GeoDataFrame
+                gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Set colors for clusters
-            gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green',
-                3: 'blue',
-                4: 'purple',
-                5: 'orange',
-                6: 'pink',
-                7: 'brown',
-                8: 'cyan',
-                9: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
+                # Set colors for clusters
+                gdf['color'] = gdf['Cluster'].map({
+                    0: 'red',
+                    1: 'yellow',
+                    2: 'green',
+                    3: 'blue',
+                    4: 'purple',
+                    5: 'orange',
+                    6: 'pink',
+                    7: 'brown',
+                    8: 'cyan',
+                    9: 'magenta'
+                })
+                gdf['color'].fillna('grey', inplace=True)
 
-            # Display provinces colored grey
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
+                # Display provinces colored grey
+                grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+                if grey_provinces:
+                    st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                    st.write(grey_provinces)
+                else:
+                    st.write("Semua provinsi termasuk dalam kluster.")
 
-            # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
-            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
-            st.pyplot(fig)
+                # Plot map
+                fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+                gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
+                gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
+                plt.title("Pemetaan Provinsi Berdasarkan Kluster")
+                st.pyplot(fig)
 
 # Ensure DTW distance matrix is symmetric
 def symmetrize(matrix):
@@ -201,17 +204,12 @@ def compute_dtw_distance_matrix(data_df: np.array) -> np.array:
     for i in range(num_provinces):
         for j in range(i, num_provinces):
             # Reshape to 1D array for DTW calculation
-            ts_i = data_df[:, i].reshape(-1, 1)
-            ts_j = data_df[:, j].reshape(-1, 1)
-            
-            # Compute DTW distance
-            dtw_distance = fastdtw(ts_i, ts_j)[0]
-            dtw_distance_matrix[i, j] = dtw_distance
-            dtw_distance_matrix[j, i] = dtw_distance
+            dtw_distance_matrix[i, j] = fastdtw(data_df[:, i], data_df[:, j])[0]
+            dtw_distance_matrix[j, i] = dtw_distance_matrix[i, j]
 
     return dtw_distance_matrix
 
-# Main function
+# Main function to run Streamlit application
 def main():
     st.sidebar.title("Menu Aplikasi")
     selected_option = option_menu(
