@@ -16,3 +16,4 @@ folium
 plotly
 streamlit_folium
 streamlit-option-menu
+requests
