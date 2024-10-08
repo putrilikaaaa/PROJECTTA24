@@ -13,7 +13,7 @@ from fastdtw import fastdtw
 
 # Function to upload CSV files
 def upload_csv_file():
-    uploaded_file = st.sidebar.file_uploader("Upload file CSV", type=["csv"])
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
     if uploaded_file is not None:
         try:
             df = pd.read_csv(uploaded_file)
@@ -219,8 +219,8 @@ def pemetaan_kmedoids(data_df):
         
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-        
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+
+        plt.title('Silhouette Score vs. Number of Clusters (K-Medoids)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -236,9 +236,10 @@ def pemetaan_kmedoids(data_df):
             'Cluster': cluster_labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster")
+        st.subheader("Tabel Provinsi per Cluster (K-Medoids)")
         st.write(clustered_data)
 
+        # Peta for Pemetaan KMedoids
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -282,22 +283,20 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster K-Medoids")
             st.pyplot(fig)
 
-# Main Function
+# Main function
 def main():
-    st.title("Aplikasi Clustering dengan DTW")
-    
-    # File upload section
-    data_df = upload_csv_file()
-    
-    # Sidebar for navigation
-    st.sidebar.title("Navigasi")
-    pages = ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"]
-    page = st.sidebar.radio("Pilih Halaman", pages)
+    st.title("Dashboard Analisis Data")
 
-    # Page navigation
+    # Sidebar navigation
+    page = st.sidebar.radio("Navigasi", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"])
+
+    # Upload CSV file
+    data_df = upload_csv_file()
+
+    # Display selected page
     if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
     elif page == "Pemetaan":
