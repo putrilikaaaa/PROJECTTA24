@@ -77,9 +77,6 @@ def pemetaan(data_df):
         scaler = MinMaxScaler()  # Using MinMaxScaler for normalization
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # Handling outliers (IQR method)
-        data_daily_values = handle_outliers(data_daily_values)
-
         # Dropdown for choosing linkage method
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
@@ -202,50 +199,33 @@ def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
 # Function to compute DTW distance matrix using fastdtw
-def compute_dtw_distance_matrix(data):
-    n = data.shape[1]
-    distance_matrix = np.zeros((n, n))
-    for i in range(n):
-        for j in range(i, n):
-            distance, _ = fastdtw(data[:, i], data[:, j])
-            distance_matrix[i, j] = distance
-            distance_matrix[j, i] = distance  # Ensure symmetric matrix
-    return distance_matrix
+def compute_dtw_distance_matrix(data_df: np.array) -> np.array:
+    num_provinces = data_df.shape[1]
+    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
-# Handle outliers using IQR method
-def handle_outliers(data):
-    Q1 = np.percentile(data, 25, axis=0)
-    Q3 = np.percentile(data, 75, axis=0)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i != j:
+                dtw_distance_matrix[i, j] = fastdtw(data_df[:, i], data_df[:, j])[0]  # Compute DTW distance
 
-    # Remove outliers
-    data = np.clip(data, lower_bound, upper_bound)
-    return data
+    return dtw_distance_matrix
 
-# Streamlit main function
+# Main function
 def main():
-    st.title("Pemetaan Clustering dan Statistika Deskriptif")
-    st.sidebar.title("Pilih Halaman")
+    st.title("Aplikasi Clustering dan Pemetaan")
 
+    # Sidebar options
     with st.sidebar:
-        selected_page = option_menu(
-            menu_title="Menu",
-            options=["Statistika Deskriptif", "Pemetaan"],
-            icons=["house", "map"],
-            menu_icon="cast",
-            default_index=0,
-            orientation="vertical",
-            styles={"container": {"padding": "5px", "background-color": "#f0f0f5"},
-                    "nav-link-selected": {"background-color": "red"}})
+        selected_page = option_menu("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"], 
+                                    icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
 
-    data = upload_csv_file()
+    data_df = upload_csv_file()
 
+    # Show the respective page
     if selected_page == "Statistika Deskriptif":
-        statistika_deskriptif(data)
+        statistika_deskriptif(data_df)
     elif selected_page == "Pemetaan":
-        pemetaan(data)
+        pemetaan(data_df)
 
 if __name__ == "__main__":
     main()
