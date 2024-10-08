@@ -30,6 +30,9 @@ def upload_geojson_file():
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(data):
+    """
+    Compute the DTW distance matrix for a given set of time series.
+    """
     num_series = data.shape[1]
     dtw_distance_matrix = np.zeros((num_series, num_series))
 
@@ -43,6 +46,9 @@ def compute_dtw_distance_matrix(data):
 
 # Function to symmetrize a matrix (making it symmetric)
 def symmetrize(matrix):
+    """
+    Ensure that the matrix is symmetric by averaging values at symmetric positions.
+    """
     return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
@@ -62,6 +68,7 @@ def statistika_deskriptif(data_df):
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
         if selected_province:
+            # Visualisasi data untuk provinsi terpilih
             st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
             data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
             data_df.set_index('Tanggal', inplace=True)
@@ -76,9 +83,9 @@ def statistika_deskriptif(data_df):
 
             st.pyplot(fig)
 
-# Pemetaan Page (for KMedoids clustering)
-def pemetaan_kmedoids(data_df):
-    st.subheader("Pemetaan KMedoids Clustering")
+# Pemetaan Page
+def pemetaan(data_df):
+    st.subheader("Pemetaan Clustering dengan DTW")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -199,12 +206,15 @@ def pemetaan_kmedoids(data_df):
             # Display provinces colored grey
             grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
             if grey_provinces:
-                st.write(f"Provinces not in any cluster: {', '.join(grey_provinces)}")
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi berhasil dikelompokkan dalam kluster.")
 
-            # Plot map
-            fig, ax = plt.subplots(figsize=(10, 10))
+            # Plot the clustering map with GeoPandas
+            fig, ax = plt.subplots(figsize=(12, 10))
             gdf.plot(ax=ax, color=gdf['color'])
-            ax.set_title(f"Pemetaan Provinsi dengan Clustering Hierarchical")
+            plt.title("Pemetaan Provinsi Berdasarkan Kluster DTW")
             st.pyplot(fig)
 
 # Streamlit Sidebar for Navigation
