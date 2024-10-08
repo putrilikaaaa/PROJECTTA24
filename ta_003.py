@@ -121,7 +121,8 @@ def pemetaan(data_df):
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        cluster_labels = cluster_labels_dict[optimal_n_clusters]
+        # Adjust cluster labels to start from 1 instead of 0
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': cluster_labels
@@ -149,16 +150,16 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green',
-                3: 'blue',
-                4: 'purple',
-                5: 'orange',
-                6: 'pink',
-                7: 'brown',
-                8: 'cyan',
-                9: 'magenta'
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
             })
             gdf['color'].fillna('grey', inplace=True)
 
@@ -216,13 +217,13 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        cluster_labels = cluster_labels_dict[optimal_n_clusters]
+        labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjust labels to start from 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
-            'Cluster': cluster_labels
+            'Cluster': labels
         })
 
-        st.subheader("Tabel Provinsi per Kluster")
+        st.subheader("Tabel Provinsi per Cluster")
         st.write(clustered_data)
 
         gdf = upload_geojson_file()
@@ -244,16 +245,16 @@ def pemetaan_kmedoids(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green',
-                3: 'blue',
-                4: 'purple',
-                5: 'orange',
-                6: 'pink',
-                7: 'brown',
-                8: 'cyan',
-                9: 'magenta'
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
             })
             gdf['color'].fillna('grey', inplace=True)
 
@@ -270,23 +271,20 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main app logic
+# Main App
 def main():
-    st.set_page_config(page_title="Analisis Clustering", page_icon="📊", layout="wide")
+    st.set_page_config(page_title="Clustering", page_icon="📊", layout="wide")
 
-    st.sidebar.header("Menu")
-    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-                           icons=["bar-chart", "map", "map"], menu_icon="cast", default_index=0)
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
 
-    # Upload file in the sidebar
     data_df = upload_csv_file()
 
     if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-
     elif selected == "Pemetaan":
         pemetaan(data_df)
-
     elif selected == "Pemetaan KMedoids":
         pemetaan_kmedoids(data_df)
 
