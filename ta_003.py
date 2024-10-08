@@ -30,9 +30,6 @@ def upload_geojson_file():
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(data):
-    """
-    Compute the DTW distance matrix for a given set of time series.
-    """
     num_series = data.shape[1]
     dtw_distance_matrix = np.zeros((num_series, num_series))
 
@@ -46,9 +43,6 @@ def compute_dtw_distance_matrix(data):
 
 # Function to symmetrize a matrix (making it symmetric)
 def symmetrize(matrix):
-    """
-    Ensure that the matrix is symmetric by averaging values at symmetric positions.
-    """
     return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
@@ -125,11 +119,11 @@ def pemetaan(data_df):
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        
+
         # Adding data labels to the silhouette score plot
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-        
+
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
@@ -214,56 +208,8 @@ def pemetaan(data_df):
             # Plot map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids (DTW)")
-            st.pyplot(fig)
+            gdf.plot(ax=ax, color=gdf['color'], legend=True)
 
-# Pemetaan KMedoids Page
-def pemetaan_kmedoids(data_df):
-    st.subheader("Pemetaan KMedoids")
-
-    if data_df is not None:
-        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-        data_df.set_index('Tanggal', inplace=True)
-
-        # Calculate daily averages
-        data_daily = data_df.resample('D').mean()
-
-        # Handle missing data
-        data_daily.fillna(method='ffill', inplace=True)
-
-        # Normalize data using MinMaxScaler
-        scaler = MinMaxScaler()
-        data_daily_values = scaler.fit_transform(data_daily)
-
-        # Perform KMedoids clustering
-        n_clusters = st.slider("Pilih jumlah kluster:", min_value=2, max_value=10, value=3)
-        kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
-        labels = kmedoids.fit_predict(data_daily_values.T)
-
-        # Create DataFrame for displaying
-        cluster_data = pd.DataFrame({'Province': data_daily.columns, 'Cluster': labels})
-
-        # Display cluster table
-        st.write("Tabel provinsi per kluster:")
-        st.write(cluster_data)
-
-        # Plot clusters on a map (like the pemetaan function)
-        gdf = upload_geojson_file()
-        if gdf is not None:
-            # Data manipulation similar to the 'pemetaan' page
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper()
-
-            # Merge the cluster data with the GeoDataFrame
-            gdf = gdf.merge(cluster_data, on="Province", how="left")
-            gdf['color'] = gdf['Cluster'].map({0: 'red', 1: 'yellow', 2: 'green', 3: 'blue', 4: 'purple'}).fillna('grey')
-
-            # Plot the map with clusters
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title("Pemetaan KMedoids")
             st.pyplot(fig)
 
 # Main function
