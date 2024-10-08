@@ -145,6 +145,16 @@ def pemetaan(data_df):
             'Cluster': kmedoids_labels
         }))
 
+        # Silhouette Score Plot for KMedoids
+        silhouette_kmedoids = silhouette_score(dtw_distance_matrix_daily, kmedoids_labels, metric='precomputed')
+        st.write(f"Silhouette Score untuk KMedoids: {silhouette_kmedoids:.2f}")
+
+        plt.figure(figsize=(8, 6))
+        plt.bar([1], silhouette_kmedoids, color='skyblue')
+        plt.title('Silhouette Score untuk KMedoids')
+        plt.ylabel('Silhouette Score')
+        st.pyplot(plt)
+
         # GeoJSON mapping for linkage methods only
         if linkage_method in ["complete", "single", "average"]:
             gdf = upload_geojson_file()
@@ -192,22 +202,21 @@ def pemetaan(data_df):
                 plt.title("Pemetaan Provinsi Berdasarkan Kluster")
                 st.pyplot(fig)
 
-# Ensure DTW distance matrix is symmetric
-def symmetrize(matrix):
-    return (matrix + matrix.T) / 2
+# Compute DTW Distance Matrix
+def compute_dtw_distance_matrix(data):
+    n = data.shape[1]
+    dtw_distance_matrix = np.zeros((n, n))
 
-# Function to compute DTW distance matrix using fastdtw
-def compute_dtw_distance_matrix(data_df: np.array) -> np.array:
-    num_provinces = data_df.shape[1]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(i, num_provinces):
-            # Reshape to 1D array for DTW calculation
-            dtw_distance_matrix[i, j] = fastdtw(data_df[:, i], data_df[:, j])[0]
+    for i in range(n):
+        for j in range(i, n):
+            dtw_distance_matrix[i, j] = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)[0]
             dtw_distance_matrix[j, i] = dtw_distance_matrix[i, j]
 
     return dtw_distance_matrix
+
+# Ensure the DTW matrix is symmetric
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
 
 # Main function to run Streamlit application
 def main():
