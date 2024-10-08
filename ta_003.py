@@ -1,64 +1,42 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import silhouette_score
-from sklearn_extra.cluster import KMedoids
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn_extra.cluster import KMedoids
 import geopandas as gpd
-from streamlit_option_menu import option_menu
+import json
+import requests
 
-# Function to upload CSV files
-def upload_csv_file():
-    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
+# Function to load GeoJSON from GitHub
+def upload_geojson_file():
+    geojson_url = 'https://raw.githubusercontent.com/your-repo/indonesia-prov.geojson'  # Replace with actual GitHub URL
+    try:
+        response = requests.get(geojson_url)
+        if response.status_code == 200:
+            geojson_data = response.json()
+            gdf = gpd.read_file(json.dumps(geojson_data))
+            return gdf
+        else:
+            st.error("Failed to load GeoJSON data from GitHub.")
+            return None
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+        return None
+
+# Data Upload page
+def upload_data():
+    st.subheader("Upload Data")
+    uploaded_file = st.file_uploader("Pilih file CSV untuk diupload", type="csv")
+
     if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
-            return df
-        except Exception as e:
-            st.error(f"Error: {e}")
+        data_df = pd.read_csv(uploaded_file)
+        st.write("Data yang berhasil diupload:", data_df.head())
+        return data_df
     return None
 
-# Function to upload GeoJSON files
-def upload_geojson_file():
-    gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
-    return gdf
-
-# Ensure DTW distance matrix is symmetric
-def symmetrize(matrix):
-    return (matrix + matrix.T) / 2
-
-# Statistika Deskriptif Page
-def statistika_deskriptif(data_df):
-    st.subheader("Statistika Deskriptif")
-
-    if data_df is not None:
-        st.write("Data yang diunggah:")
-        st.write(data_df)
-
-        # Statistika deskriptif
-        st.write("Statistika deskriptif data:")
-        st.write(data_df.describe())
-
-        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
-        province_options = [col for col in data_df.columns if col != 'Tanggal']
-        selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
-
-        if selected_province:
-            st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
-            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-            data_df.set_index('Tanggal', inplace=True)
-
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
-            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
-            ax.set_xlabel("Tanggal")
-            ax.set_ylabel("Harga")
-            ax.legend()
-
-            st.pyplot(fig)
-
-# Pemetaan Page (Fixed)
+# Pemetaan Page with clustering method selection and map visualization
 def pemetaan(data_df):
     st.subheader("Pemetaan")
 
@@ -85,46 +63,40 @@ def pemetaan(data_df):
                 # Plot the data
                 st.line_chart(selected_data)
 
-# Pemetaan KMedoids Page
-def pemetaan_kmedoids(data_df):
-    st.subheader("Pemetaan Clustering dengan KMedoids")
+        # Clustering method selection
+        st.sidebar.subheader("Pilih Metode Klastering")
+        clustering_method = st.sidebar.radio("Metode Klastering", ["KMeans", "DBSCAN", "KMedoids"])
 
-    if data_df is not None:
-        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-        data_df.set_index('Tanggal', inplace=True)
-
-        # Calculate daily averages
-        data_daily = data_df.resample('D').mean()
-
-        # Handle missing data by forward filling
-        data_daily.fillna(method='ffill', inplace=True)
-
-        # Standardization of data
+        # Standardization of data for clustering
+        data_df_std = data_df.apply(pd.to_numeric, errors='coerce').fillna(0)
         scaler = StandardScaler()
-        data_daily_values = scaler.fit_transform(data_daily)
+        data_scaled = scaler.fit_transform(data_df_std)
 
-        # Dropdown for number of clusters
-        n_clusters = st.slider("Pilih Jumlah Kluster", min_value=2, max_value=10, value=3)
+        # KMeans clustering
+        if clustering_method == "KMeans":
+            n_clusters = st.sidebar.slider("Jumlah Klaster", min_value=2, max_value=10, value=3)
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            clusters = kmeans.fit_predict(data_scaled.T)  # Transpose so each column (province) is a sample
+            data_df["Cluster"] = clusters
 
-        # Apply KMedoids clustering
-        kmedoids = KMedoids(n_clusters=n_clusters, random_state=0, metric='euclidean')
-        kmedoids.fit(data_daily_values.T)  # Transpose to cluster on provinces
+        # DBSCAN clustering
+        elif clustering_method == "DBSCAN":
+            epsilon = st.sidebar.slider("Epsilon", 0.01, 0.1, 0.05)
+            min_samples = st.sidebar.slider("Min Samples", 2, 10, 5)
+            dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+            clusters = dbscan.fit_predict(data_scaled.T)
+            data_df["Cluster"] = clusters
 
-        # Get cluster labels
-        cluster_labels = kmedoids.labels_
+        # KMedoids clustering
+        elif clustering_method == "KMedoids":
+            n_clusters = st.sidebar.slider("Jumlah Klaster", min_value=2, max_value=10, value=3)
+            kmedoids = KMedoids(n_clusters=n_clusters, random_state=42, metric='euclidean')
+            clusters = kmedoids.fit_predict(data_scaled.T)
+            data_df["Cluster"] = clusters
 
-        # Display Silhouette score
-        silhouette_avg = silhouette_score(data_daily_values.T, cluster_labels)
-        st.write(f"Silhouette Score untuk {n_clusters} kluster: {silhouette_avg:.2f}")
-
-        # Create a DataFrame to show the clusters
-        clustered_data = pd.DataFrame({
-            'Province': data_daily.columns,
-            'Cluster': cluster_labels
-        })
-
-        st.subheader("Tabel Provinsi per Cluster")
-        st.write(clustered_data)
+        # Display the cluster results
+        st.write(f"Hasil Klastering dengan metode {clustering_method}")
+        st.write(data_df)
 
         # Load GeoJSON file from GitHub
         gdf = upload_geojson_file()
@@ -134,22 +106,10 @@ def pemetaan_kmedoids(data_df):
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Calculate cluster from clustering results
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            data_df['Province'] = data_df.index.str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Rename inconsistent provinces
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
-
-            # Remove provinces that are None (i.e., GORONTALO)
-            gdf = gdf[gdf['Province'].notna()]
-
-            # Merge clustered data with GeoDataFrame
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+            # Merge the clustered data with GeoDataFrame
+            gdf = gdf.merge(data_df[['Province', 'Cluster']], on='Province', how='left')
 
             # Set colors for clusters
             gdf['color'] = gdf['Cluster'].map({
@@ -178,29 +138,32 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
-            plt.title("Pemetaan Provinsi Berdasarkan Kluster (KMedoids)")
+            plt.title(f"Pemetaan Provinsi Berdasarkan Kluster ({clustering_method})")
             st.pyplot(fig)
 
-# Main function to run the Streamlit app
+# Statistika Deskriptif page
+def statistika_deskriptif(data_df):
+    st.subheader("Statistika Deskriptif")
+    st.write("Data Deskriptif untuk Provinsi")
+
+    if data_df is not None:
+        st.write(data_df.describe())
+
+# Main function to render the app
 def main():
-    st.title("Aplikasi Pemodelan dan Pemetaan Data")
-    
-    # Sidebar menu for navigation
-    with st.sidebar:
-        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
-                                       icons=["bar-chart", "map", "cluster"], 
-                                       menu_icon="cast", default_index=0)
+    st.title("Aplikasi Analisis Klastering Provinsi")
 
-    # Upload data file once
-    data_df = upload_csv_file()
+    # Upload Data
+    data_df = upload_data()
 
-    # Call the appropriate page based on the selected option
-    if selected_option == "Statistika Deskriptif":
+    # Select Page
+    st.sidebar.title("Navigasi")
+    page = st.sidebar.selectbox("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"])
+
+    if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_option == "Pemetaan":
+    elif page == "Pemetaan":
         pemetaan(data_df)
-    elif selected_option == "Pemetaan KMedoids":
-        pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
     main()
