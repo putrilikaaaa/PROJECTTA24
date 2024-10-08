@@ -82,7 +82,7 @@ def pemetaan(data_df):
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
+        linkage_method = st.selectbox("Pilih Metode Linkage", options=["Complete", "Single", "Average"])
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
