@@ -222,7 +222,7 @@ def pemetaan_kmedoids(data_df):
             'Cluster': cluster_labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster KMedoids")
+        st.subheader("Tabel Provinsi per Kluster")
         st.write(clustered_data)
 
         gdf = upload_geojson_file()
@@ -267,26 +267,26 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main Application
+# Main app logic
 def main():
-    st.title("Analisis Data Impor Kedelai")
+    st.set_page_config(page_title="Analisis Clustering", page_icon="📊", layout="wide")
 
-    # Navigation using streamlit-option-menu
-    with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
-                               icons=['bar-chart', 'map', 'map'], 
-                               menu_icon="cast", default_index=0)
+    st.sidebar.header("Menu")
+    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+                           icons=["bar-chart", "map", "map"], menu_icon="cast", default_index=0)
 
-    # Upload Data
+    # Upload file in the sidebar
     data_df = upload_csv_file()
 
     if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
+
     elif selected == "Pemetaan":
         pemetaan(data_df)
+
     elif selected == "Pemetaan KMedoids":
         pemetaan_kmedoids(data_df)
 
