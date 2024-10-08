@@ -212,20 +212,103 @@ def pemetaan(data_df):
 
             st.pyplot(fig)
 
-# Main function
+# Pemetaan KMedoids Page
+def pemetaan_kmedoids(data_df):
+    st.subheader("Pemetaan Clustering KMedoids")
+    if data_df is not None:
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
+
+        # Calculate daily averages
+        data_daily = data_df.resample('D').mean()
+
+        # Handle missing data by forward filling
+        data_daily.fillna(method='ffill', inplace=True)
+
+        # Standardize data
+        scaler = MinMaxScaler()
+        data_daily_values = scaler.fit_transform(data_daily)
+
+        # Compute DTW distance matrix
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+
+        # Symmetrize the DTW distance matrix
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+
+        # KMedoids clustering
+        n_clusters = st.slider("Pilih jumlah kluster:", min_value=2, max_value=10, value=3)
+        kmedoids = KMedoids(n_clusters=n_clusters, metric='precomputed')
+        kmedoids_labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
+
+        # Dendrogram for KMedoids
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+        Z = linkage(condensed_dtw_distance_matrix, method='complete')
+
+        plt.figure(figsize=(16, 10))
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW KMedoids')
+        plt.xlabel('Provinsi')
+        plt.ylabel('Jarak DTW')
+        st.pyplot(plt)
+
+        # Add KMedoids result to GeoJSON map
+        gdf = upload_geojson_file()
+
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Ensure correct column name match
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            clustered_data = pd.DataFrame({
+                'Province': data_daily.columns,
+                'Cluster': kmedoids_labels
+            })
+
+            # Merge with GeoDataFrame
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+            # Map clusters to colors
+            gdf['color'] = gdf['Cluster'].map({
+                0: 'red',
+                1: 'yellow',
+                2: 'green',
+                3: 'blue',
+                4: 'purple',
+                5: 'orange',
+                6: 'pink',
+                7: 'brown',
+                8: 'cyan',
+                9: 'magenta'
+            })
+            gdf['color'].fillna('grey', inplace=True)
+
+            # Plot the map with clustering results
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(ax=ax, color=gdf['color'], legend=True)
+
+            st.pyplot(fig)
+
+# Streamlit App Layout
 def main():
-    st.sidebar.title("Menu")
-    choice = option_menu(None, ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
-                         icons=["bar-chart-line", "map", "map"], menu_icon="cast", default_index=0)
+    # Sidebar options
+    with st.sidebar:
+        option = option_menu(
+            menu_title="Menu",
+            options=["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+            icons=["list", "map", "geo"],
+            menu_icon="cast",
+            default_index=0,
+        )
 
-    data_df = upload_csv_file()
+    # Uploading CSV file
+    data = upload_csv_file()
 
-    if choice == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif choice == "Pemetaan":
-        pemetaan(data_df)
-    elif choice == "Pemetaan KMedoids":
-        pemetaan_kmedoids(data_df)
+    # Determine which page to display based on the selected option
+    if option == "Statistika Deskriptif":
+        statistika_deskriptif(data)
+    elif option == "Pemetaan":
+        pemetaan(data)
+    elif option == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data)
 
 if __name__ == "__main__":
     main()
