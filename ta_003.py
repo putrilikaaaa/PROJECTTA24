@@ -217,13 +217,13 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjust labels to start from 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
-            'Cluster': cluster_labels
+            'Cluster': labels
         })
 
-        st.subheader("Tabel Provinsi per Kluster")
+        st.subheader("Tabel Provinsi per Cluster")
         st.write(clustered_data)
 
         gdf = upload_geojson_file()
@@ -272,24 +272,21 @@ def pemetaan_kmedoids(data_df):
             st.pyplot(fig)
 
 # Main App
-st.set_page_config(page_title="Aplikasi Klusterisasi", layout="wide")
+def main():
+    st.set_page_config(page_title="Clustering", page_icon="📊", layout="wide")
 
-# Add logo
-logo_image = "path_to_your_image.png"  # Adjust this path
-st.image(logo_image, width=100, use_column_width='auto', clamp=False)
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
 
-# Navigation
-with st.sidebar:
-    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
-                           icons=['chart-bar', 'map', 'map'], menu_icon="cast", default_index=0)
+    data_df = upload_csv_file()
 
-# Upload data
-data_df = upload_csv_file()
+    if selected == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected == "Pemetaan":
+        pemetaan(data_df)
+    elif selected == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data_df)
 
-# Call appropriate page
-if selected == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
-elif selected == "Pemetaan":
-    pemetaan(data_df)
-elif selected == "Pemetaan KMedoids":
-    pemetaan_kmedoids(data_df)
+if __name__ == "__main__":
+    main()
