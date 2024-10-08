@@ -48,36 +48,25 @@ def symmetrize(matrix):
 def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
     if data_df is not None:
-        # Exclude 'Tanggal' from the dropdown options
         provinces = [col for col in data_df.columns if col != 'Tanggal']
-
-        # Dropdown to select province
         province = st.selectbox("Pilih Provinsi", options=provinces)
 
-        # Create a figure for the line chart
         fig, ax = plt.subplots(figsize=(10, 6))
-
-        # Plot the line chart for the selected province
         ax.plot(data_df.index, data_df[province], label=province)
 
-        # Set y-axis limits to avoid too much space towards zero
         min_value = data_df[province].min()
         max_value = data_df[province].max()
-        ax.set_ylim(bottom=min_value - (0.1 * abs(max_value - min_value)))  # 10% below the min value
+        ax.set_ylim(bottom=min_value - (0.1 * abs(max_value - min_value)))
 
         ax.set_title(f"Tren Data Provinsi {province}")
         ax.set_xlabel("Tanggal")
         ax.set_ylabel("Nilai")
         ax.legend()
-
-        # Display line chart for the selected province
         st.line_chart(data_df[province])
-
-        # Show descriptive statistics for the selected province
         st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
         st.write(data_df[province].describe())
 
-# Pemetaan Page (with single, complete, and average linkage)
+# Pemetaan Page
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
 
@@ -92,7 +81,6 @@ def pemetaan(data_df):
         data_daily_values = scaler.fit_transform(data_daily)
 
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
@@ -109,10 +97,9 @@ def pemetaan(data_df):
 
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-        
+
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
@@ -142,7 +129,6 @@ def pemetaan(data_df):
         st.subheader("Tabel Provinsi per Cluster")
         st.write(clustered_data)
 
-        # Peta for Pemetaan
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -159,7 +145,6 @@ def pemetaan(data_df):
             })
 
             gdf = gdf[gdf['Province'].notna()]
-
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             gdf['color'] = gdf['Cluster'].map({
@@ -216,11 +201,11 @@ def pemetaan_kmedoids(data_df):
 
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        
+
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (K-Medoids)')
+        plt.title('Silhouette Score vs. Number of Clusters (KMedoids)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -236,10 +221,9 @@ def pemetaan_kmedoids(data_df):
             'Cluster': cluster_labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster (K-Medoids)")
+        st.subheader("Tabel Provinsi per Cluster KMedoids")
         st.write(clustered_data)
 
-        # Peta for Pemetaan KMedoids
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -256,7 +240,6 @@ def pemetaan_kmedoids(data_df):
             })
 
             gdf = gdf[gdf['Province'].notna()]
-
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             gdf['color'] = gdf['Cluster'].map({
@@ -283,20 +266,19 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster K-Medoids")
+            plt.title(f"Pemetaan Provinsi per Kluster KMedoids")
             st.pyplot(fig)
 
-# Main function
+# Main Application
 def main():
-    st.title("Dashboard Analisis Data")
+    st.title("Analisis Data Impor Kedelai")
 
-    # Sidebar navigation
-    page = st.sidebar.radio("Navigasi", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"])
+    # Navigation
+    page = st.sidebar.radio("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"))
 
-    # Upload CSV file
+    # Upload Data
     data_df = upload_csv_file()
 
-    # Display selected page
     if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
     elif page == "Pemetaan":
