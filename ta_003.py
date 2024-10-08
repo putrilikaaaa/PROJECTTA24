@@ -48,8 +48,9 @@ def symmetrize(matrix):
 def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
     if data_df is not None:
-        # Dropdown to select province
-        province = st.selectbox("Pilih Provinsi", options=data_df.columns)
+        # Exclude 'Tanggal' from dropdown
+        province_columns = [col for col in data_df.columns if col != 'Tanggal']
+        province = st.selectbox("Pilih Provinsi", options=province_columns)
 
         # Display line chart for the selected province
         st.line_chart(data_df[province])
@@ -267,21 +268,15 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main function to run the app
+# Main app logic
 def main():
-    st.title("Analisis Data Perdagangan")
+    st.title("Analisis Data Provinsi")
     data_df = upload_csv_file()
 
     if data_df is not None:
-        # Show navigation options
-        page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"))
-
-        if page == "Statistika Deskriptif":
-            statistika_deskriptif(data_df)
-        elif page == "Pemetaan":
-            pemetaan(data_df)
-        elif page == "Pemetaan KMedoids":
-            pemetaan_kmedoids(data_df)
+        statistika_deskriptif(data_df)
+        pemetaan(data_df)
+        pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
     main()
