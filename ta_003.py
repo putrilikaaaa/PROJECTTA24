@@ -273,17 +273,12 @@ def pemetaan_kmedoids(data_df):
 
 # Main function
 def main():
-    st.title("Analisis Data Provinsi")
+    st.set_page_config(page_title="Clustering", page_icon="📊", layout="wide")
 
-    # Allow users to download the CSV template
-    template_csv = "data/template.csv"
-    with open(template_csv, "rb") as f:
-        st.download_button(
-            label="Download CSV Template",
-            data=f,
-            file_name="template.csv",
-            mime="text/csv"
-        )
+    # Link to the CSV template
+    st.markdown(
+        "[Download CSV Template](https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv)"
+    )
 
     # Allow users to upload data
     st.markdown("## Upload Data")
@@ -291,15 +286,15 @@ def main():
 
     # Create a sidebar menu for navigation
     with st.sidebar:
-        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-                                       icons=["chart-bar", "map", "map"], default_index=0)
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
 
     # Load the appropriate page based on user selection
-    if selected_option == "Statistika Deskriptif":
+    if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_option == "Pemetaan":
+    elif selected == "Pemetaan":
         pemetaan(data_df)
-    elif selected_option == "Pemetaan KMedoids":
+    elif selected == "Pemetaan KMedoids":
         pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
