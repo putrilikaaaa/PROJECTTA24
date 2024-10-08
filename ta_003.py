@@ -9,6 +9,7 @@ from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
 from sklearn.preprocessing import StandardScaler
+from fastdtw import fastdtw  # Importing fastdtw for DTW computation
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -25,10 +26,6 @@ def upload_csv_file():
 def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
-
-# Ensure DTW distance matrix is symmetric
-def symmetrize(matrix):
-    return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -83,12 +80,8 @@ def pemetaan(data_df):
         # Dropdown for choosing linkage method
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
-        # Compute local cost matrix and accumulated cost matrix
-        local_cost_matrix_daily = compute_local_cost_matrix(pd.DataFrame(data_daily_values, columns=data_daily.columns))
-        accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
-
-        # Compute DTW distance matrix for daily data
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
+        # Compute DTW distance matrix for daily data using fastdtw
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
 
         # Ensure DTW distance matrix is symmetric
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
@@ -201,44 +194,19 @@ def pemetaan(data_df):
             plt.title("Pemetaan Provinsi Berdasarkan Kluster")
             st.pyplot(fig)
 
-# Function to compute local cost matrix for DTW
-def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
-    num_time_points, num_provinces = data_df.shape
-    local_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+# Ensure DTW distance matrix is symmetric
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
 
-    for i in range(num_provinces):
-        for j in range(num_provinces):
-            if i != j:
-                for t in range(num_time_points):
-                    local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
-
-    return local_cost_matrix
-
-# Function to compute accumulated cost matrix for DTW
-def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    for t in range(1, num_time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],  # from the same province
-                    accumulated_cost_matrix[t - 1, j, i],  # from the other province
-                    accumulated_cost_matrix[t - 1, i, i]   # from previous time point of the same province
-                )
-
-    return accumulated_cost_matrix
-
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
+# Function to compute DTW distance matrix using fastdtw
+def compute_dtw_distance_matrix(data_df: np.array) -> np.array:
+    num_provinces = data_df.shape[1]
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
             if i != j:
-                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+                dtw_distance_matrix[i, j] = fastdtw(data_df[:, i], data_df[:, j])[0]  # Compute DTW distance
 
     return dtw_distance_matrix
 
@@ -248,17 +216,21 @@ def main():
     
     # Sidebar menu for navigation
     with st.sidebar:
-        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                       icons=["bar-chart", "map"], 
-                                       menu_icon="cast", default_index=0)
-
-    # Upload data file once
+        selected_page = option_menu(
+            menu_title="Menu",
+            options=["Statistika Deskriptif", "Pemetaan"],
+            icons=["house", "map"],
+            default_index=0,
+            orientation="vertical",
+        )
+    
+    # Upload data file
     data_df = upload_csv_file()
 
-    # Call the appropriate page based on the selected option
-    if selected_option == "Statistika Deskriptif":
+    # Handle the selected page
+    if selected_page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_option == "Pemetaan":
+    elif selected_page == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
