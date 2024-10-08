@@ -195,19 +195,20 @@ def pemetaan_kmedoids(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            clustering = KMedoids(n_clusters=n_clusters, metric='euclidean')
-            labels = clustering.fit_predict(data_daily_values)
-            score = silhouette_score(data_daily_values, labels)
+            kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
+            labels = kmedoids.fit_predict(data_daily_values.T)
+            score = silhouette_score(data_daily_values.T, labels)
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian KMedoids)')
-        plt.xlabel('Number of Clusters')
+        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
+        plt.xlabel('Jumlah Kluster')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
@@ -216,13 +217,13 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjust to start from 1
+        labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjust labels to start from 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
-            'Cluster': cluster_labels
+            'Cluster': labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster KMedoids")
+        st.subheader("Tabel Provinsi per Cluster")
         st.write(clustered_data)
 
         gdf = upload_geojson_file()
@@ -259,25 +260,26 @@ def pemetaan_kmedoids(data_df):
 
             grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
             if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster KMedoids:")
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
                 st.write(grey_provinces)
             else:
-                st.write("Semua provinsi termasuk dalam kluster KMedoids.")
+                st.write("Semua provinsi termasuk dalam kluster.")
 
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main app
+# Main App
 def main():
-    st.title("Aplikasi Pemodelan Clustering")
-    data_df = upload_csv_file()
-    
+    st.set_page_config(page_title="Clustering", page_icon="📊", layout="wide")
+
     with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
-                                icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
+
+    data_df = upload_csv_file()
 
     if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
