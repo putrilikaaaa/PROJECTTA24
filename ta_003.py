@@ -44,6 +44,22 @@ def compute_dtw_distance_matrix(data):
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
+# Statistika Deskriptif Page
+def statistika_deskriptif(data_df):
+    st.subheader("Statistika Deskriptif")
+    if data_df is not None:
+        st.write("Statistik dasar dari dataset yang diunggah:")
+        st.write(data_df.describe())
+        
+        st.write("Histogram dari setiap kolom:")
+        for column in data_df.select_dtypes(include=[np.number]).columns:
+            plt.figure(figsize=(10, 5))
+            plt.hist(data_df[column], bins=30, alpha=0.7)
+            plt.title(f'Histogram {column}')
+            plt.xlabel(column)
+            plt.ylabel('Frekuensi')
+            st.pyplot(plt)
+
 # Pemetaan Page (with single, complete, and average linkage)
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
@@ -198,18 +214,21 @@ def pemetaan_kmedoids(data_df):
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
         cluster_labels = cluster_labels_dict[optimal_n_clusters]
-        cluster_data = pd.DataFrame({'Province': data_daily.columns, 'Cluster': cluster_labels})
+        clustered_data = pd.DataFrame({
+            'Province': data_daily.columns,
+            'Cluster': cluster_labels
+        })
 
-        st.write("Tabel provinsi per kluster:")
-        st.write(cluster_data)
+        st.subheader("Tabel Provinsi per Cluster KMedoids")
+        st.write(clustered_data)
 
-        # Separate Peta for KMedoids
+        # Peta for Pemetaan KMedoids
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            cluster_data['Province'] = cluster_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             gdf['Province'] = gdf['Province'].replace({
                 'DI ACEH': 'ACEH',
@@ -220,7 +239,8 @@ def pemetaan_kmedoids(data_df):
             })
 
             gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(cluster_data, on='Province', how='left')
+
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             gdf['color'] = gdf['Cluster'].map({
                 0: 'red',
@@ -246,22 +266,28 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster KMedoids")
             st.pyplot(fig)
 
 # Main Function
 def main():
-    st.title("Analisis Clustering dengan DTW dan KMedoids")
+    st.title("Aplikasi Clustering dengan DTW")
+    
+    # File upload section
     data_df = upload_csv_file()
+    
+    # Sidebar for navigation
+    st.sidebar.title("Navigasi")
+    pages = ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"]
+    page = st.sidebar.radio("Pilih Halaman", pages)
 
-    if data_df is not None:
-        st.sidebar.title("Halaman")
-        selected_page = st.sidebar.radio("Pilih halaman", ("Pemetaan", "Pemetaan KMedoids"))
-
-        if selected_page == "Pemetaan":
-            pemetaan(data_df)
-        elif selected_page == "Pemetaan KMedoids":
-            pemetaan_kmedoids(data_df)
+    # Page navigation
+    if page == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif page == "Pemetaan":
+        pemetaan(data_df)
+    elif page == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
     main()
