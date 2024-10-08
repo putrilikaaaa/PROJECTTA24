@@ -58,6 +58,29 @@ def statistika_deskriptif(data_df):
 
             st.pyplot(fig)
 
+# Pemetaan Page
+def pemetaan(data_df):
+    st.subheader("Pemetaan Data")
+
+    if data_df is not None:
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
+
+        # Handle missing data by forward filling
+        data_df.fillna(method='ffill', inplace=True)
+
+        # Dropdown for selecting a date
+        selected_date = st.date_input("Pilih Tanggal", value=data_df.index.min().date())
+
+        # Filter data by selected date
+        if selected_date:
+            selected_data = data_df.loc[selected_date.strftime('%Y-%m-%d')]
+            st.write(f"Data untuk tanggal {selected_date}:")
+            st.write(selected_data)
+
+            # Visualization (You can modify this to plot on a map or other visual elements)
+            st.line_chart(selected_data)
+
 # Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
     st.subheader("Pemetaan Clustering dengan KMedoids")
