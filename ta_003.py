@@ -209,31 +209,76 @@ def pemetaan(data_df):
                 st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
                 st.write(grey_provinces)
             else:
-                st.write("Semua provinsi berhasil dikelompokkan dalam kluster.")
+                st.write("Semua provinsi termasuk dalam kluster.")
 
-            # Plot the clustering map with GeoPandas
-            fig, ax = plt.subplots(figsize=(12, 10))
-            gdf.plot(ax=ax, color=gdf['color'])
-            plt.title("Pemetaan Provinsi Berdasarkan Kluster DTW")
+            # Plot map
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids (DTW)")
             st.pyplot(fig)
 
-# Streamlit Sidebar for Navigation
-def sidebar_navigation():
-    with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan KMedoids"], 
-                               icons=["chart-bar", "map"], menu_icon="cast", default_index=0)
-    return selected
+# Pemetaan KMedoids Page
+def pemetaan_kmedoids(data_df):
+    st.subheader("Pemetaan KMedoids")
 
+    if data_df is not None:
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
+
+        # Calculate daily averages
+        data_daily = data_df.resample('D').mean()
+
+        # Handle missing data
+        data_daily.fillna(method='ffill', inplace=True)
+
+        # Normalize data using MinMaxScaler
+        scaler = MinMaxScaler()
+        data_daily_values = scaler.fit_transform(data_daily)
+
+        # Perform KMedoids clustering
+        n_clusters = st.slider("Pilih jumlah kluster:", min_value=2, max_value=10, value=3)
+        kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
+        labels = kmedoids.fit_predict(data_daily_values.T)
+
+        # Create DataFrame for displaying
+        cluster_data = pd.DataFrame({'Province': data_daily.columns, 'Cluster': labels})
+
+        # Display cluster table
+        st.write("Tabel provinsi per kluster:")
+        st.write(cluster_data)
+
+        # Plot clusters on a map (like the pemetaan function)
+        gdf = upload_geojson_file()
+        if gdf is not None:
+            # Data manipulation similar to the 'pemetaan' page
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper()
+
+            # Merge the cluster data with the GeoDataFrame
+            gdf = gdf.merge(cluster_data, on="Province", how="left")
+            gdf['color'] = gdf['Cluster'].map({0: 'red', 1: 'yellow', 2: 'green', 3: 'blue', 4: 'purple'}).fillna('grey')
+
+            # Plot the map with clusters
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title("Pemetaan KMedoids")
+            st.pyplot(fig)
+
+# Main function
 def main():
-    selected_page = sidebar_navigation()
+    st.sidebar.title("Menu")
+    choice = option_menu(None, ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
+                         icons=["bar-chart-line", "map", "map"], menu_icon="cast", default_index=0)
 
-    # Upload CSV file
     data_df = upload_csv_file()
 
-    if selected_page == "Statistika Deskriptif":
+    if choice == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-
-    if selected_page == "Pemetaan KMedoids":
+    elif choice == "Pemetaan":
+        pemetaan(data_df)
+    elif choice == "Pemetaan KMedoids":
         pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
