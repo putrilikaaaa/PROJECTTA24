@@ -193,5 +193,28 @@ def pemetaan(data_df):
             plt.title('Peta Provinsi dengan Clustering DTW')
             st.pyplot(plt)
 
+# Main app function
+def app():
+    st.title("Aplikasi Clustering Provinsi dengan DTW")
+    
+    data_df = upload_csv_file()
+    
+    if data_df is not None:
+        # Sidebar menu for selecting pages
+        page = option_menu(
+            menu_title="Pilih Halaman",
+            options=["Statistika Deskriptif", "Pemetaan"],
+            icons=["bar-chart", "map"],
+            menu_icon="cast",
+            default_index=0,
+            orientation="horizontal"
+        )
+        
+        if page == "Statistika Deskriptif":
+            statistika_deskriptif(data_df)
+        elif page == "Pemetaan":
+            pemetaan(data_df)
+
+# Run the app
 if __name__ == "__main__":
-    app()
+    app
