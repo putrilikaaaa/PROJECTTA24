@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn_extra.cluster import KMedoids  # Importing KMedoids
-from scipy.cluster.hierarchy import linkage
+from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
@@ -30,6 +30,9 @@ def upload_geojson_file():
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(data):
+    """
+    Compute the DTW distance matrix for a given set of time series.
+    """
     num_series = data.shape[1]
     dtw_distance_matrix = np.zeros((num_series, num_series))
 
@@ -43,6 +46,9 @@ def compute_dtw_distance_matrix(data):
 
 # Function to symmetrize a matrix (making it symmetric)
 def symmetrize(matrix):
+    """
+    Ensure that the matrix is symmetric by averaging values at symmetric positions.
+    """
     return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
@@ -119,11 +125,11 @@ def pemetaan(data_df):
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-
+        
         # Adding data labels to the silhouette score plot
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-
+        
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
@@ -203,79 +209,65 @@ def pemetaan(data_df):
                 st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
                 st.write(grey_provinces)
             else:
-                st.write("Semua provinsi termasuk dalam kluster.")
+                st.write("Semua provinsi berhasil dikelompokkan ke dalam kluster.")
 
-            # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            # Plot the clustered map
+            fig, ax = plt.subplots(1, 1, figsize=(15, 10))
             gdf.plot(ax=ax, color=gdf['color'], legend=True)
-
+            plt.title(f"Pemetaan Kluster Provinsi dengan {linkage_method.capitalize()} Linkage")
             st.pyplot(fig)
 
 # Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
-    st.subheader("Pemetaan Clustering KMedoids")
+    st.subheader("Pemetaan KMedoids")
 
     if data_df is not None:
+        # Normalize the data
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
-
-        # Calculate daily averages
         data_daily = data_df.resample('D').mean()
 
-        # Handle missing data by forward filling
+        # Handle missing data
         data_daily.fillna(method='ffill', inplace=True)
-
-        # Standardize data
-        scaler = MinMaxScaler()
-        data_daily_values = scaler.fit_transform(data_daily)
-
-        # Compute DTW distance matrix
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
-
-        # Symmetrize the DTW distance matrix
-        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+        data_daily_values = MinMaxScaler().fit_transform(data_daily)
 
         # KMedoids clustering
-        n_clusters = st.slider("Pilih jumlah kluster:", min_value=2, max_value=10, value=3)
-        kmedoids = KMedoids(n_clusters=n_clusters, metric='precomputed')
-        kmedoids_labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
+        n_clusters = st.slider("Pilih Jumlah Kluster", min_value=2, max_value=10, value=3)
+        kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", init="k-medoids++")
+        labels = kmedoids.fit_predict(data_daily_values)
 
-        # Add KMedoids result to GeoJSON map
+        # Create a DataFrame with provinces and cluster labels
+        clustered_data = pd.DataFrame({'Province': data_daily.columns, 'Cluster': labels})
+
+        # Merge with GeoDataFrame and plot
         gdf = upload_geojson_file()
+        gdf = gdf.rename(columns={'Propinsi': 'Province'})
+        gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Ensure correct column name match
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-            clustered_data = pd.DataFrame({
-                'Province': data_daily.columns,
-                'Cluster': kmedoids_labels
-            })
+        # Rename provinces
+        gdf['Province'] = gdf['Province'].replace({
+            'DI ACEH': 'ACEH',
+            'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+            'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+        })
 
-            # Merge with GeoDataFrame
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+        # Remove 'GORONTALO'
+        gdf = gdf[gdf['Province'] != 'GORONTALO']
 
-            # Map clusters to colors
-            gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green',
-                3: 'blue',
-                4: 'purple',
-                5: 'orange',
-                6: 'pink',
-                7: 'brown',
-                8: 'cyan',
-                9: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
+        # Merge with cluster data
+        clustered_data['Province'] = clustered_data['Province'].str.upper().str.strip()
+        gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Plot the map with clustering results
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], legend=True)
+        # Color mapping for clusters
+        gdf['color'] = gdf['Cluster'].map({0: 'red', 1: 'yellow', 2: 'green'})
 
-            st.pyplot(fig)
+        # Plot the map
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+        gdf.plot(ax=ax, color=gdf['color'])
+        plt.title(f"Pemetaan KMedoids Kluster")
+        st.pyplot(fig)
 
 # Streamlit App Layout
 def main():
