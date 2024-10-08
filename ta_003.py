@@ -2,9 +2,14 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn_extra.cluster import KMedoids  # Importing KMedoids
-from sklearn.preprocessing import MinMaxScaler  # Importing MinMaxScaler for normalization
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import AgglomerativeClustering
+from sklearn_extra.cluster import KMedoids
+from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.spatial.distance import squareform
 import geopandas as gpd
+from sklearn.preprocessing import MinMaxScaler
+from fastdtw import fastdtw
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -22,62 +27,122 @@ def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
 
-# Pemetaan KMedoids Page
-def pemetaan_kmedoids(data_df):
-    st.subheader("Pemetaan KMedoids")
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(data):
+    num_series = data.shape[1]
+    dtw_distance_matrix = np.zeros((num_series, num_series))
+
+    for i in range(num_series):
+        for j in range(i, num_series):
+            distance, _ = fastdtw(data[:, i], data[:, j])
+            dtw_distance_matrix[i, j] = distance
+            dtw_distance_matrix[j, i] = distance  # DTW distance is symmetric
+
+    return dtw_distance_matrix
+
+# Function to symmetrize a matrix (making it symmetric)
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
+
+# Pemetaan Page (with single, complete, and average linkage)
+def pemetaan(data_df):
+    st.subheader("Pemetaan Clustering dengan DTW")
 
     if data_df is not None:
-        # Convert 'Tanggal' to datetime and set as index
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
-        # Calculate daily averages and handle missing data by forward filling
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Normalize the data
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # Perform KMedoids clustering
-        n_clusters = st.slider("Pilih jumlah kluster:", min_value=2, max_value=10, value=3)
-        kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
-        labels = kmedoids.fit_predict(data_daily_values.T)
+        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
-        # Create a DataFrame to store the clustering results
-        cluster_data = pd.DataFrame({'Province': data_daily.columns, 'Cluster': labels})
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
-        # Display the cluster table
-        st.write("Tabel provinsi per kluster:")
-        st.write(cluster_data)
+        max_n_clusters = 10
+        silhouette_scores = {}
+        cluster_labels_dict = {}
 
-        # Plot clusters on a map
+        for n_clusters in range(2, max_n_clusters + 1):
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+            silhouette_scores[n_clusters] = score
+            cluster_labels_dict[n_clusters] = labels
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+        
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('Silhouette Score')
+        plt.xticks(range(2, max_n_clusters + 1))
+        plt.grid(True)
+        st.pyplot(plt)
+
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+
+        plt.figure(figsize=(16, 10))
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.xlabel('Provinsi')
+        plt.ylabel('Jarak DTW')
+        st.pyplot(plt)
+
+        cluster_labels = cluster_labels_dict[optimal_n_clusters]
+        clustered_data = pd.DataFrame({
+            'Province': data_daily.columns,
+            'Cluster': cluster_labels
+        })
+
+        st.subheader("Tabel Provinsi per Cluster")
+        st.write(clustered_data)
+
+        # Peta for Pemetaan
         gdf = upload_geojson_file()
         if gdf is not None:
-            # Standardize province names in GeoDataFrame and clustered data
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            cluster_data['Province'] = cluster_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Handle inconsistent names between the datasets (for example)
             gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
 
-            # Merge cluster data with GeoDataFrame
-            gdf = gdf.merge(cluster_data, on="Province", how="left")
+            gdf = gdf[gdf['Province'].notna()]
 
-            # Assign colors to clusters
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
             gdf['color'] = gdf['Cluster'].map({
-                0: 'red', 1: 'yellow', 2: 'green', 3: 'blue', 4: 'purple',
-                5: 'orange', 6: 'pink', 7: 'brown', 8: 'cyan', 9: 'magenta'
-            }).fillna('grey')  # Provinces with no cluster get grey
+                0: 'red',
+                1: 'yellow',
+                2: 'green',
+                3: 'blue',
+                4: 'purple',
+                5: 'orange',
+                6: 'pink',
+                7: 'brown',
+                8: 'cyan',
+                9: 'magenta'
+            })
+            gdf['color'].fillna('grey', inplace=True)
 
-            # Check for provinces not in clusters (colored grey)
             grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
             if grey_provinces:
                 st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
@@ -85,24 +150,95 @@ def pemetaan_kmedoids(data_df):
             else:
                 st.write("Semua provinsi termasuk dalam kluster.")
 
-            # Plot the map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title("Pemetaan KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
             st.pyplot(fig)
 
-# Main function
-def main():
-    st.sidebar.title("Menu")
-    choice = st.sidebar.selectbox("Pilih halaman", ["Pemetaan KMedoids"])
+# Pemetaan KMedoids Page
+def pemetaan_kmedoids(data_df):
+    st.subheader("Pemetaan KMedoids")
 
-    # Upload CSV file
+    if data_df is not None:
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
+
+        data_daily = data_df.resample('D').mean()
+        data_daily.fillna(method='ffill', inplace=True)
+
+        scaler = MinMaxScaler()
+        data_daily_values = scaler.fit_transform(data_daily)
+
+        n_clusters = st.slider("Pilih jumlah kluster:", min_value=2, max_value=10, value=3)
+        kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
+        labels = kmedoids.fit_predict(data_daily_values.T)
+
+        cluster_data = pd.DataFrame({'Province': data_daily.columns, 'Cluster': labels})
+
+        st.write("Tabel provinsi per kluster:")
+        st.write(cluster_data)
+
+        # Separate Peta for KMedoids
+        gdf = upload_geojson_file()
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            cluster_data['Province'] = cluster_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
+
+            gdf = gdf[gdf['Province'].notna()]
+
+            gdf = gdf.merge(cluster_data, on='Province', how='left')
+
+            gdf['color'] = gdf['Cluster'].map({
+                0: 'red',
+                1: 'yellow',
+                2: 'green',
+                3: 'blue',
+                4: 'purple',
+                5: 'orange',
+                6: 'pink',
+                7: 'brown',
+                8: 'cyan',
+                9: 'magenta'
+            })
+            gdf['color'].fillna('grey', inplace=True)
+
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
+
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            st.pyplot(fig)
+
+# Main Function
+def main():
+    st.title("Analisis Clustering dengan DTW dan KMedoids")
     data_df = upload_csv_file()
 
-    # Display selected page
-    if choice == "Pemetaan KMedoids":
-        pemetaan_kmedoids(data_df)
+    if data_df is not None:
+        st.sidebar.title("Halaman")
+        selected_page = st.sidebar.radio("Pilih halaman", ("Pemetaan", "Pemetaan KMedoids"))
+
+        if selected_page == "Pemetaan":
+            pemetaan(data_df)
+        elif selected_page == "Pemetaan KMedoids":
+            pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
     main()
