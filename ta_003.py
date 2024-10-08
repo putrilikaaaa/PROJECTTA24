@@ -207,7 +207,7 @@ def pemetaan_kmedoids(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian KMedoids)')
+        plt.title('Silhouette Score vs. Number of Clusters (KMedoids)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -217,8 +217,7 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        # Adjust cluster labels to start from 1 instead of 0
-        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjust to start from 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': cluster_labels
@@ -269,60 +268,42 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main function to display the app
-def main():
-    # Add logos to the top right corner
-    st.markdown(
-        """
-        <style>
-        .header {
-            position: relative;
-        }
-        .logo {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-        </style>
-        """, unsafe_allow_html=True
-    )
+# Add logos in the top right corner
+st.markdown(
+    """
+    <style>
+    .logo {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    </style>
+    <div class="logo">
+        <img src="https://example.com/logo1.png" width="50" height="50">
+        <img src="https://example.com/logo2.png" width="50" height="50">
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-    col1, col2 = st.columns([1, 3])
-    
-    with col1:
-        st.markdown('<div class="logo"><img src="https://cdn-icons-png.flaticon.com/512/1055/1055680.png" width="80" height="80"></div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<div class="logo"><img src="https://cdn-icons-png.flaticon.com/512/2190/2190266.png" width="80" height="80"></div>', unsafe_allow_html=True)
+# Sidebar for navigation
+with st.sidebar:
+    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
+                           icons=["bar-chart", "map", "map"], 
+                           menu_icon="cast", default_index=0, styles={"container": {"padding": "5!important", "background-color": "#FFFFFF"}, 
+                                                                     "icon": {"color": "blue", "font-size": "25px"}, 
+                                                                     "nav-link": {"font-size": "16px", "text-align": "left", "margin": "5px", "color": "black"}, 
+                                                                     "nav-link-selected": {"background-color": "darkblue", "color": "white"}})
 
-    # Sidebar menu for navigation
-    selected = option_menu(
-        menu_title=None,
-        options=["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-        icons=["bar-chart", "map", "map"],
-        default_index=0,
-        orientation="horizontal",
-        styles={
-            "container": {"padding": "0!important", "background-color": "#fafafa"},
-            "icon": {"font-size": "25px"},
-            "nav-link": {"font-size": "16px", "text-align": "left", "margin": "0px"},
-            "nav-link-selected": {"background-color": "darkblue", "color": "white"},
-        },
-    )
+# Load data and run functions based on selection
+data_df = upload_csv_file()
 
-    # Upload data
-    data_df = upload_csv_file()
-
-    if selected == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected == "Pemetaan":
-        pemetaan(data_df)
-    elif selected == "Pemetaan KMedoids":
-        pemetaan_kmedoids(data_df)
-
-# Run the app
-if __name__ == "__main__":
-    main()
+if selected == "Statistika Deskriptif":
+    statistika_deskriptif(data_df)
+elif selected == "Pemetaan":
+    pemetaan(data_df)
+elif selected == "Pemetaan KMedoids":
+    pemetaan_kmedoids(data_df)
