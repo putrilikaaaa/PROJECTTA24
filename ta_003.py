@@ -150,6 +150,22 @@ def pemetaan(data_df):
         # Display Silhouette score for KMedoids
         st.write(f"Silhouette Score untuk KMedoids: {kmedoids_silhouette_score:.2f}")
 
+        # Plot silhouette score for KMedoids
+        silhouette_scores_kmedoids = []
+        for n_clusters in range(2, 11):
+            kmedoids = KMedoids(n_clusters=n_clusters, metric="precomputed", init="k-medoids++", random_state=42)
+            kmedoids_labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, kmedoids_labels, metric='precomputed')
+            silhouette_scores_kmedoids.append(score)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(2, 11), silhouette_scores_kmedoids, marker='o', linestyle='-', color='purple')
+        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
+        plt.xlabel('Jumlah Kluster')
+        plt.ylabel('Silhouette Score')
+        plt.grid(True)
+        st.pyplot(plt)
+
         # GeoJSON mapping for linkage methods only
         if linkage_method in ["complete", "single", "average"]:
             gdf = upload_geojson_file()
@@ -183,58 +199,34 @@ def pemetaan(data_df):
                 gdf['color'].fillna('grey', inplace=True)
 
                 # Display provinces colored grey
-                grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-                if grey_provinces:
-                    st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                    st.write(grey_provinces)
-                else:
-                    st.write("Semua provinsi termasuk dalam kluster.")
+                st.write("Pemetaan Hasil Clustering")
+                fig, ax = plt.subplots(figsize=(10, 10))
+                gdf.plot(ax=ax, color=gdf['color'], legend=True)
 
-                # Plot map
-                fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-                gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-                gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
-                plt.title("Pemetaan Provinsi Berdasarkan Kluster")
                 st.pyplot(fig)
 
-# Ensure DTW distance matrix is symmetric
-def symmetrize(matrix):
-    return (matrix + matrix.T) / 2
-
-# Function to compute DTW distance matrix using fastdtw
-def compute_dtw_distance_matrix(data_values):
-    num_provinces = data_values.shape[1]
-    distance_matrix = np.zeros((num_provinces, num_provinces))
-
-    for i in range(num_provinces):
-        for j in range(i, num_provinces):
-            dist, _ = fastdtw(data_values[:, i], data_values[:, j])
-            distance_matrix[i, j] = dist
-            distance_matrix[j, i] = dist
-    return distance_matrix
-
-# Main
+# Main Function to Run Streamlit App
 def main():
-    st.title("Aplikasi Streamlit Clustering")
+    st.set_page_config(page_title="Clustering dengan DTW dan KMedoids")
+    st.title("Clustering dengan DTW dan KMedoids")
+    
+    # Sidebar for page navigation
+    selected = option_menu(
+        menu_title=None, 
+        options=["Statistika Deskriptif", "Pemetaan"], 
+        icons=["bar-chart", "map"], 
+        default_index=0,
+        orientation="horizontal",
+    )
 
-    # Upload CSV file
+    # Upload file data
     data_df = upload_csv_file()
 
-    # Sidebar
-    with st.sidebar:
-        selected_page = option_menu(
-            "Navigasi",
-            ["Statistika Deskriptif", "Pemetaan"],
-            icons=["house", "map"],
-            menu_icon="cast",
-            default_index=0,
-        )
-
-    # Show selected page
-    if selected_page == "Statistika Deskriptif":
+    # Switch based on the selected page
+    if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_page == "Pemetaan":
+    elif selected == "Pemetaan":
         pemetaan(data_df)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
