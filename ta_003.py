@@ -11,6 +11,7 @@ import geopandas as gpd
 from sklearn.preprocessing import MinMaxScaler
 from fastdtw import fastdtw
 from streamlit_option_menu import option_menu
+import requests
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -272,12 +273,27 @@ def pemetaan_kmedoids(data_df):
             st.pyplot(fig)
 
 # Main function
+def download_template():
+    # URL to the raw CSV file
+    template_url = "https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv"
+    
+    # Fetch the CSV file content
+    response = requests.get(template_url)
+    response.raise_for_status()  # Raise an error for bad responses
+    
+    # Return the CSV content
+    return response.content
+
 def main():
     st.set_page_config(page_title="Clustering", page_icon="📊", layout="wide")
 
-    # Link to the CSV template
-    st.markdown(
-        "[Download CSV Template](https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv)"
+    # Create a download button for the CSV template
+    csv_content = download_template()
+    st.download_button(
+        label="Download CSV Template",
+        data=csv_content,
+        file_name="TEMPLATE.csv",
+        mime="text/csv",
     )
 
     # Allow users to upload data
