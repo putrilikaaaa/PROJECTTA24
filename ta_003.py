@@ -31,6 +31,41 @@ def upload_geojson_file():
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
+# Compute local cost matrix for DTW
+def compute_local_cost_matrix(df):
+    # DTW computation for local cost matrix
+    n = df.shape[1]
+    cost_matrix = np.zeros((n, n))
+    
+    for i in range(n):
+        for j in range(i, n):
+            cost_matrix[i, j] = np.sum(np.abs(df.iloc[:, i] - df.iloc[:, j]))
+            cost_matrix[j, i] = cost_matrix[i, j]
+    return cost_matrix
+
+# Compute accumulated cost matrix for DTW
+def compute_accumulated_cost_matrix(cost_matrix):
+    n = cost_matrix.shape[0]
+    accumulated_cost_matrix = np.zeros_like(cost_matrix)
+    
+    for i in range(n):
+        for j in range(n):
+            if i == 0 and j == 0:
+                accumulated_cost_matrix[i, j] = cost_matrix[i, j]
+            elif i == 0:
+                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i, j - 1] + cost_matrix[i, j]
+            elif j == 0:
+                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i - 1, j] + cost_matrix[i, j]
+            else:
+                accumulated_cost_matrix[i, j] = cost_matrix[i, j] + min(accumulated_cost_matrix[i - 1, j], 
+                                                                        accumulated_cost_matrix[i, j - 1], 
+                                                                        accumulated_cost_matrix[i - 1, j - 1])
+    return accumulated_cost_matrix
+
+# Compute DTW distance matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix):
+    return accumulated_cost_matrix[-1, -1]
+
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
@@ -130,11 +165,11 @@ def pemetaan(data_df):
             # Plot Silhouette Scores
             plt.figure(figsize=(10, 6))
             plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-            
+
             # Adding data labels to the silhouette score plot
             for n_clusters, score in silhouette_scores.items():
                 plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-            
+
             plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
             plt.xlabel('Number of Clusters')
             plt.ylabel('Silhouette Score')
@@ -175,77 +210,34 @@ def pemetaan(data_df):
             gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Calculate cluster from clustering results
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            # Merge with cluster data
+            merged_gdf = gdf.merge(clustered_data, on='Province')
 
-            # Rename inconsistent provinces
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
-
-            # Remove provinces that are None (i.e., GORONTALO)
-            gdf = gdf[gdf['Province'].notna()]
-
-            # Merge clustered data with GeoDataFrame
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
-
-            # Set colors for clusters
-            gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green',
-                3: 'blue',
-                4: 'purple',
-                5: 'orange',
-                6: 'pink',
-                7: 'brown',
-                8: 'cyan',
-                9: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
-
-            # Display provinces colored grey
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
-
-            # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(column='color', ax=ax, legend=True, legend_kwds={'bbox_to_anchor': (1, 1)}, color=gdf['color'])
-            ax.set_title('Pemetaan Provinsi dengan Warna berdasarkan Kluster')
+            # Visualize clusters on map
+            st.subheader("Pemetaan Clustering dengan DTW")
+            fig, ax = plt.subplots(figsize=(10, 10))
+            merged_gdf.plot(column='Cluster', ax=ax, legend=True, legend_kwds={'label': "Cluster"})
+            plt.title("Pemetaan Provinsi Berdasarkan Hasil Clustering")
             st.pyplot(fig)
 
-# Main App Structure
+# Streamlit app
 def main():
-    # Application title
-    st.title("Aplikasi Clustering Clustering")
-    st.sidebar.title("Menu")
+    st.title("Clustering Data dengan DTW dan KMedoids")
 
-    # Sidebar options
-    page = option_menu(
-        menu_title=None,
-        options=["Statistika Deskriptif", "Pemetaan"],
-        icons=["bar-chart", "map"],
-        default_index=0,
-        orientation="vertical"
-    )
+    # Upload CSV data
+    data_df = upload_csv_file()
 
-    # File upload
-    data = upload_csv_file()
+    if data_df is not None:
+        # Main menu
+        with st.sidebar:
+            selected_page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                                        icons=["graph-up", "map"], 
+                                        menu_icon="cast", default_index=0, orientation="vertical")
+        
+        if selected_page == "Statistika Deskriptif":
+            statistika_deskriptif(data_df)
+        elif selected_page == "Pemetaan":
+            pemetaan(data_df)
 
-    if page == "Statistika Deskriptif":
-        statistika_deskriptif(data)
-    elif page == "Pemetaan":
-        pemetaan(data)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-
