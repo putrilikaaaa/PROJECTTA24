@@ -20,9 +20,19 @@ def compute_dtw_distance_matrix(data):
             # Ensure that each time series is a 1D array
             series_i = data[:, i].flatten()  # Convert to 1D array if necessary
             series_j = data[:, j].flatten()  # Convert to 1D array if necessary
-            distance, _ = fastdtw(series_i, series_j, dist=euclidean)  # Compute DTW distance
-            distance_matrix[i, j] = distance
-            distance_matrix[j, i] = distance  # Symmetric matrix
+
+            # Check if the series are 1D
+            if series_i.ndim != 1 or series_j.ndim != 1:
+                st.error(f"Data is not 1D for series {i} and {j}")
+                continue
+
+            # Compute DTW distance
+            try:
+                distance, _ = fastdtw(series_i, series_j, dist=euclidean)  # Compute DTW distance
+                distance_matrix[i, j] = distance
+                distance_matrix[j, i] = distance  # Symmetric matrix
+            except Exception as e:
+                st.error(f"Error computing DTW distance for series {i} and {j}: {e}")
 
     return distance_matrix
 
