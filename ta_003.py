@@ -108,11 +108,11 @@ def pemetaan(data_df):
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        
+
         # Adding data labels to the silhouette score plot
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-        
+
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
@@ -216,44 +216,42 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 # Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((num_provinces, num_provinces, time_points))
+    accumulated_cost_matrix = np.zeros((time_points, num_provinces, num_provinces))
+    
+    for t in range(time_points):
+        if t == 0:
+            accumulated_cost_matrix[t] = local_cost_matrix[t]
+        else:
+            accumulated_cost_matrix[t] = np.minimum(accumulated_cost_matrix[t - 1] + local_cost_matrix[t], 
+                                                    accumulated_cost_matrix[t - 1].T + local_cost_matrix[t])
 
-    for t in range(1, time_points):
-        for i in range(num_provinces):
-            for j in range(num_provinces):
-                accumulated_cost_matrix[i, j, t] = local_cost_matrix[t, i, j] + \
-                    min(accumulated_cost_matrix[i, j, t - 1],
-                        accumulated_cost_matrix[i, j, t - 1])
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[0]
-    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
+    return accumulated_cost_matrix[-1]
 
-    for i in range(num_provinces):
-        for j in range(i + 1, num_provinces):
-            dtw_distance_matrix[i, j] = accumulated_cost_matrix[i, j, -1]
-            dtw_distance_matrix[j, i] = dtw_distance_matrix[i, j]
-
-    return dtw_distance_matrix
-
-# Application
+# Streamlit app
 def main():
-    st.title("Aplikasi Pemetaan dan Clustering Provinsi")
+    st.set_page_config(page_title="Pemetaan dan Clustering", page_icon="📊")
+    st.title("Pemetaan dan Clustering DTW")
+    
+    # Sidebar navigation
+    with st.sidebar:
+        selected_option = option_menu(
+            "Menu",
+            ["Statistika Deskriptif", "Pemetaan", "Pemetaan Linkage"],
+            icons=["bar-chart", "map", "globe"],
+            default_index=0
+        )
 
-    menu = option_menu(None, ["Statistika Deskriptif", "Pemetaan"], 
-                       icons=['house', 'map'], default_index=0, 
-                       orientation="horizontal", styles={
-                           "nav-link-selected": {"background-color": "red"},
-                           "nav-link": {"color": "black", "font-size": "16px"}})
-
-    # Upload file CSV
+    # Upload file
     data_df = upload_csv_file()
 
-    if menu == "Statistika Deskriptif":
+    # Display relevant page
+    if selected_option == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif menu == "Pemetaan":
+    elif selected_option == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
