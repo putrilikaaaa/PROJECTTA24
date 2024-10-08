@@ -8,7 +8,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler  # Importing MinMaxScaler for normalization
 from fastdtw import fastdtw  # Importing fastdtw for DTW computation
 
 # Function to upload CSV files
@@ -73,14 +73,14 @@ def pemetaan(data_df):
         # Handle missing data by forward filling
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Standardization of data (before computing DTW)
-        scaler = StandardScaler()
+        # Normalization of data (before computing DTW)
+        scaler = MinMaxScaler()  # Using MinMaxScaler for normalization
         data_daily_values = scaler.fit_transform(data_daily)
 
         # Dropdown for choosing linkage method
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
-        # Compute DTW distance matrix for standardized daily data using fastdtw
+        # Compute DTW distance matrix for normalized daily data using fastdtw
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
 
         # Ensure DTW distance matrix is symmetric
@@ -214,22 +214,17 @@ def compute_dtw_distance_matrix(data_df: np.array) -> np.array:
 def main():
     st.title("Aplikasi Clustering dan Pemetaan")
 
-    # Sidebar for page selection
-    page = option_menu(
-        menu_title="Pilih Halaman",
-        options=["Statistika Deskriptif", "Pemetaan"],
-        icons=["bar-chart", "map"],
-        menu_icon="cast",
-        default_index=0,
-        orientation="horizontal"
-    )
+    # Sidebar options
+    with st.sidebar:
+        selected_page = option_menu("Pilih Halaman", ["Statistika Deskriptif", "Pemetaan"], 
+                                    icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
 
-    # Upload file CSV
     data_df = upload_csv_file()
 
-    if page == "Statistika Deskriptif":
+    # Show the respective page
+    if selected_page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif page == "Pemetaan":
+    elif selected_page == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
