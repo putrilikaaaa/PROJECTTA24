@@ -108,11 +108,11 @@ def pemetaan(data_df):
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-
+        
         # Adding data labels to the silhouette score plot
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-
+        
         plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
@@ -216,58 +216,49 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 
 # Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces, _ = local_cost_matrix.shape
+    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
     accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
-
-    accumulated_cost_matrix[0] = local_cost_matrix[0]
 
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
                 accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],
-                    accumulated_cost_matrix[t - 1, i, (j + 1) % num_provinces],
-                    accumulated_cost_matrix[t - 1, (i + 1) % num_provinces, j]
+                    accumulated_cost_matrix[t - 1, i, j],  # from the same province
+                    accumulated_cost_matrix[t - 1, j, i],  # from the other province
+                    accumulated_cost_matrix[t - 1, i, i]   # from previous time point of the same province
                 )
 
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    return np.sum(accumulated_cost_matrix[-1], axis=0)
+    num_provinces = accumulated_cost_matrix.shape[1]
+    dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
-# Main app
+    for i in range(num_provinces):
+        for j in range(num_provinces):
+            if i != j:
+                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+
+    return dtw_distance_matrix
+
+# Main function to run the Streamlit app
 def main():
-    st.sidebar.title("Menu")
-    page = option_menu(
-        menu_title=None,
-        options=["Statistika Deskriptif", "Pemetaan"],
-        icons=["bar-chart", "geo-alt"],
-        default_index=0,
-        orientation="horizontal",
-        styles={
-            "container": {"padding": "5!important", "background-color": "#f0f2f6"},
-            "icon": {"color": "black", "font-size": "14px"},
-            "nav-link": {
-                "font-size": "16px",
-                "text-align": "center",
-                "padding": "10px!important",
-                "color": "black",
-                "font-weight": "bold",
-                "border-radius": "5px",
-            },
-            "nav-link-selected": {
-                "background-color": "red",  # Highlight the selected option in red
-                "color": "white",
-            },
-        },
-    )
+    st.title("Aplikasi Pemodelan dan Pemetaan Data")
+    
+    # Sidebar menu for navigation
+    with st.sidebar:
+        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
+                                       icons=["bar-chart", "map"], 
+                                       menu_icon="cast", default_index=0)
 
+    # Upload data file once
     data_df = upload_csv_file()
 
-    if page == "Statistika Deskriptif":
+    # Call the appropriate page based on the selected option
+    if selected_option == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif page == "Pemetaan":
+    elif selected_option == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
