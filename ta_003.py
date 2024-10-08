@@ -12,6 +12,31 @@ from sklearn.preprocessing import MinMaxScaler
 from fastdtw import fastdtw
 from streamlit_option_menu import option_menu
 
+# Set page configuration
+st.set_page_config(page_title="Analisis Data Impor Kedelai", layout="wide")
+
+# Custom CSS for dark blue and white theme
+st.markdown(
+    """
+    <style>
+    .css-1rs6osz {
+        background-color: #003366 !important;
+    }
+    .css-1rs6osz .stSidebar {
+        background-color: #003366 !important;
+    }
+    .css-1rs6osz .stTextInput, .css-1rs6osz .stSelectbox, .css-1rs6osz .stButton {
+        background-color: white !important;
+        color: black !important;
+    }
+    .css-1rs6osz .stTextInput:hover, .css-1rs6osz .stSelectbox:hover, .css-1rs6osz .stButton:hover {
+        background-color: #e0e0e0 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Function to upload CSV files
 def upload_csv_file():
     uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
@@ -121,8 +146,7 @@ def pemetaan(data_df):
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Adjust cluster labels to start from 1 instead of 0
-        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1  # Start from 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': cluster_labels
@@ -190,40 +214,22 @@ def pemetaan_kmedoids(data_df):
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        max_n_clusters = 10
-        silhouette_scores = {}
-        cluster_labels_dict = {}
+        kmedoids_n_clusters = st.selectbox("Jumlah Kluster KMedoids", options=range(2, 11))
 
-        for n_clusters in range(2, max_n_clusters + 1):
-            kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
-            labels = kmedoids.fit_predict(data_daily_values.T)
-            score = silhouette_score(data_daily_values.T, labels)
-            silhouette_scores[n_clusters] = score
-            cluster_labels_dict[n_clusters] = labels
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
-        plt.figure(figsize=(10, 6))
-        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        kmedoids = KMedoids(n_clusters=kmedoids_n_clusters, metric='precomputed', random_state=42)
+        kmedoids.fit(dtw_distance_matrix_daily)
 
-        for n_clusters, score in silhouette_scores.items():
-            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+        labels = kmedoids.labels_ + 1  # Start from 1
 
-        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
-        plt.xlabel('Jumlah Kluster')
-        plt.ylabel('Silhouette Score')
-        plt.xticks(range(2, max_n_clusters + 1))
-        plt.grid(True)
-        st.pyplot(plt)
-
-        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
-
-        labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjust labels to start from 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster")
+        st.subheader("Tabel Provinsi per Cluster KMedoids")
         st.write(clustered_data)
 
         gdf = upload_geojson_file()
@@ -268,24 +274,27 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster KMedoids")
             st.pyplot(fig)
 
-# Main App
+# Main function
 def main():
-    st.set_page_config(page_title="Clustering", page_icon="📊", layout="wide")
-
-    with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
-
     data_df = upload_csv_file()
+    
+    with st.sidebar:
+        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
+                                       menu_icon="bar-chart", default_index=0, 
+                                       styles={"container": {"padding": "5!important", "background-color": "#003366"},
+                                               "icon": {"color": "white", "font-size": "25px"},
+                                               "navlink": {"font-size": "20px", "text-align": "left", "margin": "0px", "color": "white"},
+                                               "navlink_selected": {"background-color": "blue"},
+                                               "navlink_hover": {"background-color": "darkblue"}})
 
-    if selected == "Statistika Deskriptif":
+    if selected_option == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected == "Pemetaan":
+    elif selected_option == "Pemetaan":
         pemetaan(data_df)
-    elif selected == "Pemetaan KMedoids":
+    elif selected_option == "Pemetaan KMedoids":
         pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
