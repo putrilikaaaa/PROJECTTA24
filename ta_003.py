@@ -3,14 +3,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import silhouette_score
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.preprocessing import MinMaxScaler  # Importing MinMaxScaler for normalization
+from fastdtw import fastdtw  # Importing fastdtw for DTW computation
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
 from streamlit_option_menu import option_menu
-from sklearn.preprocessing import MinMaxScaler  # Importing MinMaxScaler for normalization
-from fastdtw import fastdtw  # Importing fastdtw for DTW computation
-from sklearn_extra.cluster import KMedoids  # Importing KMedoids from scikit-learn-extra
+from sklearn_extra.cluster import KMedoids  # Importing KMedoids for KMedoids clustering
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -195,7 +195,7 @@ def pemetaan(data_df):
             plt.title("Pemetaan Provinsi Berdasarkan Kluster")
             st.pyplot(fig)
 
-# Pemetaan KMedoids Page
+# KMedoids Clustering Page
 def pemetaan_kmedoids(data_df):
     st.subheader("Pemetaan KMedoids Clustering")
 
@@ -209,71 +209,89 @@ def pemetaan_kmedoids(data_df):
         # Handle missing data by forward filling
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Normalization of data (before computing KMedoids)
-        scaler = MinMaxScaler()
+        # Normalization of data (before computing DTW)
+        scaler = MinMaxScaler()  # Using MinMaxScaler for normalization
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # Dropdown for choosing KMedoids parameters
-        n_clusters = st.slider("Pilih jumlah kluster KMedoids", min_value=2, max_value=10, value=3)
+        # KMedoids clustering
+        n_clusters = st.slider("Pilih Jumlah Kluster", min_value=2, max_value=10, value=3)
 
-        # Apply KMedoids clustering
-        kmedoids = KMedoids(n_clusters=n_clusters, metric='euclidean', random_state=42)
-        cluster_labels = kmedoids.fit_predict(data_daily_values.T)
+        kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean")
+        kmedoids.fit(data_daily_values.T)  # Transpose to match dimensions (provinces as samples)
+        labels = kmedoids.labels_
 
         # Load GeoJSON file from GitHub
         gdf = upload_geojson_file()
 
         if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Cluster data mapping
-            clustered_data = pd.DataFrame({
-                'Province': data_daily.columns,
-                'Cluster': cluster_labels
-            })
-
-            # Merge with GeoDataFrame
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
-
-            # Set colors for clusters
-            gdf['color'] = gdf['Cluster'].map({
+            # Merge the clustering results with the GeoDataFrame
+            gdf['Cluster'] = pd.Series(labels).map({
                 0: 'red',
                 1: 'yellow',
                 2: 'green',
                 3: 'blue',
                 4: 'purple',
-                5: 'orange'
+                5: 'orange',
+                6: 'pink',
+                7: 'brown',
+                8: 'cyan',
+                9: 'magenta'
             })
-            gdf['color'].fillna('grey', inplace=True)
 
-            # Plotting
+            # Display the map with clusters
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi Berdasarkan KMedoids ({n_clusters} Kluster)")
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
+            gdf.plot(ax=ax, color=gdf['Cluster'], edgecolor='black', alpha=0.7)  # Plot clusters
+            plt.title("Pemetaan Provinsi Berdasarkan KMedoids Kluster")
             st.pyplot(fig)
 
-# Main Application
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(data):
+    num_provinces = data.shape[1]
+    distance_matrix = np.zeros((num_provinces, num_provinces))
+
+    for i in range(num_provinces):
+        for j in range(i, num_provinces):
+            dist, _ = fastdtw(data[:, i], data[:, j])
+            distance_matrix[i, j] = dist
+            distance_matrix[j, i] = dist  # Matrix is symmetric
+
+    return distance_matrix
+
+# Function to symmetrize the distance matrix
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
+
+# Main function to control the Streamlit app layout
 def main():
-    st.sidebar.header("Menu Utama")
-    selected_page = option_menu(
-        menu_title="Pilih Halaman",
-        options=["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-        icons=["file-earmark-bar-graph", "geo-alt", "geo-alt"],
-        default_index=0,
-        orientation="vertical",
-        styles={"container": {"padding": "5px"}, "icon": {"color": "blue"}},
-    )
-
+    st.title("Clustering dengan DTW dan KMedoids")
+    
+    # Upload data
     data_df = upload_csv_file()
-
-    if selected_page == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected_page == "Pemetaan":
-        pemetaan(data_df)
-    elif selected_page == "Pemetaan KMedoids":
-        pemetaan_kmedoids(data_df)
+    
+    if data_df is not None:
+        # Sidebar menu
+        with st.sidebar:
+            selected_page = option_menu(
+                menu_title="Pilih Halaman",
+                options=["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+                icons=["bar-chart", "map", "map-pin"],
+                default_index=0,
+                menu_icon="cast",
+                orientation="vertical",
+                styles={"container": {"padding": "5% 5% 5% 5%", "background-color": "#f7f7f7"}}
+            )
+        
+        # Page selection
+        if selected_page == "Statistika Deskriptif":
+            statistika_deskriptif(data_df)
+        elif selected_page == "Pemetaan":
+            pemetaan(data_df)
+        elif selected_page == "Pemetaan KMedoids":
+            pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
     main()
