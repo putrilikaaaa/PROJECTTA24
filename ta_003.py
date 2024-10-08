@@ -30,9 +30,6 @@ def upload_geojson_file():
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(data):
-    """
-    Compute the DTW distance matrix for a given set of time series.
-    """
     num_series = data.shape[1]
     dtw_distance_matrix = np.zeros((num_series, num_series))
 
@@ -46,9 +43,6 @@ def compute_dtw_distance_matrix(data):
 
 # Function to symmetrize a matrix (making it symmetric)
 def symmetrize(matrix):
-    """
-    Ensure that the matrix is symmetric by averaging values at symmetric positions.
-    """
     return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
@@ -68,7 +62,6 @@ def statistika_deskriptif(data_df):
         selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
         if selected_province:
-            # Visualisasi data untuk provinsi terpilih
             st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
             data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
             data_df.set_index('Tanggal', inplace=True)
@@ -206,80 +199,33 @@ def pemetaan(data_df):
             # Display provinces colored grey
             grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
             if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
+                st.write(f"Provinces not in any cluster: {', '.join(grey_provinces)}")
 
             # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids (DTW)")
+            fig, ax = plt.subplots(figsize=(10, 10))
+            gdf.plot(ax=ax, color=gdf['color'])
+            ax.set_title(f"Pemetaan Provinsi dengan KMedoids Clustering")
             st.pyplot(fig)
 
-# Pemetaan KMedoids Page
-def pemetaan_kmedoids(data_df):
-    st.subheader("Pemetaan KMedoids")
+# Streamlit Sidebar for Navigation
+def sidebar_navigation():
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan KMedoids"], 
+                               icons=['house', 'bar-chart'], menu_icon="cast", default_index=0)
+    return selected
 
-    if data_df is not None:
-        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-        data_df.set_index('Tanggal', inplace=True)
-
-        # Calculate daily averages
-        data_daily = data_df.resample('D').mean()
-
-        # Handle missing data
-        data_daily.fillna(method='ffill', inplace=True)
-
-        # Normalize data using MinMaxScaler
-        scaler = MinMaxScaler()
-        data_daily_values = scaler.fit_transform(data_daily)
-
-        # Perform KMedoids clustering
-        n_clusters = st.slider("Pilih jumlah kluster:", min_value=2, max_value=10, value=3)
-        kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
-        labels = kmedoids.fit_predict(data_daily_values.T)
-
-        # Create DataFrame for displaying
-        cluster_data = pd.DataFrame({'Province': data_daily.columns, 'Cluster': labels})
-
-        # Display cluster table
-        st.write("Tabel provinsi per kluster:")
-        st.write(cluster_data)
-
-        # Plot clusters on a map (like the pemetaan function)
-        gdf = upload_geojson_file()
-        if gdf is not None:
-            # Data manipulation similar to the 'pemetaan' page
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper()
-
-            # Merge the cluster data with the GeoDataFrame
-            gdf = gdf.merge(cluster_data, on="Province", how="left")
-            gdf['color'] = gdf['Cluster'].map({0: 'red', 1: 'yellow', 2: 'green', 3: 'blue', 4: 'purple'}).fillna('grey')
-
-            # Plot the map with clusters
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title("Pemetaan KMedoids")
-            st.pyplot(fig)
-
-# Main function
+# Main Streamlit App
 def main():
-    st.sidebar.title("Menu")
-    choice = option_menu(None, ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
-                         icons=["bar-chart-line", "map", "map"], menu_icon="cast", default_index=0)
+    selected_option = sidebar_navigation()
 
-    data_df = upload_csv_file()
-
-    if choice == "Statistika Deskriptif":
+    if selected_option == "Statistika Deskriptif":
+        st.title("Statistika Deskriptif - Clustering")
+        data_df = upload_csv_file()  
         statistika_deskriptif(data_df)
-    elif choice == "Pemetaan":
+    elif selected_option == "Pemetaan KMedoids":
+        st.title("Pemetaan KMedoids Clustering")
+        data_df = upload_csv_file()  
         pemetaan(data_df)
-    elif choice == "Pemetaan KMedoids":
-        pemetaan_kmedoids(data_df)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
