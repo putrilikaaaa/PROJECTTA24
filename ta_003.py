@@ -118,7 +118,7 @@ def pemetaan(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        # Clustering and dendrogram
+        # Clustering and dendrogram for linkage method
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
@@ -142,14 +142,6 @@ def pemetaan(data_df):
             'Province': data_daily.columns,
             'Cluster': kmedoids_labels
         }))
-
-        # Dendrogram for KMedoids clustering
-        plt.figure(figsize=(16, 10))
-        dendrogram(linkage(condensed_dtw_distance_matrix, method='average'), labels=data_daily.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan KMedoids')
-        plt.xlabel('Provinsi')
-        plt.ylabel('Jarak DTW')
-        st.pyplot(plt)
 
         # GeoJSON mapping
         gdf = upload_geojson_file()
