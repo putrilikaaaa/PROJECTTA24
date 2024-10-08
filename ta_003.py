@@ -207,8 +207,8 @@ def pemetaan_kmedoids(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (KMedoids)')
-        plt.xlabel('Number of Clusters')
+        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
+        plt.xlabel('Jumlah Kluster')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
@@ -217,13 +217,13 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjust to start from 1
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': cluster_labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster KMedoids")
+        st.subheader("Tabel Provinsi per Kluster")
         st.write(clustered_data)
 
         gdf = upload_geojson_file()
@@ -271,36 +271,22 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Add logos in the top right corner
-st.markdown(
-    """
-    <style>
-    .logo {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-    }
-    </style>
-    <div class="logo">
-        <img src="https://example.com/logo1.png" width="50" height="50">
-        <img src="https://example.com/logo2.png" width="50" height="50">
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Main App
+st.set_page_config(page_title="Aplikasi Klusterisasi", layout="wide")
 
-# Sidebar for navigation
+# Add logo
+logo_image = "path_to_your_image.png"  # Adjust this path
+st.image(logo_image, width=100, use_column_width='auto', clamp=False)
+
+# Navigation
 with st.sidebar:
     selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
-                           icons=["bar-chart", "map", "map"], 
-                           menu_icon="cast", default_index=0, styles={"container": {"padding": "5!important", "background-color": "#FFFFFF"}, 
-                                                                     "icon": {"color": "blue", "font-size": "25px"}, 
-                                                                     "nav-link": {"font-size": "16px", "text-align": "left", "margin": "5px", "color": "black"}, 
-                                                                     "nav-link-selected": {"background-color": "darkblue", "color": "white"}})
+                           icons=['chart-bar', 'map', 'map'], menu_icon="cast", default_index=0)
 
-# Load data and run functions based on selection
+# Upload data
 data_df = upload_csv_file()
 
+# Call appropriate page
 if selected == "Statistika Deskriptif":
     statistika_deskriptif(data_df)
 elif selected == "Pemetaan":
