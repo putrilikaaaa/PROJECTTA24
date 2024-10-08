@@ -48,6 +48,10 @@ def compute_accumulated_cost_matrix(local_cost_matrix):
 def compute_dtw_distance_matrix(accumulated_cost_matrix):
     return accumulated_cost_matrix.iloc[-1, -1]
 
+# Fungsi untuk membuat matriks jarak simetris
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
+
 # Fungsi utama untuk Pemetaan
 def pemetaan(data_df):
     st.subheader("Pemetaan Clustering dengan DTW")
