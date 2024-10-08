@@ -28,6 +28,22 @@ def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
 
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(data):
+    """
+    Compute the DTW distance matrix for a given set of time series.
+    """
+    num_series = data.shape[1]
+    dtw_distance_matrix = np.zeros((num_series, num_series))
+
+    for i in range(num_series):
+        for j in range(i, num_series):
+            distance, _ = fastdtw(data[:, i], data[:, j])
+            dtw_distance_matrix[i, j] = distance
+            dtw_distance_matrix[j, i] = distance  # DTW distance is symmetric
+
+    return dtw_distance_matrix
+
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
@@ -197,7 +213,7 @@ def pemetaan(data_df):
 
 # KMedoids Page
 def pemetaan_kmedoids(data_df):
-    st.subheader("Pemetaan Clustering dengan KMedoids")
+    st.subheader("Pemetaan KMedoids")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -206,7 +222,7 @@ def pemetaan_kmedoids(data_df):
         # Calculate daily averages
         data_daily = data_df.resample('D').mean()
 
-        # Handle missing data by forward filling
+        # Handle missing data
         data_daily.fillna(method='ffill', inplace=True)
 
         # Normalize data using MinMaxScaler
