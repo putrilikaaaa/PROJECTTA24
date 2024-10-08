@@ -18,8 +18,8 @@ def compute_dtw_distance_matrix(data):
     for i in range(n):
         for j in range(i + 1, n):
             # Ensure that each time series is a 1D array
-            series_i = data[:, i].ravel()  # Convert to 1D array
-            series_j = data[:, j].ravel()  # Convert to 1D array
+            series_i = data[:, i].flatten()  # Convert to 1D array if necessary
+            series_j = data[:, j].flatten()  # Convert to 1D array if necessary
             distance, _ = fastdtw(series_i, series_j, dist=euclidean)  # Compute DTW distance
             distance_matrix[i, j] = distance
             distance_matrix[j, i] = distance  # Symmetric matrix
