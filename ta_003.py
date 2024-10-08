@@ -48,17 +48,15 @@ def symmetrize(matrix):
 def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
     if data_df is not None:
-        st.write("Statistik dasar dari dataset yang diunggah:")
-        st.write(data_df.describe())
-        
-        st.write("Histogram dari setiap kolom:")
-        for column in data_df.select_dtypes(include=[np.number]).columns:
-            plt.figure(figsize=(10, 5))
-            plt.hist(data_df[column], bins=30, alpha=0.7)
-            plt.title(f'Histogram {column}')
-            plt.xlabel(column)
-            plt.ylabel('Frekuensi')
-            st.pyplot(plt)
+        # Dropdown to select province
+        province = st.selectbox("Pilih Provinsi", options=data_df.columns)
+
+        # Display line chart for the selected province
+        st.line_chart(data_df[province])
+
+        # Show descriptive statistics for the selected province
+        st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
+        st.write(data_df[province].describe())
 
 # Pemetaan Page (with single, complete, and average linkage)
 def pemetaan(data_df):
@@ -219,7 +217,7 @@ def pemetaan_kmedoids(data_df):
             'Cluster': cluster_labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster KMedoids")
+        st.subheader("Tabel Provinsi per Cluster")
         st.write(clustered_data)
 
         # Peta for Pemetaan KMedoids
@@ -266,28 +264,24 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main Function
+# Main function to run the app
 def main():
-    st.title("Aplikasi Clustering dengan DTW")
-    
-    # File upload section
+    st.title("Analisis Data Perdagangan")
     data_df = upload_csv_file()
-    
-    # Sidebar for navigation
-    st.sidebar.title("Navigasi")
-    pages = ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"]
-    page = st.sidebar.radio("Pilih Halaman", pages)
 
-    # Page navigation
-    if page == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif page == "Pemetaan":
-        pemetaan(data_df)
-    elif page == "Pemetaan KMedoids":
-        pemetaan_kmedoids(data_df)
+    if data_df is not None:
+        # Show navigation options
+        page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"))
+
+        if page == "Statistika Deskriptif":
+            statistika_deskriptif(data_df)
+        elif page == "Pemetaan":
+            pemetaan(data_df)
+        elif page == "Pemetaan KMedoids":
+            pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
     main()
