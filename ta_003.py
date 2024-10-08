@@ -54,6 +54,22 @@ def statistika_deskriptif(data_df):
         # Dropdown to select province
         province = st.selectbox("Pilih Provinsi", options=provinces)
 
+        # Create a figure for the line chart
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Plot the line chart for the selected province
+        ax.plot(data_df.index, data_df[province], label=province)
+
+        # Set y-axis limits to avoid too much space towards zero
+        min_value = data_df[province].min()
+        max_value = data_df[province].max()
+        ax.set_ylim(bottom=min_value - (0.1 * abs(max_value - min_value)))  # 10% below the min value
+
+        ax.set_title(f"Tren Data Provinsi {province}")
+        ax.set_xlabel("Tanggal")
+        ax.set_ylabel("Nilai")
+        ax.legend()
+
         # Display line chart for the selected province
         st.line_chart(data_df[province])
 
