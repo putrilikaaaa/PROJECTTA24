@@ -48,8 +48,11 @@ def symmetrize(matrix):
 def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
     if data_df is not None:
+        # Exclude 'Tanggal' from the dropdown options
+        provinces = [col for col in data_df.columns if col != 'Tanggal']
+
         # Dropdown to select province
-        province = st.selectbox("Pilih Provinsi", options=data_df.columns)
+        province = st.selectbox("Pilih Provinsi", options=provinces)
 
         # Display line chart for the selected province
         st.line_chart(data_df[province])
@@ -267,21 +270,23 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main function to run the app
+# Main application
 def main():
-    st.title("Analisis Data Perdagangan")
-    data_df = upload_csv_file()
+    st.title("Analisis Data Per Provinsi")
 
-    if data_df is not None:
-        # Show navigation options
-        page = st.sidebar.selectbox("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"))
+    # Create a sidebar with options
+    menu_options = ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"]
+    menu_choice = st.sidebar.selectbox("Pilih Halaman", menu_options)
 
-        if page == "Statistika Deskriptif":
-            statistika_deskriptif(data_df)
-        elif page == "Pemetaan":
-            pemetaan(data_df)
-        elif page == "Pemetaan KMedoids":
-            pemetaan_kmedoids(data_df)
+    data = upload_csv_file()
 
-if __name__ == "__main__":
+    if data is not None:
+        if menu_choice == "Statistika Deskriptif":
+            statistika_deskriptif(data)
+        elif menu_choice == "Pemetaan":
+            pemetaan(data)
+        elif menu_choice == "Pemetaan KMedoids":
+            pemetaan_kmedoids(data)
+
+if __name__ == '__main__':
     main()
