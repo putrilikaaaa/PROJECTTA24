@@ -10,6 +10,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform, euclidean
 import geopandas as gpd
 from fastdtw import fastdtw
+from streamlit_option_menu import option_menu  # <-- Importing the component
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -201,27 +202,24 @@ def pemetaan(data_df):
         st.subheader("Tabel Provinsi per Cluster")
         st.write(clustered_data)
 
-        # Load GeoJSON file from GitHub
+        # GeoPandas visualization
         gdf = upload_geojson_file()
+        gdf['Province'] = gdf['Province'].replace({
+            'DI. ACEH': 'ACEH',
+            'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+            'DAERAH ISTIMEWA YOGYAKARTA': 'D.I YOGYAKARTA'
+        })
 
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Ensure column names match
-            gdf['Province'] = gdf['Province'].replace({
-                'DI. ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'D.I YOGYAKARTA'
-            })
+        # Merge GeoDataFrame with cluster labels
+        gdf = gdf.merge(clustered_data, on='Province')
 
-            # Merge GeoDataFrame with cluster labels
-            gdf = gdf.merge(clustered_data, on='Province')
-
-            # Create map for visualization
-            fig, ax = plt.subplots(1, 1, figsize=(15, 15))
-            gdf.plot(column='Cluster', cmap='RdYlGn', edgecolor='black', linewidth=0.7, ax=ax)
-            ax.set_title("Pemetaan Kluster Provinsi Indonesia")
-            st.pyplot(fig)
+        # Create map for visualization
+        fig, ax = plt.subplots(1, 1, figsize=(15, 15))
+        gdf.plot(column='Cluster', cmap='RdYlGn', edgecolor='black', linewidth=0.7, ax=ax)
+        ax.set_title("Pemetaan Kluster Provinsi Indonesia")
+        st.pyplot(fig)
 
 # Main Streamlit App Layout
 def main():
