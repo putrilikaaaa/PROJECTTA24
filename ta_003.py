@@ -7,6 +7,7 @@ from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn.cluster import AgglomerativeClustering
 import geopandas as gpd
+from fastdtw import fastdtw  # Mengimpor fastdtw untuk perhitungan DTW
 
 # Fungsi untuk mengunggah file CSV
 def upload_csv_file():
@@ -20,7 +21,6 @@ def upload_csv_file():
 
 # Fungsi untuk mengunggah file GeoJSON
 def upload_geojson_file():
-    # Menyediakan opsi GeoJSON dari GitHub atau sistem lokal
     try:
         gdf = gpd.read_file('https://raw.githubusercontent.com/username/repo/branch/indonesia-prov.geojson')
         return gdf
@@ -35,7 +35,7 @@ def compute_local_cost_matrix(data_df):
 
     for i in range(n):
         for j in range(n):
-            # Menghitung biaya DTW antara dua seri data
+            # Menghitung biaya DTW antara dua seri data menggunakan fastdtw
             local_cost_matrix.iloc[i, j] = fastdtw(data_df.iloc[:, i], data_df.iloc[:, j])[0]
 
     return local_cost_matrix
