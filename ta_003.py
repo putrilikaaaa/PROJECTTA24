@@ -285,18 +285,25 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Sidebar with Menu Options
-st.sidebar.title("Menu Utama")
-menu_options = ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"]
-page = st.sidebar.selectbox("Pilih Halaman", menu_options)
+# Main Function
+def main():
+    st.title("Aplikasi Clustering dengan DTW")
+    
+    # File upload section
+    data_df = upload_csv_file()
+    
+    # Sidebar for navigation
+    st.sidebar.title("Navigasi")
+    pages = ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"]
+    page = st.sidebar.radio("Pilih Halaman", pages)
 
-# Load the CSV file
-data_df = upload_csv_file()
+    # Page navigation
+    if page == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif page == "Pemetaan":
+        pemetaan(data_df)
+    elif page == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data_df)
 
-# Display content based on the selected page
-if page == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
-elif page == "Pemetaan":
-    pemetaan(data_df)
-elif page == "Pemetaan KMedoids":
-    pemetaan_kmedoids(data_df)
+if __name__ == "__main__":
+    main()
