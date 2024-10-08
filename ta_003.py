@@ -25,7 +25,13 @@ def upload_csv_file():
 
 # Function to upload GeoJSON files
 def upload_geojson_file():
+    # Read the GeoJSON file from GitHub repository
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
+    
+    # Ensure the 'Province' column exists
+    if 'Province' not in gdf.columns:
+        st.error("GeoJSON file doesn't contain 'Province' column.")
+        return None
     return gdf
 
 # Ensure DTW distance matrix is symmetric
@@ -186,60 +192,46 @@ def pemetaan(data_df):
 
         plt.figure(figsize=(16, 10))
         dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {clustering_method.capitalize()}')
-        plt.xlabel('Provinsi')
-        plt.ylabel('Jarak DTW')
+        plt.title(f'Dendrogram (Metode: {clustering_method})')
+        plt.xlabel('Provinces')
+        plt.ylabel('Distance')
         st.pyplot(plt)
 
-        # Table of provinces per cluster
+        # Display the clustering labels
         cluster_labels = cluster_labels_dict[optimal_n_clusters]
-        clustered_data = pd.DataFrame({
-            'Province': data_daily.columns,
-            'Cluster': cluster_labels
-        })
-
-        # Display cluster table
-        st.subheader("Tabel Provinsi per Cluster")
-        st.write(clustered_data)
-
-        # GeoPandas visualization
+        st.write(f"Label Klaster (Jumlah Klaster: {optimal_n_clusters}):")
+        st.write(pd.DataFrame(cluster_labels, index=data_daily.columns, columns=["Cluster"]))
+        
+        # Upload GeoJSON and show province-level clustering
         gdf = upload_geojson_file()
-        gdf['Province'] = gdf['Province'].replace({
-            'DI. ACEH': 'ACEH',
-            'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-            'DAERAH ISTIMEWA YOGYAKARTA': 'D.I YOGYAKARTA'
-        })
+        if gdf is not None:
+            fig, ax = plt.subplots(figsize=(10, 10))
+            gdf = gdf[gdf['Province'].isin(data_daily.columns)]
+            gdf['Cluster'] = pd.Series(cluster_labels, index=gdf.index)
+            
+            # Assign colors to clusters: red, yellow, green
+            color_map = {0: 'red', 1: 'yellow', 2: 'green'}
+            gdf.plot(column='Cluster', ax=ax, legend=True, legend_kwds={'label': "Clusters by Province", 'orientation': "horizontal"},
+                     cmap=plt.cm.RdYlGn_r)
+            ax.set_title(f"Pemetaan Klaster Provinsi - {optimal_n_clusters} Klaster")
+            st.pyplot(fig)
 
-        # Merge GeoDataFrame with cluster labels
-        gdf = gdf.merge(clustered_data, on='Province')
-
-        # Create map for visualization
-        fig, ax = plt.subplots(1, 1, figsize=(15, 15))
-        gdf.plot(column='Cluster', cmap='RdYlGn', edgecolor='black', linewidth=0.7, ax=ax)
-        ax.set_title("Pemetaan Kluster Provinsi Indonesia")
-        st.pyplot(fig)
-
-# Main Streamlit App Layout
+# Main Streamlit Application
 def main():
-    st.title("Aplikasi Clustering DTW - Pemetaan Provinsi Indonesia")
-
-    st.sidebar.title("Menu")
-    selected_page = option_menu(
-        menu_title=None,
-        options=["Statistika Deskriptif", "Pemetaan"],
-        icons=["graph-up", "map"],
-        default_index=0,
-        orientation="horizontal",
-    )
-
+    st.title("Pemetaan dan Clustering Data")
+    
+    # Sidebar for page selection
+    selected_page = option_menu(None, ["Statistika Deskriptif", "Pemetaan"], icons=["chart-bar", "map"], orientation="horizontal")
+    
+    # Upload CSV data
     data_df = upload_csv_file()
 
+    # Navigate to pages based on selected option
     if selected_page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
     elif selected_page == "Pemetaan":
         pemetaan(data_df)
 
+# Run the app
 if __name__ == "__main__":
     main()
