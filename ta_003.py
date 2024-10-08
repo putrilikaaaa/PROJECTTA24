@@ -9,7 +9,6 @@ from sklearn_extra.cluster import KMedoids
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform, euclidean
 import geopandas as gpd
-from streamlit_option_menu import option_menu
 from fastdtw import fastdtw
 
 # Function to upload CSV files
@@ -207,7 +206,6 @@ def pemetaan(data_df):
 
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Ensure column names match
-            # Handle consistency of province names in GeoDataFrame
             gdf['Province'] = gdf['Province'].replace({
                 'DI. ACEH': 'ACEH',
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
