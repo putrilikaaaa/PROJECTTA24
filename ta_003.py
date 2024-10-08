@@ -10,6 +10,7 @@ from scipy.spatial.distance import squareform
 import geopandas as gpd
 from sklearn.preprocessing import MinMaxScaler
 from fastdtw import fastdtw
+from streamlit_option_menu import option_menu
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -205,8 +206,8 @@ def pemetaan_kmedoids(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (KMedoids)')
-        plt.xlabel('Number of Clusters')
+        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
+        plt.xlabel('Jumlah Kluster')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
@@ -273,17 +274,20 @@ def pemetaan_kmedoids(data_df):
 def main():
     st.title("Analisis Data Impor Kedelai")
 
-    # Navigation
-    page = st.sidebar.radio("Pilih Halaman", ("Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"))
+    # Navigation using streamlit-option-menu
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
+                               icons=['bar-chart', 'map', 'map'], 
+                               menu_icon="cast", default_index=0)
 
     # Upload Data
     data_df = upload_csv_file()
 
-    if page == "Statistika Deskriptif":
+    if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif page == "Pemetaan":
+    elif selected == "Pemetaan":
         pemetaan(data_df)
-    elif page == "Pemetaan KMedoids":
+    elif selected == "Pemetaan KMedoids":
         pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
