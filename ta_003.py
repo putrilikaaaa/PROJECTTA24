@@ -4,13 +4,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
-from sklearn.preprocessing import StandardScaler
-from sklearn_extra.cluster import KMedoids
+from sklearn_extra.cluster import KMedoids  # Import KMedoids
 from scipy.cluster.hierarchy import dendrogram, linkage
-from scipy.spatial.distance import squareform, euclidean
+from scipy.spatial.distance import squareform
 import geopandas as gpd
-from fastdtw import fastdtw
 from streamlit_option_menu import option_menu
+from sklearn.preprocessing import StandardScaler
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -25,67 +24,12 @@ def upload_csv_file():
 
 # Function to upload GeoJSON files
 def upload_geojson_file():
-    # Read the GeoJSON file from GitHub repository
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
-    
-    # Check for the columns present in the GeoDataFrame
-    st.write("Kolom yang ada dalam GeoJSON:")
-    st.write(gdf.columns)
-    
-    # Verify if 'Propinsi' column exists
-    if 'Propinsi' not in gdf.columns:
-        st.warning("Kolom 'Propinsi' tidak ditemukan. Cek struktur file GeoJSON.")
-        return None
-    
     return gdf
 
 # Ensure DTW distance matrix is symmetric
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
-
-# Compute Local Cost Matrix (Euclidean distance)
-def compute_local_cost_matrix(data):
-    n = data.shape[1]  # Number of provinces (columns)
-    cost_matrix = np.zeros((n, n))
-    
-    # Calculate pairwise Euclidean distance between columns
-    for i in range(n):
-        for j in range(i, n):
-            cost_matrix[i, j] = cost_matrix[j, i] = euclidean(data.iloc[:, i], data.iloc[:, j])
-    return cost_matrix
-
-# Compute Accumulated Cost Matrix
-def compute_accumulated_cost_matrix(cost_matrix):
-    n = cost_matrix.shape[0]
-    accumulated_cost_matrix = np.zeros((n, n))
-    
-    for i in range(n):
-        for j in range(i, n):
-            if i == 0 and j == 0:
-                accumulated_cost_matrix[i, j] = cost_matrix[i, j]
-            elif i == 0:
-                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i, j-1] + cost_matrix[i, j]
-            elif j == 0:
-                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i-1, j] + cost_matrix[i, j]
-            else:
-                accumulated_cost_matrix[i, j] = min(
-                    accumulated_cost_matrix[i-1, j], 
-                    accumulated_cost_matrix[i, j-1], 
-                    accumulated_cost_matrix[i-1, j-1]
-                ) + cost_matrix[i, j]
-    return accumulated_cost_matrix
-
-# Compute DTW Distance Matrix
-def compute_dtw_distance_matrix(accumulated_cost_matrix):
-    n = accumulated_cost_matrix.shape[0]
-    dtw_distance_matrix = np.zeros((n, n))
-    
-    # Calculate DTW distance between columns using fastdtw
-    for i in range(n):
-        for j in range(i, n):
-            dist, _ = fastdtw(accumulated_cost_matrix[:, i], accumulated_cost_matrix[:, j])
-            dtw_distance_matrix[i, j] = dtw_distance_matrix[j, i] = dist
-    return dtw_distance_matrix
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -137,105 +81,171 @@ def pemetaan(data_df):
         scaler = StandardScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # Dropdown for choosing clustering method
-        clustering_method = st.selectbox(
-            "Pilih Metode Clustering", 
-            options=["Agglomerative Clustering", "KMedoids"]
-        )
+        # Dropdown for choosing linkage method or KMedoids
+        clustering_method = st.selectbox("Pilih Metode Clustering", 
+                                        options=["complete", "single", "average", "kmedoids"])
 
-        # Calculate distance matrix
-        local_cost_matrix_daily = compute_local_cost_matrix(pd.DataFrame(data_daily_values, columns=data_daily.columns))
-        accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
+        if clustering_method == "kmedoids":
+            # KMedoids clustering
+            num_clusters = st.slider("Jumlah Kluster", min_value=2, max_value=10, value=3)
+            kmedoids = KMedoids(n_clusters=num_clusters, metric='euclidean')
+            kmedoids_labels = kmedoids.fit_predict(data_daily_values.T)
+            silhouette_avg = silhouette_score(data_daily_values.T, kmedoids_labels, metric='euclidean')
 
-        # Ensure DTW distance matrix is symmetric
-        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+            # Display silhouette score
+            st.write(f"Silhouette Score untuk KMedoids: {silhouette_avg:.2f}")
 
-        # Clustering and silhouette score calculation
-        max_n_clusters = 10
-        silhouette_scores = {}
-        cluster_labels_dict = {}
+            # Prepare cluster results
+            clustered_data = pd.DataFrame({
+                'Province': data_daily.columns,
+                'Cluster': kmedoids_labels
+            })
 
-        if clustering_method == "Agglomerative Clustering":
-            # Agglomerative Clustering with linkage method
+        else:
+            # Agglomerative Clustering for other methods
+            linkage_method = clustering_method
+
+            # Compute local cost matrix and accumulated cost matrix
+            local_cost_matrix_daily = compute_local_cost_matrix(pd.DataFrame(data_daily_values, columns=data_daily.columns))
+            accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
+
+            # Compute DTW distance matrix for daily data
+            dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
+
+            # Ensure DTW distance matrix is symmetric
+            dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+
+            # Clustering and silhouette score calculation for daily data
+            max_n_clusters = 10
+            silhouette_scores = {}
+            cluster_labels_dict = {}
+
             for n_clusters in range(2, max_n_clusters + 1):
-                clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='ward')
+                clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
                 labels = clustering.fit_predict(dtw_distance_matrix_daily)
                 score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
                 silhouette_scores[n_clusters] = score
                 cluster_labels_dict[n_clusters] = labels
 
-        elif clustering_method == "KMedoids":
-            # KMedoids with DTW distance matrix
-            for n_clusters in range(2, max_n_clusters + 1):
-                kmedoids = KMedoids(n_clusters=n_clusters, metric='precomputed', method='pam')
-                labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
-                score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
-                silhouette_scores[n_clusters] = score
-                cluster_labels_dict[n_clusters] = labels
+            # Plot Silhouette Scores
+            plt.figure(figsize=(10, 6))
+            plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+            
+            # Adding data labels to the silhouette score plot
+            for n_clusters, score in silhouette_scores.items():
+                plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+            
+            plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+            plt.xlabel('Number of Clusters')
+            plt.ylabel('Silhouette Score')
+            plt.xticks(range(2, max_n_clusters + 1))
+            plt.grid(True)
+            st.pyplot(plt)
 
-        # Plot Silhouette Scores
-        plt.figure(figsize=(10, 6))
-        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+            # Determine optimal number of clusters
+            optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+            st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        # Adding data labels to the silhouette score plot
-        for n_clusters, score in silhouette_scores.items():
-            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
-
-        plt.title('Silhouette Score vs. Number of Clusters')
-        plt.xlabel('Number of Clusters')
-        plt.ylabel('Silhouette Score')
-        plt.xticks(range(2, max_n_clusters + 1))
-        plt.grid(True)
-        st.pyplot(plt)
-
-        # Determine optimal number of clusters
-        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        st.write(f"Jumlah klaster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
-
-        # Clustering and dendrogram
-        if clustering_method == "Agglomerative Clustering":
+            # Clustering and dendrogram
             condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-            Z = linkage(condensed_dtw_distance_matrix, method='ward')
+            Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
             plt.figure(figsize=(16, 10))
             dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-            plt.title(f'Dendrogram (Agglomerative Clustering)')
+            plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
             plt.xlabel('Provinsi')
-            plt.ylabel('Distance')
+            plt.ylabel('Jarak DTW')
             st.pyplot(plt)
 
-        # Display the clustering labels
-        cluster_labels = cluster_labels_dict[optimal_n_clusters]
-        st.write(f"Label Klaster (Jumlah Klaster: {optimal_n_clusters}):")
-        st.write(pd.DataFrame(cluster_labels, index=data_daily.columns, columns=["Cluster"]))
-        
-        # Upload GeoJSON and plot clusters on the map
-        geojson_data = upload_geojson_file()
-        if geojson_data is not None:
-            # Merge the GeoDataFrame with the clustering results
-            geojson_data['Cluster'] = cluster_labels
-            fig, ax = plt.subplots(figsize=(10, 10))
-            geojson_data.plot(column='Cluster', ax=ax, legend=True, legend_kwds={'label': "Clusters by Province", 'orientation': "horizontal"}, cmap=plt.cm.RdYlGn_r)
-            ax.set_title(f"Pemetaan Klaster Provinsi - {optimal_n_clusters} Klaster")
+            # Table of provinces per cluster
+            cluster_labels = cluster_labels_dict[optimal_n_clusters]
+            clustered_data = pd.DataFrame({
+                'Province': data_daily.columns,
+                'Cluster': cluster_labels
+            })
+
+        # Display cluster table
+        st.subheader("Tabel Provinsi per Cluster")
+        st.write(clustered_data)
+
+        # Load GeoJSON file from GitHub
+        gdf = upload_geojson_file()
+
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Calculate cluster from clustering results
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Rename inconsistent provinces
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
+
+            # Remove provinces that are None (i.e., GORONTALO)
+            gdf = gdf[gdf['Province'].notna()]
+
+            # Merge clustered data with GeoDataFrame
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+            # Set colors for clusters
+            gdf['color'] = gdf['Cluster'].map({
+                0: 'red',
+                1: 'yellow',
+                2: 'green',
+                3: 'blue',
+                4: 'purple',
+                5: 'orange',
+                6: 'pink',
+                7: 'brown',
+                8: 'cyan',
+                9: 'magenta'
+            })
+            gdf['color'].fillna('grey', inplace=True)
+
+            # Display provinces colored grey
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
+
+            # Plot map
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(column='color', ax=ax, legend=True, legend_kwds={'bbox_to_anchor': (1, 1)}, color=gdf['color'])
+            ax.set_title('Pemetaan Provinsi dengan Warna berdasarkan Kluster')
             st.pyplot(fig)
 
-# Main Streamlit Application
+# Main App Structure
 def main():
-    st.title("Pemetaan dan Clustering Data")
-    
-    # Sidebar for page selection
-    selected_page = option_menu(None, ["Statistika Deskriptif", "Pemetaan"], icons=["chart-bar", "map"], orientation="horizontal")
-    
-    # Upload CSV data
-    data_df = upload_csv_file()
+    # Application title
+    st.title("Aplikasi Clustering Clustering")
+    st.sidebar.title("Menu")
 
-    # Navigate to pages based on selected option
-    if selected_page == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected_page == "Pemetaan":
-        pemetaan(data_df)
+    # Sidebar options
+    page = option_menu(
+        menu_title=None,
+        options=["Statistika Deskriptif", "Pemetaan"],
+        icons=["bar-chart", "map"],
+        default_index=0,
+        orientation="vertical"
+    )
 
-# Run the app
-if __name__ == "__main__":
+    # File upload
+    data = upload_csv_file()
+
+    if page == "Statistika Deskriptif":
+        statistika_deskriptif(data)
+    elif page == "Pemetaan":
+        pemetaan(data)
+
+if __name__ == '__main__':
     main()
+
