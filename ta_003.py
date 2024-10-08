@@ -1,116 +1,279 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import geopandas as gpd
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler
-from sklearn_extra.cluster import KMedoids
-from fastdtw import fastdtw
-from scipy.spatial.distance import euclidean
-import folium
-from streamlit_folium import st_folium
+import numpy as np
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.spatial.distance import squareform
+import geopandas as gpd
+from streamlit_option_menu import option_menu
+from sklearn.preprocessing import MinMaxScaler  # Importing MinMaxScaler for normalization
+from fastdtw import fastdtw  # Importing fastdtw for DTW computation
+from sklearn_extra.cluster import KMedoids  # Importing KMedoids from scikit-learn-extra
 
-# Function to compute DTW distance matrix
-def compute_dtw_distance_matrix(data):
-    n = data.shape[1]  # Number of time series (columns)
-    distance_matrix = np.zeros((n, n))  # Initialize a square matrix
-
-    for i in range(n):
-        for j in range(i + 1, n):
-            # Ensure that each time series is a 1D array
-            series_i = data[:, i].flatten()  # Convert to 1D array if necessary
-            series_j = data[:, j].flatten()  # Convert to 1D array if necessary
-
-            # Check if the series are 1D
-            if series_i.ndim != 1 or series_j.ndim != 1:
-                st.error(f"Data is not 1D for series {i} and {j}")
-                continue
-
-            # Compute DTW distance
-            try:
-                distance, _ = fastdtw(series_i, series_j, dist=euclidean)  # Compute DTW distance
-                distance_matrix[i, j] = distance
-                distance_matrix[j, i] = distance  # Symmetric matrix
-            except Exception as e:
-                st.error(f"Error computing DTW distance for series {i} and {j}: {e}")
-
-    return distance_matrix
-
-# Function to perform clustering using KMedoids
-def perform_clustering(distance_matrix, n_clusters):
-    model = KMedoids(n_clusters=n_clusters, metric='precomputed', random_state=0)
-    model.fit(distance_matrix)
-    return model.labels_
-
-# Standardize data function
-def standardize_data(data):
-    scaler = StandardScaler()
-    standardized_data = scaler.fit_transform(data)
-    return standardized_data
-
-# Function to visualize clustering on map
-def visualize_clustering(geojson, labels, provinces):
-    # Create a map centered around Indonesia
-    m = folium.Map(location=[-2.5, 118.0], zoom_start=5)
-
-    # Color settings for clusters
-    cluster_colors = ['red', 'yellow', 'green']
-    
-    for idx, province in enumerate(provinces):
-        province_geo = geojson[geojson['Propinsi'] == province]
-        if not province_geo.empty:
-            # Assign color based on the cluster
-            folium.GeoJson(
-                province_geo,
-                style_function=lambda x, color=cluster_colors[labels[idx]]: {
-                    'fillColor': color,
-                    'color': 'black',
-                    'weight': 1,
-                    'fillOpacity': 0.7
-                }
-            ).add_to(m)
-    
-    return m
-
-# Main function
-def main():
-    st.title("Clustering Visualizer with DTW Distance and KMedoids")
-
-    # File upload
-    uploaded_file = st.file_uploader("Upload your data", type=["csv"])
+# Function to upload CSV files
+def upload_csv_file():
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
     if uploaded_file is not None:
-        # Load data
-        data_df = pd.read_csv(uploaded_file)
+        try:
+            df = pd.read_csv(uploaded_file)
+            return df
+        except Exception as e:
+            st.error(f"Error: {e}")
+    return None
 
-        # Process data for DTW and clustering
-        pemetaan(data_df)
+# Function to upload GeoJSON files
+def upload_geojson_file():
+    gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
+    return gdf
 
-# Pemetaan function
+# Statistika Deskriptif Page
+def statistika_deskriptif(data_df):
+    st.subheader("Statistika Deskriptif")
+
+    if data_df is not None:
+        st.write("Data yang diunggah:")
+        st.write(data_df)
+
+        # Statistika deskriptif
+        st.write("Statistika deskriptif data:")
+        st.write(data_df.describe())
+
+        # Dropdown untuk memilih provinsi, kecuali kolom 'Tanggal'
+        province_options = [col for col in data_df.columns if col != 'Tanggal']  # Menghilangkan 'Tanggal' dari pilihan
+        selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
+
+        if selected_province:
+            # Visualisasi data untuk provinsi terpilih
+            st.write(f"Rata-rata harga untuk provinsi: {selected_province}")
+            data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+            data_df.set_index('Tanggal', inplace=True)
+
+            # Plot average prices for the selected province
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(data_df.index, data_df[selected_province], label=selected_province)
+            ax.set_title(f"Rata-rata Harga Harian - Provinsi {selected_province}")
+            ax.set_xlabel("Tanggal")
+            ax.set_ylabel("Harga")
+            ax.legend()
+
+            st.pyplot(fig)
+
+# Pemetaan Page
 def pemetaan(data_df):
-    # Select relevant columns for clustering (skip the 'Tanggal' column)
-    data_daily_values = data_df.iloc[:, 1:]
+    st.subheader("Pemetaan Clustering dengan DTW")
 
-    # Step 1: Standardize the data
-    standardized_data = standardize_data(data_daily_values)
+    if data_df is not None:
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
 
-    # Step 2: Compute DTW distance matrix
-    dtw_distance_matrix_daily = compute_dtw_distance_matrix(standardized_data.T)
+        # Calculate daily averages
+        data_daily = data_df.resample('D').mean()
 
-    # Step 3: Perform clustering (Example: 3 clusters)
-    labels = perform_clustering(dtw_distance_matrix_daily, n_clusters=3)
+        # Handle missing data by forward filling
+        data_daily.fillna(method='ffill', inplace=True)
 
-    # Load GeoJSON file from GitHub or local storage
-    geojson_path = '/content/indonesia-prov.geojson'
-    geojson_data = gpd.read_file(geojson_path)
+        # Normalization of data (before computing DTW)
+        scaler = MinMaxScaler()  # Using MinMaxScaler for normalization
+        data_daily_values = scaler.fit_transform(data_daily)
 
-    # Ensure province names are consistent
-    province_names = data_df.columns[1:]  # Extract province names from columns, excluding 'Tanggal'
+        # Dropdown for choosing linkage method
+        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
-    # Step 4: Visualize the clustering results on a map
-    clustering_map = visualize_clustering(geojson_data, labels, province_names)
+        # Compute DTW distance matrix for normalized daily data using fastdtw
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
 
-    # Display the map in Streamlit
-    st_folium(clustering_map, width=700)
+        # Ensure DTW distance matrix is symmetric
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+
+        # Clustering and silhouette score calculation for daily data
+        max_n_clusters = 10
+        silhouette_scores = {}
+        cluster_labels_dict = {}
+
+        for n_clusters in range(2, max_n_clusters + 1):
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+            silhouette_scores[n_clusters] = score
+            cluster_labels_dict[n_clusters] = labels
+
+        # Plot Silhouette Scores
+        plt.figure(figsize=(10, 6))
+        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        
+        # Adding data labels to the silhouette score plot
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+        
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('Silhouette Score')
+        plt.xticks(range(2, max_n_clusters + 1))
+        plt.grid(True)
+        st.pyplot(plt)
+
+        # Determine optimal number of clusters
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+
+        # Clustering and dendrogram
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+
+        plt.figure(figsize=(16, 10))
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.xlabel('Provinsi')
+        plt.ylabel('Jarak DTW')
+        st.pyplot(plt)
+
+        # Table of provinces per cluster
+        cluster_labels = cluster_labels_dict[optimal_n_clusters]
+        clustered_data = pd.DataFrame({
+            'Province': data_daily.columns,
+            'Cluster': cluster_labels
+        })
+
+        # Display cluster table
+        st.subheader("Tabel Provinsi per Cluster")
+        st.write(clustered_data)
+
+        # Load GeoJSON file from GitHub
+        gdf = upload_geojson_file()
+
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Calculate cluster from clustering results
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Rename inconsistent provinces
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
+
+            # Remove provinces that are None (i.e., GORONTALO)
+            gdf = gdf[gdf['Province'].notna()]
+
+            # Merge clustered data with GeoDataFrame
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+            # Set colors for clusters
+            gdf['color'] = gdf['Cluster'].map({
+                0: 'red',
+                1: 'yellow',
+                2: 'green',
+                3: 'blue',
+                4: 'purple',
+                5: 'orange',
+                6: 'pink',
+                7: 'brown',
+                8: 'cyan',
+                9: 'magenta'
+            })
+            gdf['color'].fillna('grey', inplace=True)
+
+            # Display provinces colored grey
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
+
+            # Plot map
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
+            plt.title("Pemetaan Provinsi Berdasarkan Kluster")
+            st.pyplot(fig)
+
+# Pemetaan KMedoids Page
+def pemetaan_kmedoids(data_df):
+    st.subheader("Pemetaan KMedoids Clustering")
+
+    if data_df is not None:
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
+
+        # Calculate daily averages
+        data_daily = data_df.resample('D').mean()
+
+        # Handle missing data by forward filling
+        data_daily.fillna(method='ffill', inplace=True)
+
+        # Normalization of data (before computing KMedoids)
+        scaler = MinMaxScaler()
+        data_daily_values = scaler.fit_transform(data_daily)
+
+        # Dropdown for choosing KMedoids parameters
+        n_clusters = st.slider("Pilih jumlah kluster KMedoids", min_value=2, max_value=10, value=3)
+
+        # Apply KMedoids clustering
+        kmedoids = KMedoids(n_clusters=n_clusters, metric='euclidean', random_state=42)
+        cluster_labels = kmedoids.fit_predict(data_daily_values.T)
+
+        # Load GeoJSON file from GitHub
+        gdf = upload_geojson_file()
+
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Cluster data mapping
+            clustered_data = pd.DataFrame({
+                'Province': data_daily.columns,
+                'Cluster': cluster_labels
+            })
+
+            # Merge with GeoDataFrame
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+            # Set colors for clusters
+            gdf['color'] = gdf['Cluster'].map({
+                0: 'red',
+                1: 'yellow',
+                2: 'green',
+                3: 'blue',
+                4: 'purple',
+                5: 'orange'
+            })
+            gdf['color'].fillna('grey', inplace=True)
+
+            # Plotting
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi Berdasarkan KMedoids ({n_clusters} Kluster)")
+            st.pyplot(fig)
+
+# Main Application
+def main():
+    st.sidebar.header("Menu Utama")
+    selected_page = option_menu(
+        menu_title="Pilih Halaman",
+        options=["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+        icons=["file-earmark-bar-graph", "geo-alt", "geo-alt"],
+        default_index=0,
+        orientation="vertical",
+        styles={"container": {"padding": "5px"}, "icon": {"color": "blue"}},
+    )
+
+    data_df = upload_csv_file()
+
+    if selected_page == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected_page == "Pemetaan":
+        pemetaan(data_df)
+    elif selected_page == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
     main()
