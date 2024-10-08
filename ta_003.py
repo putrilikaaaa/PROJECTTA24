@@ -274,8 +274,16 @@ def pemetaan_kmedoids(data_df):
 # Main function
 def main():
     st.title("Analisis Data Provinsi")
-    st.markdown("## Template CSV Download")
-    st.markdown('[Download CSV Template](data/template.csv)')
+
+    # Allow users to download the CSV template
+    template_csv = "data/template.csv"
+    with open(template_csv, "rb") as f:
+        st.download_button(
+            label="Download CSV Template",
+            data=f,
+            file_name="template.csv",
+            mime="text/csv"
+        )
 
     # Allow users to upload data
     st.markdown("## Upload Data")
