@@ -211,47 +211,63 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
             if i != j:
                 for t in range(num_time_points):
                     local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+
     return local_cost_matrix
 
 # Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    time_points, num_provinces, _ = local_cost_matrix.shape
-    accumulated_cost_matrix = np.zeros((time_points, num_provinces, num_provinces))
-    
-    for t in range(time_points):
-        if t == 0:
-            accumulated_cost_matrix[t] = local_cost_matrix[t]
-        else:
-            accumulated_cost_matrix[t] = np.minimum(accumulated_cost_matrix[t - 1] + local_cost_matrix[t], 
-                                                    accumulated_cost_matrix[t - 1].T + local_cost_matrix[t])
+    num_time_points, num_provinces, _ = local_cost_matrix.shape
+    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+
+    accumulated_cost_matrix[0] = local_cost_matrix[0]
+
+    for t in range(1, num_time_points):
+        for i in range(num_provinces):
+            for j in range(num_provinces):
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
+                    accumulated_cost_matrix[t - 1, i, j],
+                    accumulated_cost_matrix[t - 1, i, (j + 1) % num_provinces],
+                    accumulated_cost_matrix[t - 1, (i + 1) % num_provinces, j]
+                )
 
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    return accumulated_cost_matrix[-1]
+    return np.sum(accumulated_cost_matrix[-1], axis=0)
 
-# Streamlit app
+# Main app
 def main():
-    st.set_page_config(page_title="Pemetaan dan Clustering", page_icon="📊")
-    st.title("Pemetaan dan Clustering DTW")
-    
-    # Sidebar navigation
-    with st.sidebar:
-        selected_option = option_menu(
-            "Menu",
-            ["Statistika Deskriptif", "Pemetaan", "Pemetaan Linkage"],
-            icons=["bar-chart", "map", "globe"],
-            default_index=0
-        )
+    st.sidebar.title("Menu")
+    page = option_menu(
+        menu_title=None,
+        options=["Statistika Deskriptif", "Pemetaan"],
+        icons=["bar-chart", "geo-alt"],
+        default_index=0,
+        orientation="horizontal",
+        styles={
+            "container": {"padding": "5!important", "background-color": "#f0f2f6"},
+            "icon": {"color": "black", "font-size": "14px"},
+            "nav-link": {
+                "font-size": "16px",
+                "text-align": "center",
+                "padding": "10px!important",
+                "color": "black",
+                "font-weight": "bold",
+                "border-radius": "5px",
+            },
+            "nav-link-selected": {
+                "background-color": "red",  # Highlight the selected option in red
+                "color": "white",
+            },
+        },
+    )
 
-    # Upload file
     data_df = upload_csv_file()
 
-    # Display relevant page
-    if selected_option == "Statistika Deskriptif":
+    if page == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected_option == "Pemetaan":
+    elif page == "Pemetaan":
         pemetaan(data_df)
 
 if __name__ == "__main__":
