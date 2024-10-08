@@ -11,6 +11,7 @@ from streamlit_option_menu import option_menu
 from sklearn.preprocessing import MinMaxScaler  # Importing MinMaxScaler for normalization
 from fastdtw import fastdtw  # Importing fastdtw for DTW computation
 from sklearn_extra.cluster import KMedoids  # Importing KMedoids for clustering
+from scipy.spatial.distance import euclidean
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -27,6 +28,22 @@ def upload_csv_file():
 def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
+
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(data):
+    n = data.shape[1]  # Number of time series (columns)
+    distance_matrix = np.zeros((n, n))  # Initialize a square matrix
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            distance, _ = fastdtw(data[:, i], data[:, j], dist=euclidean)  # Compute DTW distance between series i and j
+            distance_matrix[i, j] = distance
+            distance_matrix[j, i] = distance  # Symmetric matrix
+    return distance_matrix
+
+# Function to symmetrize distance matrix
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2  # Ensure matrix is symmetric
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -82,7 +99,7 @@ def pemetaan(data_df):
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
 
         # Compute DTW distance matrix for normalized daily data using fastdtw
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values.T)
 
         # Ensure DTW distance matrix is symmetric
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
@@ -177,28 +194,17 @@ def pemetaan(data_df):
                 # Calculate cluster from clustering results
                 clustered_data = pd.DataFrame({
                     'Province': data_daily.columns,
-                    'Cluster': kmedoids_labels
+                    'Cluster': cluster_labels_dict_linkage[optimal_n_clusters_linkage]
                 })
 
-                # Merge clustered data with GeoDataFrame
-                gdf = gdf.merge(clustered_data, on='Province', how='left')
+                # Merge with GeoDataFrame
+                gdf = gdf.merge(clustered_data, on='Province')
 
-                # Set colors for clusters
-                gdf['color'] = gdf['Cluster'].map({
-                    0: 'red',
-                    1: 'yellow',
-                    2: 'green',
-                    3: 'blue',
-                    4: 'purple',
-                    5: 'orange',
-                    6: 'pink',
-                    7: 'brown',
-                    8: 'cyan',
-                    9: 'magenta'
-                })
-                gdf['color'].fillna('grey', inplace=True)
+                # Define color mapping for clusters
+                cluster_colors = {0: 'red', 1: 'yellow', 2: 'green'}
+                gdf['color'] = gdf['Cluster'].map(cluster_colors)
 
-                # Display provinces colored grey
+                # Plot the map
                 st.write("Pemetaan Hasil Clustering")
                 fig, ax = plt.subplots(figsize=(10, 10))
                 gdf.plot(ax=ax, color=gdf['color'], legend=True)
