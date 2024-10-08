@@ -302,13 +302,13 @@ def main():
 
     # Create a sidebar menu for navigation
     with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
                                icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
 
     # Load the appropriate page based on user selection
     if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-    elif selected == "Pemetaan":
+    elif selected == "Pemetaan Linkage":
         pemetaan(data_df)
     elif selected == "Pemetaan KMedoids":
         pemetaan_kmedoids(data_df)
