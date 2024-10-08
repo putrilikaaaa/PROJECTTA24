@@ -216,50 +216,44 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
 
 # Function to compute accumulated cost matrix for DTW
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
-    num_time_points, num_provinces = local_cost_matrix.shape[0], local_cost_matrix.shape[1]
-    accumulated_cost_matrix = np.zeros((num_time_points, num_provinces, num_provinces))
+    num_time_points, num_provinces, _ = local_cost_matrix.shape
+    accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
+
+    # Base case (at t=0)
+    accumulated_cost_matrix[0, :, :] = local_cost_matrix[0, :, :]
 
     for t in range(1, num_time_points):
         for i in range(num_provinces):
             for j in range(num_provinces):
-                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + min(
-                    accumulated_cost_matrix[t - 1, i, j],  # from the same province
-                    accumulated_cost_matrix[t - 1, j, i],  # from the other province
-                    accumulated_cost_matrix[t - 1, i, i]   # from previous time point of the same province
-                )
+                accumulated_cost_matrix[t, i, j] = local_cost_matrix[t, i, j] + \
+                    min(accumulated_cost_matrix[t-1, i, j], accumulated_cost_matrix[t-1, i, j])
 
     return accumulated_cost_matrix
 
 # Function to compute DTW distance matrix
 def compute_dtw_distance_matrix(accumulated_cost_matrix: np.array) -> np.array:
-    num_provinces = accumulated_cost_matrix.shape[1]
+    num_time_points, num_provinces, _ = accumulated_cost_matrix.shape
     dtw_distance_matrix = np.zeros((num_provinces, num_provinces))
 
     for i in range(num_provinces):
         for j in range(num_provinces):
-            if i != j:
-                dtw_distance_matrix[i, j] = accumulated_cost_matrix[-1, i, j]
+            dtw_distance_matrix[i, j] = accumulated_cost_matrix[num_time_points-1, i, j]
 
     return dtw_distance_matrix
 
-# Main function to run the Streamlit app
-def main():
-    st.title("Aplikasi Pemodelan dan Pemetaan Data")
-    
-    # Sidebar menu for navigation
-    with st.sidebar:
-        selected_option = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], 
-                                       icons=["bar-chart", "map"], 
-                                       menu_icon="cast", default_index=0)
+# Streamlit App Layout
+def app():
+    st.title("Clustering dan Pemetaan Data")
+    st.sidebar.title("Navigasi")
+    page = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan"], default_index=0, orientation="horizontal")
 
-    # Upload data file once
-    data_df = upload_csv_file()
+    if page == "Statistika Deskriptif":
+        data = upload_csv_file()
+        statistika_deskriptif(data)
 
-    # Call the appropriate page based on the selected option
-    if selected_option == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected_option == "Pemetaan":
-        pemetaan(data_df)
+    if page == "Pemetaan":
+        data = upload_csv_file()
+        pemetaan(data)
 
 if __name__ == "__main__":
-    main()
+    app()
