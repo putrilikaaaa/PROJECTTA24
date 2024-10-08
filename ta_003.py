@@ -76,6 +76,7 @@ def pemetaan(data_df):
         # Handle missing data by forward filling
         data_daily.fillna(method='ffill', inplace=True)
 
+        # **Proses Standarisasi Data**
         # Standardization of data
         scaler = StandardScaler()
         data_daily_values = scaler.fit_transform(data_daily)
@@ -211,10 +212,12 @@ def compute_local_cost_matrix(data_df: pd.DataFrame) -> np.array:
             if i != j:
                 for t in range(num_time_points):
                     local_cost_matrix[t, i, j] = np.abs(data_df.iloc[t, i] - data_df.iloc[t, j])
+            else:
+                local_cost_matrix[:, i, j] = 0  # Distance to itself is 0
 
     return local_cost_matrix
 
-# Function to compute accumulated cost matrix for DTW
+# Function to compute accumulated cost matrix
 def compute_accumulated_cost_matrix(local_cost_matrix: np.array) -> np.array:
     num_time_points, num_provinces, _ = local_cost_matrix.shape
     accumulated_cost_matrix = np.zeros_like(local_cost_matrix)
