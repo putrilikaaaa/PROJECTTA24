@@ -32,10 +32,9 @@ def upload_geojson_file():
     st.write("Kolom yang ada dalam GeoJSON:")
     st.write(gdf.columns)
     
-    # Find the relevant column containing province names
-    if 'Province' not in gdf.columns:
-        # Adjust the column name if it's different (e.g., 'provinsi', 'province_name', etc.)
-        st.warning("Kolom 'Province' tidak ditemukan. Cek struktur file GeoJSON.")
+    # Verify if 'Propinsi' column exists
+    if 'Propinsi' not in gdf.columns:
+        st.warning("Kolom 'Propinsi' tidak ditemukan. Cek struktur file GeoJSON.")
         return None
     
     return gdf
@@ -138,31 +137,42 @@ def pemetaan(data_df):
         scaler = StandardScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # Dropdown for choosing linkage method or KMedoids
-        clustering_method = st.selectbox("Pilih Metode Clustering", options=["complete", "single", "average", "ward"])
+        # Dropdown for choosing clustering method
+        clustering_method = st.selectbox(
+            "Pilih Metode Clustering", 
+            options=["Agglomerative Clustering", "KMedoids"]
+        )
 
-        # Compute local cost matrix and accumulated cost matrix
+        # Calculate distance matrix
         local_cost_matrix_daily = compute_local_cost_matrix(pd.DataFrame(data_daily_values, columns=data_daily.columns))
         accumulated_cost_matrix_daily = compute_accumulated_cost_matrix(local_cost_matrix_daily)
-
-        # Compute DTW distance matrix for daily data
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(accumulated_cost_matrix_daily)
 
         # Ensure DTW distance matrix is symmetric
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
-        # Clustering and silhouette score calculation for daily data
+        # Clustering and silhouette score calculation
         max_n_clusters = 10
         silhouette_scores = {}
         cluster_labels_dict = {}
 
-        # Agglomerative Clustering with linkage method
-        for n_clusters in range(2, max_n_clusters + 1):
-            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=clustering_method)
-            labels = clustering.fit_predict(dtw_distance_matrix_daily)
-            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
-            silhouette_scores[n_clusters] = score
-            cluster_labels_dict[n_clusters] = labels
+        if clustering_method == "Agglomerative Clustering":
+            # Agglomerative Clustering with linkage method
+            for n_clusters in range(2, max_n_clusters + 1):
+                clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage='ward')
+                labels = clustering.fit_predict(dtw_distance_matrix_daily)
+                score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+                silhouette_scores[n_clusters] = score
+                cluster_labels_dict[n_clusters] = labels
+
+        elif clustering_method == "KMedoids":
+            # KMedoids with DTW distance matrix
+            for n_clusters in range(2, max_n_clusters + 1):
+                kmedoids = KMedoids(n_clusters=n_clusters, metric='precomputed', method='pam')
+                labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
+                score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+                silhouette_scores[n_clusters] = score
+                cluster_labels_dict[n_clusters] = labels
 
         # Plot Silhouette Scores
         plt.figure(figsize=(10, 6))
@@ -172,7 +182,7 @@ def pemetaan(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.title('Silhouette Score vs. Number of Clusters')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -181,35 +191,32 @@ def pemetaan(data_df):
 
         # Determine optimal number of clusters
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+        st.write(f"Jumlah klaster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
         # Clustering and dendrogram
-        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-        Z = linkage(condensed_dtw_distance_matrix, method=clustering_method)
+        if clustering_method == "Agglomerative Clustering":
+            condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+            Z = linkage(condensed_dtw_distance_matrix, method='ward')
 
-        plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram (Metode: {clustering_method})')
-        plt.xlabel('Provinces')
-        plt.ylabel('Distance')
-        st.pyplot(plt)
+            plt.figure(figsize=(16, 10))
+            dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+            plt.title(f'Dendrogram (Agglomerative Clustering)')
+            plt.xlabel('Provinsi')
+            plt.ylabel('Distance')
+            st.pyplot(plt)
 
         # Display the clustering labels
         cluster_labels = cluster_labels_dict[optimal_n_clusters]
         st.write(f"Label Klaster (Jumlah Klaster: {optimal_n_clusters}):")
         st.write(pd.DataFrame(cluster_labels, index=data_daily.columns, columns=["Cluster"]))
         
-        # Upload GeoJSON and show province-level clustering
-        gdf = upload_geojson_file()
-        if gdf is not None:
+        # Upload GeoJSON and plot clusters on the map
+        geojson_data = upload_geojson_file()
+        if geojson_data is not None:
+            # Merge the GeoDataFrame with the clustering results
+            geojson_data['Cluster'] = cluster_labels
             fig, ax = plt.subplots(figsize=(10, 10))
-            # Adjusting the column name to 'Province' for GeoDataFrame
-            gdf['Cluster'] = pd.Series(cluster_labels, index=gdf.index)
-
-            # Assign colors to clusters: red, yellow, green
-            color_map = {0: 'red', 1: 'yellow', 2: 'green'}
-            gdf.plot(column='Cluster', ax=ax, legend=True, legend_kwds={'label': "Clusters by Province", 'orientation': "horizontal"},
-                     cmap=plt.cm.RdYlGn_r)
+            geojson_data.plot(column='Cluster', ax=ax, legend=True, legend_kwds={'label': "Clusters by Province", 'orientation': "horizontal"}, cmap=plt.cm.RdYlGn_r)
             ax.set_title(f"Pemetaan Klaster Provinsi - {optimal_n_clusters} Klaster")
             st.pyplot(fig)
 
