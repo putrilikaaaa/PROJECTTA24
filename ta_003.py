@@ -10,6 +10,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform, euclidean
 import geopandas as gpd
 from streamlit_option_menu import option_menu
+from fastdtw import fastdtw
 
 # Function to upload CSV files
 def upload_csv_file():
@@ -62,6 +63,18 @@ def compute_accumulated_cost_matrix(cost_matrix):
                     accumulated_cost_matrix[i-1, j-1]
                 ) + cost_matrix[i, j]
     return accumulated_cost_matrix
+
+# Compute DTW Distance Matrix
+def compute_dtw_distance_matrix(accumulated_cost_matrix):
+    n = accumulated_cost_matrix.shape[0]
+    dtw_distance_matrix = np.zeros((n, n))
+    
+    # Calculate DTW distance between columns using fastdtw
+    for i in range(n):
+        for j in range(i, n):
+            dist, _ = fastdtw(accumulated_cost_matrix[:, i], accumulated_cost_matrix[:, j])
+            dtw_distance_matrix[i, j] = dtw_distance_matrix[j, i] = dist
+    return dtw_distance_matrix
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -193,15 +206,10 @@ def pemetaan(data_df):
         gdf = upload_geojson_file()
 
         if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Change according to the correct column name
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-            # Calculate cluster from clustering results
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-            # Rename inconsistent provinces
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})  # Ensure column names match
+            # Handle consistency of province names in GeoDataFrame
             gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
+                'DI. ACEH': 'ACEH',
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
