@@ -76,9 +76,9 @@ def statistika_deskriptif(data_df):
 
             st.pyplot(fig)
 
-# Pemetaan Page
-def pemetaan(data_df):
-    st.subheader("Pemetaan Clustering dengan DTW")
+# Pemetaan Page (for KMedoids clustering)
+def pemetaan_kmedoids(data_df):
+    st.subheader("Pemetaan KMedoids Clustering")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -204,28 +204,31 @@ def pemetaan(data_df):
             # Plot map
             fig, ax = plt.subplots(figsize=(10, 10))
             gdf.plot(ax=ax, color=gdf['color'])
-            ax.set_title(f"Pemetaan Provinsi dengan KMedoids Clustering")
+            ax.set_title(f"Pemetaan Provinsi dengan Clustering Hierarchical")
             st.pyplot(fig)
 
 # Streamlit Sidebar for Navigation
 def sidebar_navigation():
     with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan KMedoids"], 
-                               icons=['house', 'bar-chart'], menu_icon="cast", default_index=0)
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan KMedoids"],
+                               icons=["bar-chart", "map"], menu_icon="cast", default_index=0)
     return selected
 
-# Main Streamlit App
+# Main function
 def main():
-    selected_option = sidebar_navigation()
+    st.title("Streamlit Clustering Visualization")
+    
+    selected_page = sidebar_navigation()
 
-    if selected_option == "Statistika Deskriptif":
-        st.title("Statistika Deskriptif - Clustering")
-        data_df = upload_csv_file()  
-        statistika_deskriptif(data_df)
-    elif selected_option == "Pemetaan KMedoids":
-        st.title("Pemetaan KMedoids Clustering")
-        data_df = upload_csv_file()  
-        pemetaan(data_df)
+    # Upload the data
+    data = upload_csv_file()
 
-if __name__ == '__main__':
+    # Show the relevant page based on the selection
+    if selected_page == "Statistika Deskriptif":
+        statistika_deskriptif(data)
+    elif selected_page == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data)
+
+# Execute the application
+if __name__ == "__main__":
     main()
