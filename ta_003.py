@@ -7,7 +7,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn_extra.cluster import KMedoids
 from scipy.cluster.hierarchy import dendrogram, linkage
-from scipy.spatial.distance import squareform
+from scipy.spatial.distance import squareform, euclidean
 import geopandas as gpd
 from streamlit_option_menu import option_menu
 
@@ -30,6 +30,38 @@ def upload_geojson_file():
 # Ensure DTW distance matrix is symmetric
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
+
+# Compute Local Cost Matrix (Euclidean distance)
+def compute_local_cost_matrix(data):
+    n = data.shape[1]  # Number of provinces (columns)
+    cost_matrix = np.zeros((n, n))
+    
+    # Calculate pairwise Euclidean distance between columns
+    for i in range(n):
+        for j in range(i, n):
+            cost_matrix[i, j] = cost_matrix[j, i] = euclidean(data.iloc[:, i], data.iloc[:, j])
+    return cost_matrix
+
+# Compute Accumulated Cost Matrix
+def compute_accumulated_cost_matrix(cost_matrix):
+    n = cost_matrix.shape[0]
+    accumulated_cost_matrix = np.zeros((n, n))
+    
+    for i in range(n):
+        for j in range(i, n):
+            if i == 0 and j == 0:
+                accumulated_cost_matrix[i, j] = cost_matrix[i, j]
+            elif i == 0:
+                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i, j-1] + cost_matrix[i, j]
+            elif j == 0:
+                accumulated_cost_matrix[i, j] = accumulated_cost_matrix[i-1, j] + cost_matrix[i, j]
+            else:
+                accumulated_cost_matrix[i, j] = min(
+                    accumulated_cost_matrix[i-1, j], 
+                    accumulated_cost_matrix[i, j-1], 
+                    accumulated_cost_matrix[i-1, j-1]
+                ) + cost_matrix[i, j]
+    return accumulated_cost_matrix
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -173,43 +205,16 @@ def pemetaan(data_df):
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'D.I YOGYAKARTA'
             })
 
-            # Remove provinces that are None (i.e., GORONTALO)
-            gdf = gdf[gdf['Province'].notna()]
+            # Merge GeoDataFrame with cluster labels
+            gdf = gdf.merge(clustered_data, on='Province')
 
-            # Merge clustered data with GeoDataFrame
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
-
-            # Set colors for clusters
-            gdf['color'] = gdf['Cluster'].map({
-                0: 'red',
-                1: 'yellow',
-                2: 'green',
-                3: 'blue',
-                4: 'purple',
-                5: 'orange',
-                6: 'pink',
-                7: 'brown',
-                8: 'cyan',
-                9: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
-
-            # Display provinces colored grey
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
-
-            # Plot map
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Plot boundaries
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)  # Plot clusters
-            plt.title("Pemetaan Kluster Provinsi Indonesia")
+            # Create map for visualization
+            fig, ax = plt.subplots(1, 1, figsize=(15, 15))
+            gdf.plot(column='Cluster', cmap='RdYlGn', edgecolor='black', linewidth=0.7, ax=ax)
+            ax.set_title("Pemetaan Kluster Provinsi Indonesia")
             st.pyplot(fig)
 
 # Main Streamlit App Layout
