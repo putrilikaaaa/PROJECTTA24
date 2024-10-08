@@ -58,28 +58,32 @@ def statistika_deskriptif(data_df):
 
             st.pyplot(fig)
 
-# Pemetaan Page
+# Pemetaan Page (Fixed)
 def pemetaan(data_df):
-    st.subheader("Pemetaan Data")
+    st.subheader("Pemetaan")
 
     if data_df is not None:
+        # Ensure 'Tanggal' column is in datetime format
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
-        # Handle missing data by forward filling
-        data_df.fillna(method='ffill', inplace=True)
+        # Dropdown to select a province, excluding 'Tanggal'
+        province_options = [col for col in data_df.columns if col != 'Tanggal']
+        selected_province = st.selectbox("Pilih Provinsi untuk Visualisasi", province_options)
 
-        # Dropdown for selecting a date
-        selected_date = st.date_input("Pilih Tanggal", value=data_df.index.min().date())
+        if selected_province:
+            st.write(f"Rata-rata harga harian untuk provinsi: {selected_province}")
 
-        # Filter data by selected date
-        if selected_date:
-            selected_data = data_df.loc[selected_date.strftime('%Y-%m-%d')]
-            st.write(f"Data untuk tanggal {selected_date}:")
-            st.write(selected_data)
+            # Extract the selected province data
+            selected_data = data_df[[selected_province]].dropna()  # Drop NaN values
 
-            # Visualization (You can modify this to plot on a map or other visual elements)
-            st.line_chart(selected_data)
+            if selected_data.empty:
+                st.warning(f"Tidak ada data untuk provinsi {selected_province}")
+            else:
+                st.write(selected_data)
+
+                # Plot the data
+                st.line_chart(selected_data)
 
 # Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
