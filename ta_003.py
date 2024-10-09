@@ -1,98 +1,317 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.metrics import silhouette_score
-from sklearn_extra.cluster import KMedoids
-from sklearn.cluster import AgglomerativeClustering
 import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import AgglomerativeClustering
+from sklearn_extra.cluster import KMedoids
+from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.spatial.distance import squareform
+import geopandas as gpd
+from sklearn.preprocessing import MinMaxScaler
+from fastdtw import fastdtw
+from streamlit_option_menu import option_menu
+import requests
 
-# Function to load and preprocess the data
-@st.cache
-def load_data(filepath):
-    data = pd.read_csv(filepath)
-    # Remove 'Tanggal' if it exists or handle it appropriately
-    if 'Tanggal' in data.columns:
-        data = data.drop(columns=['Tanggal'])
-    return data
-
-# Function for scaling data
-def scale_data(data, scaling_method='standard'):
-    if scaling_method == 'standard':
-        scaler = StandardScaler()
-    elif scaling_method == 'minmax':
-        scaler = MinMaxScaler()
-    
-    scaled_data = scaler.fit_transform(data)
-    return scaled_data
-
-# Function for clustering using KMedoids
-def kmedoids_clustering(data, n_clusters, random_state=42):
-    kmedoids = KMedoids(n_clusters=n_clusters, random_state=random_state)
-    clusters = kmedoids.fit_predict(data)
-    return clusters, kmedoids
-
-# Function for clustering using Agglomerative Linkage
-def agglomerative_clustering(data, n_clusters, linkage_method='ward', random_state=42):
-    clustering = AgglomerativeClustering(n_clusters=n_clusters, linkage=linkage_method)
-    clusters = clustering.fit_predict(data)
-    return clusters
-
-# Function to calculate and plot silhouette score
-def calculate_silhouette_score(data, clusters):
-    score = silhouette_score(data, clusters)
-    return score
-
-# Main Streamlit app
-def app():
-    st.title("Clustering and Silhouette Score Analysis")
-    
-    # File upload
-    uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+# Function to upload CSV files
+def upload_csv_file():
+    uploaded_file = st.file_uploader("Upload file CSV", type=["csv"])
     if uploaded_file is not None:
-        # Load the data
-        data = load_data(uploaded_file)
-        st.write("Data Preview:", data.head())
-        
-        # Select scaling method
-        scaling_method = st.selectbox("Choose scaling method", options=['standard', 'minmax'])
-        
-        # Apply scaling to the data
-        scaled_data = scale_data(data, scaling_method)
-        
-        # Select clustering method
-        clustering_method = st.selectbox("Choose clustering method", options=['KMedoids', 'Agglomerative Linkage'])
-        
-        # Number of clusters
-        n_clusters = st.slider("Number of clusters", min_value=2, max_value=10, value=3)
-        
-        # Perform clustering based on selected method
-        if clustering_method == 'KMedoids':
-            clusters, _ = kmedoids_clustering(scaled_data, n_clusters)
-        else:
-            linkage_method = st.selectbox("Linkage method", options=['ward', 'complete', 'average', 'single'])
-            clusters = agglomerative_clustering(scaled_data, n_clusters, linkage_method)
-        
-        # Calculate silhouette score
-        silhouette_avg = calculate_silhouette_score(scaled_data, clusters)
-        st.write(f"Silhouette Score: {silhouette_avg:.3f}")
-        
-        # Visualize clustering result
-        data_with_clusters = pd.DataFrame(scaled_data, columns=data.columns)
-        data_with_clusters['Cluster'] = clusters
-        
-        # Plot the clusters using seaborn
-        fig, ax = plt.subplots()
-        sns.scatterplot(x=data_with_clusters.columns[0], y=data_with_clusters.columns[1], hue='Cluster', data=data_with_clusters, palette='Set1', ax=ax)
-        plt.title("Clustering Result")
-        st.pyplot(fig)
-        
-        # Show cluster centers for KMedoids
-        if clustering_method == 'KMedoids':
-            st.write("Cluster Centers:")
-            st.write(_.cluster_centers_)
+        try:
+            df = pd.read_csv(uploaded_file)
+            return df
+        except Exception as e:
+            st.error(f"Error: {e}")
+    return None
 
-# Run the app
+# Function to upload GeoJSON files
+def upload_geojson_file():
+    gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
+    return gdf
+
+# Function to compute DTW distance matrix
+def compute_dtw_distance_matrix(data):
+    num_series = data.shape[1]
+    dtw_distance_matrix = np.zeros((num_series, num_series))
+
+    for i in range(num_series):
+        for j in range(i, num_series):
+            distance, _ = fastdtw(data[:, i], data[:, j])
+            dtw_distance_matrix[i, j] = distance
+            dtw_distance_matrix[j, i] = distance  # DTW distance is symmetric
+
+    return dtw_distance_matrix
+
+# Function to symmetrize a matrix (making it symmetric)
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
+
+# Statistika Deskriptif Page
+def statistika_deskriptif(data_df):
+    st.subheader("Statistika Deskriptif")
+    if data_df is not None:
+        provinces = [col for col in data_df.columns if col != 'Tanggal']
+        province = st.selectbox("Pilih Provinsi", options=provinces)
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(data_df.index, data_df[province], label=province)
+
+        min_value = data_df[province].min()
+        max_value = data_df[province].max()
+        ax.set_ylim(bottom=min_value - (0.1 * abs(max_value - min_value)))
+
+        ax.set_title(f"Tren Data Provinsi {province}")
+        ax.set_xlabel("Tanggal")
+        ax.set_ylabel("Nilai")
+        ax.legend()
+        st.line_chart(data_df[province])
+        st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
+        st.write(data_df[province].describe())
+
+# Pemetaan Page
+def pemetaan(data_df):
+    st.subheader("Pemetaan Clustering dengan DTW")
+
+    if data_df is not None:
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
+
+        data_daily = data_df.resample('D').mean()
+        data_daily.fillna(method='ffill', inplace=True)
+
+        scaler = MinMaxScaler()
+        data_daily_values = scaler.fit_transform(data_daily)
+
+        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+
+        max_n_clusters = 10
+        silhouette_scores = {}
+        cluster_labels_dict = {}
+
+        for n_clusters in range(2, max_n_clusters + 1):
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+            silhouette_scores[n_clusters] = score
+            cluster_labels_dict[n_clusters] = labels
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('Silhouette Score')
+        plt.xticks(range(2, max_n_clusters + 1))
+        plt.grid(True)
+        st.pyplot(plt)
+
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+
+        plt.figure(figsize=(16, 10))
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.xlabel('Provinsi')
+        plt.ylabel('Jarak DTW')
+        st.pyplot(plt)
+
+        # Adjust cluster labels to start from 1 instead of 0
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        clustered_data = pd.DataFrame({
+            'Province': data_daily.columns,
+            'Cluster': cluster_labels
+        })
+
+        st.subheader("Tabel Provinsi per Cluster")
+        st.write(clustered_data)
+
+        gdf = upload_geojson_file()
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
+
+            gdf = gdf[gdf['Province'].notna()]
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+            gdf['color'] = gdf['Cluster'].map({
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            })
+            gdf['color'].fillna('grey', inplace=True)
+
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
+
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
+            st.pyplot(fig)
+
+# Pemetaan KMedoids Page
+def pemetaan_kmedoids(data_df):
+    st.subheader("Pemetaan KMedoids")
+
+    if data_df is not None:
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
+
+        data_daily = data_df.resample('D').mean()
+        data_daily.fillna(method='ffill', inplace=True)
+
+        scaler = MinMaxScaler()
+        data_daily_values = scaler.fit_transform(data_daily)
+
+        max_n_clusters = 10
+        silhouette_scores = {}
+        cluster_labels_dict = {}
+
+        for n_clusters in range(2, max_n_clusters + 1):
+            kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
+            labels = kmedoids.fit_predict(data_daily_values.T)
+            score = silhouette_score(data_daily_values.T, labels)
+            silhouette_scores[n_clusters] = score
+            cluster_labels_dict[n_clusters] = labels
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+
+        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
+        plt.xlabel('Jumlah Kluster')
+        plt.ylabel('Silhouette Score')
+        plt.xticks(range(2, max_n_clusters + 1))
+        plt.grid(True)
+        st.pyplot(plt)
+
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        clustered_data = pd.DataFrame({
+            'Province': data_daily.columns,
+            'Cluster': cluster_labels
+        })
+
+        st.subheader("Tabel Provinsi per Cluster")
+        st.write(clustered_data)
+
+        gdf = upload_geojson_file()
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
+
+            gdf = gdf[gdf['Province'].notna()]
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+            gdf['color'] = gdf['Cluster'].map({
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            })
+            gdf['color'].fillna('grey', inplace=True)
+
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
+
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            st.pyplot(fig)
+
+# Main function
+def download_template():
+    # URL to the raw CSV file
+    template_url = "https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv"
+    
+    # Fetch the CSV file content
+    response = requests.get(template_url)
+    response.raise_for_status()  # Raise an error for bad responses
+    
+    # Return the CSV content
+    return response.content
+
+def main():
+    st.set_page_config(page_title="Clustering", page_icon="📊", layout="wide")
+
+    # Create a download button for the CSV template
+    csv_content = download_template()
+    st.download_button(
+        label="Download CSV Template",
+        data=csv_content,
+        file_name="TEMPLATE.csv",
+        mime="text/csv",
+    )
+
+    # Allow users to upload data
+    st.markdown("## Upload Data")
+    data_df = upload_csv_file()
+
+    # Create a sidebar menu for navigation
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
+                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
+
+    # Load the appropriate page based on user selection
+    if selected == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected == "Pemetaan Linkage":
+        pemetaan(data_df)
+    elif selected == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data_df)
+
 if __name__ == "__main__":
-    app()
+    main()
