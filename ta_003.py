@@ -70,7 +70,7 @@ def statistika_deskriptif(data_df):
 
 # Pemetaan Page
 def pemetaan(data_df):
-    st.subheader("Pemetaan Clustering dengan DTW")
+    st.subheader("Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -179,7 +179,7 @@ def pemetaan(data_df):
 
 # Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
-    st.subheader("Pemetaan KMedoids")
+    st.subheader("Pemetaan dengan Metode K-Medoids")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -290,7 +290,7 @@ def main():
     # Create a download button for the CSV template
     csv_content = download_template()
     st.download_button(
-        label="Download CSV Template",
+        label="Klik Disini Untuk Mendownload Template CSV",
         data=csv_content,
         file_name="TEMPLATE.csv",
         mime="text/csv",
