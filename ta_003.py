@@ -285,7 +285,7 @@ def download_template():
     return response.content
 
 def main():
-    st.set_page_config(page_title="Dashboard Pengelompokkan dan Pemetaan", page_icon="📊", layout="wide")
+    st.set_page_config(page_title="Dashboard Clustering", page_icon="📊", layout="wide")
 
     # Create a download button for the CSV template
     csv_content = download_template()
