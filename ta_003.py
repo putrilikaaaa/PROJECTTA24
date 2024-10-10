@@ -290,7 +290,7 @@ def main():
     # Create a download button for the CSV template
     csv_content = download_template()
     st.download_button(
-        label="Klik Disini Untuk Mendownload Template CSV",
+        label="Download CSV Template
         data=csv_content,
         file_name="TEMPLATE.csv",
         mime="text/csv",
