@@ -129,7 +129,7 @@ def pemetaan(data_df):
             'Cluster': cluster_labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster")
+        st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
         gdf = upload_geojson_file()
@@ -224,7 +224,7 @@ def pemetaan_kmedoids(data_df):
             'Cluster': cluster_labels
         })
 
-        st.subheader("Tabel Provinsi per Cluster")
+        st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
         gdf = upload_geojson_file()
