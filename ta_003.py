@@ -218,6 +218,7 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
+        # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
@@ -269,49 +270,36 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - K-Medoids")
             st.pyplot(fig)
 
-# Main function
-def download_template():
-    # URL to the raw CSV file
-    template_url = "https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv"
-    
-    # Fetch the CSV file content
-    response = requests.get(template_url)
-    response.raise_for_status()  # Raise an error for bad responses
-    
-    # Return the CSV content
-    return response.content
-
+# Tampilan Utama Streamlit
 def main():
-    st.set_page_config(page_title="Dashboard Clustering", page_icon="📊", layout="wide")
+    logo_url = "https://cdn.discordapp.com/attachments/1066143878597001237/1158967315946403920/jdsjccnsdcjcn.png"
+    st.sidebar.image(logo_url, use_column_width=True)
 
-    # Create a download button for the CSV template
-    csv_content = download_template()
-    st.download_button(
-        label="Download CSV Template",  # Corrected string literal
-        data=csv_content,
-        file_name="TEMPLATE.csv",
-        mime="text/csv",
+    selected_page = option_menu("Main Menu", ["Home", "Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+        icons=['house', 'bar-chart', 'geo', 'map'],
+        menu_icon="cast", default_index=0, orientation="vertical",
+        styles={
+            "container": {"padding": "5!important", "background-color": "#0C4A6E"},
+            "icon": {"color": "white", "font-size": "18px"},
+            "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#262730"},
+            "nav-link-selected": {"background-color": "#0C4A6E"},
+        }
     )
 
-    # Allow users to upload data
-    st.markdown("## Upload Data")
-    data_df = upload_csv_file()
+    data = upload_csv_file()
 
-    # Create a sidebar menu for navigation
-    with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
-                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
-
-    # Load the appropriate page based on user selection
-    if selected == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected == "Pemetaan Linkage":
-        pemetaan(data_df)
-    elif selected == "Pemetaan KMedoids":
-        pemetaan_kmedoids(data_df)
+    if selected_page == "Home":
+        st.title("Welcome to the Home Page")
+        st.write("This is the home page. Feel free to explore the other sections!")
+    elif selected_page == "Statistika Deskriptif":
+        statistika_deskriptif(data)
+    elif selected_page == "Pemetaan":
+        pemetaan(data)
+    elif selected_page == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data)
 
 if __name__ == "__main__":
     main()
