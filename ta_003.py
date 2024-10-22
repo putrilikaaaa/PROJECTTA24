@@ -8,7 +8,7 @@ from sklearn_extra.cluster import KMedoids
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 import geopandas as gpd
-from sklearn.preprocessing import StandardScaler  # Replacing MinMaxScaler with StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from fastdtw import fastdtw
 from streamlit_option_menu import option_menu
 import requests
@@ -79,8 +79,7 @@ def pemetaan(data_df):
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Replace MinMaxScaler with StandardScaler for standardization
-        scaler = StandardScaler()
+        scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
@@ -189,8 +188,7 @@ def pemetaan_kmedoids(data_df):
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Use StandardScaler for standardization
-        scaler = StandardScaler()
+        scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
         max_n_clusters = 10
@@ -210,8 +208,8 @@ def pemetaan_kmedoids(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (K-Medoids)')
-        plt.xlabel('Number of Clusters')
+        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
+        plt.xlabel('Jumlah Kluster')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
@@ -220,7 +218,6 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
@@ -275,29 +272,45 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
 
-# Main App
+# Main function
+def download_template():
+    # URL to the raw CSV file
+    template_url = "https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv"
+    
+    # Fetch the CSV file content
+    response = requests.get(template_url)
+    response.raise_for_status()  # Raise an error for bad responses
+    
+    # Return the CSV content
+    return response.content
+
 def main():
-    st.set_page_config(page_title="Statistika Deskriptif dan Pemetaan", layout="wide")
+    st.set_page_config(page_title="Dashboard Clustering", page_icon="📊", layout="wide")
 
-    selected_option = option_menu(None, ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-                                  icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0,
-                                  styles={
-                                      "container": {"padding": "0!important", "background-color": "#1E3D5A"},
-                                      "icon": {"color": "white", "font-size": "25px"},
-                                      "nav-link": {"font-size": "16px", "text-align": "left", "margin": "0px",
-                                                   "--hover-color": "#273D4F"},
-                                      "nav-link-selected": {"background-color": "#1E3D5A"},
-                                  })
+    # Create a download button for the CSV template
+    csv_content = download_template()
+    st.download_button(
+        label="Download CSV Template",  # Corrected string literal
+        data=csv_content,
+        file_name="TEMPLATE.csv",
+        mime="text/csv",
+    )
 
+    # Allow users to upload data
+    st.markdown("## Upload Data")
     data_df = upload_csv_file()
 
-    if selected_option == "Statistika Deskriptif":
+    # Create a sidebar menu for navigation
+    with st.sidebar:
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
+                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
+
+    # Load the appropriate page based on user selection
+    if selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
-
-    elif selected_option == "Pemetaan":
+    elif selected == "Pemetaan Linkage":
         pemetaan(data_df)
-
-    elif selected_option == "Pemetaan KMedoids":
+    elif selected == "Pemetaan KMedoids":
         pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
