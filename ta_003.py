@@ -47,9 +47,8 @@ def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
-def statistika_deskriptif():
+def statistika_deskriptif(data_df):
     st.subheader("Statistika Deskriptif")
-    data_df = upload_csv_file()  # Moved here for upload
     if data_df is not None:
         provinces = [col for col in data_df.columns if col != 'Tanggal']
         province = st.selectbox("Pilih Provinsi", options=provinces)
@@ -179,9 +178,8 @@ def pemetaan(data_df):
             st.pyplot(fig)
 
 # Pemetaan KMedoids Page
-def pemetaan_kmedoids():
+def pemetaan_kmedoids(data_df):
     st.subheader("Pemetaan dengan Metode K-Medoids")
-    data_df = upload_csv_file()  # Moved here for upload
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -206,10 +204,11 @@ def pemetaan_kmedoids():
 
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (K-Medoids)')
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -219,7 +218,7 @@ def pemetaan_kmedoids():
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjusting to start from 1
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': cluster_labels
@@ -273,25 +272,30 @@ def pemetaan_kmedoids():
             plt.title(f"Pemetaan Provinsi per Kluster - K-Medoids")
             st.pyplot(fig)
 
-# Main Function
+# Home Page
+def home():
+    st.title("Aplikasi Pemodelan Data")
+    st.write("Selamat datang di aplikasi pemodelan data. Silakan pilih menu di atas untuk mulai.")
+
+# Menu Navigation
 def main():
-    st.set_page_config(page_title="Data Analisis", page_icon="📈", layout="wide")
-    st.title("Analisis Data dan Pemetaan")
+    st.set_page_config(page_title="Aplikasi Pemodelan Data", layout="wide")
+    with st.sidebar:
+        selected = option_menu("Menu", ["Home", "Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+                               icons=["house", "bar-chart-line", "map", "map"],
+                               menu_icon="cast", default_index=0)
 
-    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
-                           icons=["bar-chart", "map", "map"], menu_icon="cast", default_index=0, 
-                           styles={"container": {"padding": "5!important", "background-color": "#f0f2f5"},
-                                   "icon": {"color": "black", "font-size": "25px"}, 
-                                   "nav-link": {"font-size": "20px", "text-align": "left", "margin": "5px", 
-                                                "--hover-color": "#eee"}, 
-                                   "nav-link-selected": {"background-color": "#0061f2"}})
-
-    if selected == "Statistika Deskriptif":
-        statistika_deskriptif()
+    if selected == "Home":
+        home()
+    elif selected == "Statistika Deskriptif":
+        data = upload_csv_file()
+        statistika_deskriptif(data)
     elif selected == "Pemetaan":
-        pemetaan(upload_csv_file())
+        data = upload_csv_file()
+        pemetaan(data)
     elif selected == "Pemetaan KMedoids":
-        pemetaan_kmedoids()
+        data = upload_csv_file()
+        pemetaan_kmedoids(data)
 
 if __name__ == "__main__":
     main()
