@@ -271,8 +271,7 @@ def pemetaan_kmedoids(data_df):
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
             st.pyplot(fig)
-
-# Function for Home Page
+            
 def home_page():
     st.title("Selamat Datang di Dashboard Clustering")
     st.markdown("""
@@ -287,13 +286,24 @@ def home_page():
     """)
 
 # Main function
+def download_template():
+    # URL to the raw CSV file
+    template_url = "https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv"
+    
+    # Fetch the CSV file content
+    response = requests.get(template_url)
+    response.raise_for_status()  # Raise an error for bad responses
+    
+    # Return the CSV content
+    return response.content
+
 def main():
     st.set_page_config(page_title="Dashboard Clustering", page_icon="📊", layout="wide")
 
     # Create a download button for the CSV template
     csv_content = download_template()
     st.download_button(
-        label="Download CSV Template",
+        label="Download CSV Template",  # Corrected string literal
         data=csv_content,
         file_name="TEMPLATE.csv",
         mime="text/csv",
@@ -305,14 +315,14 @@ def main():
 
     # Create a sidebar menu for navigation
     with st.sidebar:
-        selected = option_menu("Menu", ["Home Page", "Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
-                               icons=['house', 'bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
+        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
+                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
 
     # Load the appropriate page based on user selection
     if selected == "Home Page":
-        home_page()
+    home_page()
     elif selected == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
+    statistika_deskriptif(data_df)
     elif selected == "Pemetaan Linkage":
         pemetaan(data_df)
     elif selected == "Pemetaan KMedoids":
