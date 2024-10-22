@@ -208,8 +208,8 @@ def pemetaan_kmedoids(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
-        plt.xlabel('Jumlah Kluster')
+        plt.title('Silhouette Score vs. Number of Clusters (K-Medoids)')
+        plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
@@ -269,45 +269,38 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - K-Medoids")
             st.pyplot(fig)
-            
-def home_page():
-    st.title("Selamat Datang di Dashboard Clustering")
-    st.markdown("""
-        Dashboard ini menyediakan analisis klustering berdasarkan data provinsi di Indonesia.
-        
-        Anda dapat:
-        - Mengunggah data Anda sendiri untuk analisis.
-        - Melihat statistik deskriptif dari data yang diunggah.
-        - Melakukan pemetaan menggunakan metode Linkage dan K-Medoids.
 
-        Pilih menu di sebelah kiri untuk memulai!
-    """)
-
-# Main function
+# Function to download template
 def download_template():
     # URL to the raw CSV file
     template_url = "https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv"
     
-    # Fetch the CSV file content
-    response = requests.get(template_url)
-    response.raise_for_status()  # Raise an error for bad responses
-    
-    # Return the CSV content
-    return response.content
+    try:
+        # Fetch the CSV file content
+        response = requests.get(template_url)
+        response.raise_for_status()  # Raise an error for bad responses
+        
+        # Return the CSV content
+        return response.content
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching the template: {e}")
+        return None
 
+# Main function to run the app
 def main():
     st.set_page_config(page_title="Dashboard Clustering", page_icon="📊", layout="wide")
 
     # Create a download button for the CSV template
     csv_content = download_template()
-    st.download_button(
-        label="Download CSV Template",  # Corrected string literal
-        data=csv_content,
-        file_name="TEMPLATE.csv",
-        mime="text/csv",
-    )
+    if csv_content is not None:
+        st.download_button(
+            label="Download CSV Template",
+            data=csv_content,
+            file_name="TEMPLATE.csv",
+            mime="text/csv",
+        )
 
     # Allow users to upload data
     st.markdown("## Upload Data")
@@ -319,10 +312,8 @@ def main():
                                icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
 
     # Load the appropriate page based on user selection
-    if selected == "Home Page":
-    home_page()
-    elif selected == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
+    if selected == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
     elif selected == "Pemetaan Linkage":
         pemetaan(data_df)
     elif selected == "Pemetaan KMedoids":
