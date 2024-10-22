@@ -24,6 +24,25 @@ def upload_csv_file():
             st.error(f"Error: {e}")
     return None
 
+# Function to download CSV template
+def download_template():
+    template_data = {
+        'Tanggal': ['2023-01-01', '2023-01-02', '2023-01-03'],
+        'Provinsi A': [100, 200, 300],
+        'Provinsi B': [400, 500, 600],
+        'Provinsi C': [700, 800, 900],
+    }
+    template_df = pd.DataFrame(template_data)
+    
+    csv = template_df.to_csv(index=False).encode('utf-8')
+    
+    st.download_button(
+        label="Download Template CSV",
+        data=csv,
+        file_name='template.csv',
+        mime='text/csv',
+    )
+
 # Function to upload GeoJSON files
 def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
@@ -196,20 +215,21 @@ def pemetaan_kmedoids(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
-            labels = kmedoids.fit_predict(data_daily_values.T)
-            score = silhouette_score(data_daily_values.T, labels)
+            clustering = KMedoids(n_clusters=n_clusters, metric='precomputed', init='k-medoids++')
+            dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+            clustering.fit(dtw_distance_matrix_daily)
+            labels = clustering.labels_
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Jumlah Kluster (KMedoids)')
-        plt.xlabel('Jumlah Kluster')
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
         plt.grid(True)
@@ -294,6 +314,7 @@ def main():
     if selected_page == "Home":
         st.title("Welcome to the Home Page")
         st.write("This is the home page. Feel free to explore the other sections!")
+        download_template()  # Added the download button here
     elif selected_page == "Statistika Deskriptif":
         statistika_deskriptif(data)
     elif selected_page == "Pemetaan":
