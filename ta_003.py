@@ -208,7 +208,7 @@ def pemetaan_kmedoids(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.title('Silhouette Score vs. Number of Clusters (K-Medoids)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -272,30 +272,64 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - K-Medoids")
             st.pyplot(fig)
 
-# Home Page
-def home():
-    st.title("Aplikasi Pemodelan Data")
-    st.write("Selamat datang di aplikasi pemodelan data. Silakan pilih menu di atas untuk mulai.")
+# Function to download template
+def download_template():
+    # URL to the raw CSV file
+    template_url = "https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv"
+    
+    try:
+        # Fetch the CSV file content
+        response = requests.get(template_url)
+        response.raise_for_status()  # Raise an error for bad responses
+        
+        # Return the CSV content
+        return response.content
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching the template: {e}")
+        return None
 
-# Menu Navigation
+# Homepage function
+def homepage():
+    st.title("Dashboard Clustering")
+    st.markdown("""
+    Selamat datang di Dashboard Clustering! 
+    Di sini Anda dapat menganalisis data dan melakukan pemetaan berdasarkan berbagai metode clustering.
+    
+    Silakan pilih menu di sebelah kiri untuk memulai analisis Anda.
+    """)
+
+# Main function to run the app
 def main():
-    st.set_page_config(page_title="Aplikasi Pemodelan Data", layout="wide")
-    with st.sidebar:
-        selected = option_menu("Menu", ["Home", "Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-                               icons=["house", "bar-chart-line", "map", "map"],
-                               menu_icon="cast", default_index=0)
+    st.set_page_config(page_title="Dashboard Clustering", page_icon="📊", layout="wide")
 
-    if selected == "Home":
-        home()
+    # Create a download button for the CSV template
+    csv_content = download_template()
+    if csv_content is not None:
+        st.download_button(
+            label="Download CSV Template",
+            data=csv_content,
+            file_name="TEMPLATE.csv",
+            mime="text/csv",
+        )
+
+    # Allow users to upload data
+    st.markdown("## Upload Data")
+    data_df = upload_csv_file()
+
+    # Create a sidebar menu for navigation
+    with st.sidebar:
+        selected = option_menu("Menu", ["Homepage", "Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
+                               icons=['house', 'bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
+
+    # Load the appropriate page based on user selection
+    if selected == "Homepage":
+        homepage()
     elif selected == "Statistika Deskriptif":
-        data = upload_csv_file()
-        statistika_deskriptif(data)
-    elif selected == "Pemetaan":
-        data = upload_csv_file()
-        pemetaan(data)
+        statistika_deskriptif(data_df)
+    elif selected == "Pemetaan Linkage":
+        pemetaan(data_df)
     elif selected == "Pemetaan KMedoids":
-        data = upload_csv_file()
-        pemetaan_kmedoids(data)
+        pemetaan_kmedoids(data_df)
 
 if __name__ == "__main__":
     main()
