@@ -24,6 +24,25 @@ def upload_csv_file():
             st.error(f"Error: {e}")
     return None
 
+# Function to download CSV template
+def download_template():
+    template_data = {
+        'Tanggal': ['2023-01-01', '2023-01-02', '2023-01-03'],
+        'Provinsi A': [100, 200, 300],
+        'Provinsi B': [400, 500, 600],
+        'Provinsi C': [700, 800, 900],
+    }
+    template_df = pd.DataFrame(template_data)
+    
+    csv = template_df.to_csv(index=False).encode('utf-8')
+    
+    st.download_button(
+        label="Download Template CSV",
+        data=csv,
+        file_name='template.csv',
+        mime='text/csv',
+    )
+
 # Function to upload GeoJSON files
 def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
@@ -45,12 +64,6 @@ def compute_dtw_distance_matrix(data):
 # Function to symmetrize a matrix (making it symmetric)
 def symmetrize(matrix):
     return (matrix + matrix.T) / 2
-
-# Home Page
-def home_page():
-    st.title("Selamat Datang di Dashboard Clustering")
-    st.write("Halaman ini memberikan analisis data menggunakan teknik clustering.")
-    st.write("Silakan pilih menu di sebelah kiri untuk mulai.")
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
@@ -202,9 +215,11 @@ def pemetaan_kmedoids(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
-            labels = kmedoids.fit_predict(data_daily_values.T)
-            score = silhouette_score(data_daily_values.T, labels)
+            clustering = KMedoids(n_clusters=n_clusters, metric='precomputed', init='k-medoids++')
+            dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+            clustering.fit(dtw_distance_matrix_daily)
+            labels = clustering.labels_
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
@@ -223,6 +238,7 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
+        # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
@@ -277,28 +293,34 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - K-Medoids")
             st.pyplot(fig)
 
-# Main code
-st.set_page_config(page_title="Clustering Dashboard", page_icon="📊", layout="wide")
-with st.sidebar:
-    selected = option_menu("Menu", ["Home", "Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-                           icons=['house', 'bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
+# Tampilan Utama Streamlit
+def main():
+    logo_url = "https://cdn.discordapp.com/attachments/1066143878597001237/1158967315946403920/jdsjccnsdcjcn.png"
+    st.sidebar.image(logo_url, use_column_width=True)
 
-data_df = upload_csv_file()
+    selected_page = option_menu("Main Menu", ["Home", "Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+        icons=['house', 'bar-chart', 'geo', 'map'],
+        menu_icon="cast", default_index=0, orientation="vertical",
+        styles={
+            "container": {"padding": "5!important", "background-color": "#0C4A6E"},
+            "icon": {"color": "white", "font-size": "18px"},
+            "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#262730"},
+            "nav-link-selected": {"background-color": "#0C4A6E"},
+        }
+    )
 
-if selected == "Home":
-    home_page()
-elif selected == "Statistika Deskriptif":
-    statistika_deskriptif(data_df)
-elif selected == "Pemetaan":
-    pemetaan(data_df)
-elif selected == "Pemetaan KMedoids":
-    pemetaan_kmedoids(data_df)
+    data = upload_csv_file()
 
-# CSV download button
-csv_file_path = "template.csv"  # Change this to your template CSV file path
-st.sidebar.download_button(
-    label="Download Template CSV",
-    data=open(csv_file_path, 'rb').read(),
-    file_name="template.csv",
-    mime="text/csv"
-)
+    if selected_page == "Home":
+        st.title("Welcome to the Home Page")
+        st.write("This is the home page. Feel free to explore the other sections!")
+        download_template()  # Added the download button here
+    elif selected_page == "Statistika Deskriptif":
+        statistika_deskriptif(data)
+    elif selected_page == "Pemetaan":
+        pemetaan(data)
+    elif selected_page == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data)
+
+if __name__ == "__main__":
+    main()
