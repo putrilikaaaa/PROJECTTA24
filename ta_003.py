@@ -47,8 +47,9 @@ def symmetrize(matrix):
     return (matrix + matrix.T) / 2
 
 # Statistika Deskriptif Page
-def statistika_deskriptif(data_df):
+def statistika_deskriptif():
     st.subheader("Statistika Deskriptif")
+    data_df = upload_csv_file()  # Moved here for upload
     if data_df is not None:
         provinces = [col for col in data_df.columns if col != 'Tanggal']
         province = st.selectbox("Pilih Provinsi", options=provinces)
@@ -178,8 +179,9 @@ def pemetaan(data_df):
             st.pyplot(fig)
 
 # Pemetaan KMedoids Page
-def pemetaan_kmedoids(data_df):
+def pemetaan_kmedoids():
     st.subheader("Pemetaan dengan Metode K-Medoids")
+    data_df = upload_csv_file()  # Moved here for upload
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -204,7 +206,6 @@ def pemetaan_kmedoids(data_df):
 
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
@@ -218,7 +219,7 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1  # Adjusting to start from 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
             'Cluster': cluster_labels
@@ -272,64 +273,25 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - K-Medoids")
             st.pyplot(fig)
 
-# Function to download template
-def download_template():
-    # URL to the raw CSV file
-    template_url = "https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/TEMPLATE.csv"
-    
-    try:
-        # Fetch the CSV file content
-        response = requests.get(template_url)
-        response.raise_for_status()  # Raise an error for bad responses
-        
-        # Return the CSV content
-        return response.content
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching the template: {e}")
-        return None
-
-# Homepage function
-def homepage():
-    st.title("Dashboard Clustering")
-    st.markdown("""
-    Selamat datang di Dashboard Clustering! 
-    Di sini Anda dapat menganalisis data dan melakukan pemetaan berdasarkan berbagai metode clustering.
-    
-    Silakan pilih menu di sebelah kiri untuk memulai analisis Anda.
-    """)
-
-# Main function to run the app
+# Main Function
 def main():
-    st.set_page_config(page_title="Dashboard Clustering", page_icon="📊", layout="wide")
+    st.set_page_config(page_title="Data Analisis", page_icon="📈", layout="wide")
+    st.title("Analisis Data dan Pemetaan")
 
-    # Create a download button for the CSV template
-    csv_content = download_template()
-    if csv_content is not None:
-        st.download_button(
-            label="Download CSV Template",
-            data=csv_content,
-            file_name="TEMPLATE.csv",
-            mime="text/csv",
-        )
+    selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"], 
+                           icons=["bar-chart", "map", "map"], menu_icon="cast", default_index=0, 
+                           styles={"container": {"padding": "5!important", "background-color": "#f0f2f5"},
+                                   "icon": {"color": "black", "font-size": "25px"}, 
+                                   "nav-link": {"font-size": "20px", "text-align": "left", "margin": "5px", 
+                                                "--hover-color": "#eee"}, 
+                                   "nav-link-selected": {"background-color": "#0061f2"}})
 
-    # Allow users to upload data
-    st.markdown("## Upload Data")
-    data_df = upload_csv_file()
-
-    # Create a sidebar menu for navigation
-    with st.sidebar:
-        selected = option_menu("Menu", ["Homepage", "Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
-                               icons=['house', 'bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
-
-    # Load the appropriate page based on user selection
-    if selected == "Homepage":
-        homepage()
-    elif selected == "Statistika Deskriptif":
-        statistika_deskriptif(data_df)
-    elif selected == "Pemetaan Linkage":
-        pemetaan(data_df)
+    if selected == "Statistika Deskriptif":
+        statistika_deskriptif()
+    elif selected == "Pemetaan":
+        pemetaan(upload_csv_file())
     elif selected == "Pemetaan KMedoids":
-        pemetaan_kmedoids(data_df)
+        pemetaan_kmedoids()
 
 if __name__ == "__main__":
     main()
