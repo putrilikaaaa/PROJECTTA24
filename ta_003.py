@@ -298,22 +298,16 @@ def main():
     logo_url = "https://cdn.discordapp.com/attachments/1066143878597001237/1158967315946403920/jdsjccnsdcjcn.png"
     st.sidebar.image(logo_url, use_column_width=True)
 
-  selected_page = option_menu("Main Menu", ["Home", "Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
-    icons=['house', 'bar-chart', 'geo', 'map'],
-    menu_icon="cast", default_index=0, orientation="vertical",
-    styles={
-        "container": {"padding": "5!important", "background-color": "#007BFF"},  # Change to blue
-        "icon": {"color": "white", "font-size": "18px"},
-        "nav-link": {
-            "font-size": "16px", 
-            "text-align": "left", 
-            "margin": "0px", 
-            "--hover-color": "#0056b3",  # Darker blue on hover
-            "color": "white"  # Set font color to white
-        },
-        "nav-link-selected": {"background-color": "#0056b3"},  # Selected color
-    }
-)
+    selected_page = option_menu("Main Menu", ["Home", "Statistika Deskriptif", "Pemetaan", "Pemetaan KMedoids"],
+        icons=['house', 'bar-chart', 'geo', 'map'],
+        menu_icon="cast", default_index=0, orientation="vertical",
+        styles={
+            "container": {"padding": "5!important", "background-color": "#0C4A6E"},
+            "icon": {"color": "white", "font-size": "18px"},
+            "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#262730"},
+            "nav-link-selected": {"background-color": "#0C4A6E"},
+        }
+    )
 
     data = upload_csv_file()
 
