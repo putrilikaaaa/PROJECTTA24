@@ -288,6 +288,16 @@ def download_template():
         st.error(f"Error fetching the template: {e}")
         return None
 
+# Homepage function
+def homepage():
+    st.title("Dashboard Clustering")
+    st.markdown("""
+    Selamat datang di Dashboard Clustering! 
+    Di sini Anda dapat menganalisis data dan melakukan pemetaan berdasarkan berbagai metode clustering.
+    
+    Silakan pilih menu di sebelah kiri untuk memulai analisis Anda.
+    """)
+
 # Main function to run the app
 def main():
     st.set_page_config(page_title="Dashboard Clustering", page_icon="📊", layout="wide")
@@ -308,11 +318,13 @@ def main():
 
     # Create a sidebar menu for navigation
     with st.sidebar:
-        selected = option_menu("Menu", ["Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
-                               icons=['bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
+        selected = option_menu("Menu", ["Homepage", "Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
+                               icons=['house', 'bar-chart', 'map', 'map'], menu_icon="cast", default_index=0)
 
     # Load the appropriate page based on user selection
-    if selected == "Statistika Deskriptif":
+    if selected == "Homepage":
+        homepage()
+    elif selected == "Statistika Deskriptif":
         statistika_deskriptif(data_df)
     elif selected == "Pemetaan Linkage":
         pemetaan(data_df)
