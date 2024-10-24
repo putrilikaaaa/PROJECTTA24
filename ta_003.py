@@ -403,11 +403,11 @@ if selected == "Homepage":
     <div style="text-align: justify;">
     3. Klik halaman Pemetaan KMedoids pada menu bagian atas halaman untuk melihat pemetaan dan pengelompokkan provinsi berdasarkan nilai dan periode waktu. Petunjuknya sama dengan halaman Pemetaan Linkage hanya saja tidak terdapat dendogram pada halaman ini karena metode KMedoids merupakan metode non-hierarki atau tidak memiliki tingkatan.
     </div>
-    """, unsafe_allow_html=True)
+    <br>
+   """, unsafe_allow_html=True)
 
     # Display the image for "Pemetaan KMedoids"
     st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PK%201.png")
-
 
 
 elif selected == "Statistika Deskriptif":
