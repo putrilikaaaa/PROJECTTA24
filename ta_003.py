@@ -298,6 +298,12 @@ def load_data():
 if selected == "Homepage":
     st.title("Selamat Datang di Aplikasi Prediksi Transaksi")
     st.subheader("Pilih menu dari bagian atas untuk memulai")
+    st.write("""
+    Aplikasi ini dirancang untuk mengetahui pengelompokkan daerah provinsi di Indonesia berdasarkan pola waktunya.
+    Metode pengelompokkan yang digunakan pada aplikasi ini adalah menggunakan jarak **Dynamic Time Warping (DTW)** dan 
+    metode pengelompokkan secara hierarki dengan menggunakan **Single Linkage**, **Complete Linkage**, dan **Average Linkage**, 
+    serta pengelompokkan secara non-hierarki dengan menggunakan **K-Medoids**.
+    """)
 
 elif selected == "Statistika Deskriptif":
     data_df = upload_csv_file()  # File upload for Statistika Deskriptif
