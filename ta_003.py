@@ -311,7 +311,8 @@ if selected == "Homepage":
     st.subheader("Panduan Pengguna")
     st.markdown("""
     <div style="text-align: justify;">
-    1. Download Template CSV dengan klik tombol berikut. Sesuaikan periode waktunya dengan periode waktu data anda dan jangan merubah nama provinsi.
+    1. Download Template CSV dengan klik tombol berikut. Sesuaikan periode waktunya dengan periode waktu data anda dan jangan merubah nama provinsi. Data yang
+    dimasukkan merupakan data runtun waktu seperti data nilai produksi, harga komoditas, temperatur udara, curah hujan, dan lainnya selama beberapa periode waktu.
     </div>
     """, unsafe_allow_html=True)
 
