@@ -365,6 +365,36 @@ if selected == "Homepage":
     </div>
     """, unsafe_allow_html=True)
 
+    # Display the first image
+    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%203.png")
+
+    # Add text below the first image
+    st.markdown("""
+    <div style="text-align: justify;">
+    Silhouette Score tertinggi menunjukkan jumlah klaster yang optimum. Pada contoh di atas menunjukkan bahwa klaster optimum berjumlah 2 klaster karena memiliki Silhouette Score tertinggi, yaitu sebesar 0,46.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Display the second image
+    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%204.png")
+
+    # Add text below the second image
+    st.markdown("""
+    <div style="text-align: justify;">
+    Dendogram menunjukkan anggota klaster berdasarkan tingkatan atau hierarkinya. Pada gambar di atas anggota klaster pertama memiliki garis berwarna jingga dan anggota klaster kedua memiliki garis berwarna hijau.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Display the third image
+    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%205.png")
+
+    # Add text below the third image
+    st.markdown("""
+    <div style="text-align: justify;">
+    Peta yang terbentuk memiliki 2 warna karena terdapat 2 klaster. Wilayah dengan warna merah merupakan anggota klaster 1 dan warna kuning merupakan klaster 2. Wilayah pada satu klaster yang sama memiiki pola nilai yang sama, kenaikan dan penurunan yang sama pade setiap periodenya.
+    </div>
+     """, unsafe_allow_html=True)
+
 
 elif selected == "Statistika Deskriptif":
     data_df = upload_csv_file()  # File upload for Statistika Deskriptif
