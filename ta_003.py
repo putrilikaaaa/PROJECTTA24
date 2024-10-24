@@ -395,7 +395,7 @@ if selected == "Homepage":
     st.markdown("""
     <div style="text-align: justify;">
     Peta yang terbentuk memiliki 2 warna karena terdapat 2 klaster. Wilayah dengan warna merah merupakan anggota klaster 1 dan warna kuning merupakan klaster 2. Wilayah pada satu klaster yang sama memiiki pola nilai yang sama, kenaikan dan penurunan yang sama pade setiap periodenya.
-    <br>
+    <br><br>
     </div>
      """, unsafe_allow_html=True)
     
