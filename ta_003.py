@@ -297,7 +297,6 @@ def load_data():
 
 if selected == "Home Page":
     st.title("Selamat Datang di Aplikasi Pengelompokkan dan Pemetaan Provinsi Indonesia")
-    st.subheader("Pilih menu dari bagian atas untuk memulai")
     st.markdown("""
     <div style="text-align: justify;">
     Aplikasi ini dirancang untuk mengetahui pengelompokkan daerah provinsi di Indonesia berdasarkan pola waktunya.
