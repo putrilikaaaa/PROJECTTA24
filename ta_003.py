@@ -70,7 +70,7 @@ def statistika_deskriptif(data_df):
 
 # Pemetaan Linkage Page
 def pemetaan(data_df):
-    st.subheader("Pemetaan dengan Metode Linkage")
+    st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
@@ -179,7 +179,7 @@ def pemetaan(data_df):
 
 # Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
-    st.subheader("Pemetaan dengan Metode K-Medoids")
+    st.subheader("Halaman Pemetaan dengan Metode K-Medoids")
 
     if data_df is not None:
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
