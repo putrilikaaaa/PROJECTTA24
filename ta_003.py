@@ -349,7 +349,11 @@ if selected == "Home Page":
     """, unsafe_allow_html=True)
 
     # Display the second image with the raw URL
-    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20SD%202.png")
+    st.markdown("""
+    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
+    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20SD%202.png" alt="Statistika Deskriptif" width="600">
+    </div>
+    """, unsafe_allow_html=True)
 
     # Add additional explanation for the "Pemetaan Linkage" section
     st.markdown("""
@@ -366,8 +370,12 @@ if selected == "Home Page":
     """, unsafe_allow_html=True)
 
     # Display the image for the "Pemetaan Linkage" section
-    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%202.png")
-
+    st.markdown("""
+    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
+    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%202.png" alt="Statistika Deskriptif" width="600">
+    </div>
+    """, unsafe_allow_html=True)
+    
     # Add the additional text below the image
     st.markdown("""
     <div style="text-align: justify;">
@@ -376,7 +384,11 @@ if selected == "Home Page":
     """, unsafe_allow_html=True)
 
     # Display the first image
-    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%203.png")
+    st.markdown("""
+    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
+    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%203.png" alt="Statistika Deskriptif" width="600">
+    </div>
+    """, unsafe_allow_html=True)
 
     # Add text below the first image
     st.markdown("""
@@ -386,7 +398,11 @@ if selected == "Home Page":
     """, unsafe_allow_html=True)
 
     # Display the second image
-    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%204.png")
+    st.markdown("""
+    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
+    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%204.png" alt="Statistika Deskriptif" width="600">
+    </div>
+    """, unsafe_allow_html=True)
 
     # Add text below the second image
     st.markdown("""
@@ -396,7 +412,11 @@ if selected == "Home Page":
     """, unsafe_allow_html=True)
 
     # Display the third image
-    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%205.png")
+    st.markdown("""
+    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
+    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%205.png" alt="Statistika Deskriptif" width="600">
+    </div>
+    """, unsafe_allow_html=True)
 
     # Add text below the third image
     st.markdown("""
@@ -415,7 +435,11 @@ if selected == "Home Page":
    """, unsafe_allow_html=True)
 
     # Display the image for "Pemetaan KMedoids"
-    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PK%201.png")
+    st.markdown("""
+    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
+    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PK%201.png" alt="Statistika Deskriptif" width="600">
+    </div>
+    """, unsafe_allow_html=True)
 
 
 elif selected == "Statistika Deskriptif":
