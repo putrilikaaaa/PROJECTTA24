@@ -356,7 +356,7 @@ if selected == "Homepage":
     """, unsafe_allow_html=True)
 
     # Display the image for the "Pemetaan Linkage" section
-    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%201.png")
+    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%202.png")
 
 
 
