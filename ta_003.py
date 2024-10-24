@@ -48,7 +48,7 @@ def symmetrize(matrix):
 
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
-    st.subheader("Statistika Deskriptif")
+    st.subheader("Halaman Statistika Deskriptif")
     if data_df is not None:
         provinces = [col for col in data_df.columns if col != 'Tanggal']
         province = st.selectbox("Pilih Provinsi", options=provinces)
