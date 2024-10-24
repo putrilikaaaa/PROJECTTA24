@@ -276,7 +276,7 @@ def pemetaan_kmedoids(data_df):
 # Sidebar options
 selected = option_menu(
     menu_title=None,
-    options=["Homepage", "Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
+    options=["Home Page", "Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
     icons=["house", "bar-chart", "map", "map"],
     default_index=0,
     orientation="horizontal",
@@ -295,7 +295,7 @@ def load_data():
     data = pd.read_csv(url)
     return data
 
-if selected == "Homepage":
+if selected == "Home Page":
     st.title("Selamat Datang di Aplikasi Pengelompokkan dan Pemetaan Provinsi Indonesia")
     st.subheader("Pilih menu dari bagian atas untuk memulai")
     st.markdown("""
