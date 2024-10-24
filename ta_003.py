@@ -307,6 +307,21 @@ if selected == "Homepage":
     </div>
     """, unsafe_allow_html=True)
 
+    # Panduan Pengguna section with download button
+    st.subheader("Panduan Pengguna")
+    st.markdown("""
+    <div style="text-align: justify;">
+    1. Download Template CSV dengan klik tombol berikut. Sesuaikan periode waktunya dengan periode waktu data anda dan jangan merubah nama provinsi.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Add the download button for the template CSV
+    st.markdown("""
+    <a href="https://github.com/putrilikaaaa/PROJECTTA24/blob/main/TEMPLATE.csv" download>
+    <button style="background-color:#2C6DD5;color:white;padding:10px;border-radius:5px;border:none;font-size:16px;">Download Template CSV</button>
+    </a>
+    """, unsafe_allow_html=True)
+
 elif selected == "Statistika Deskriptif":
     data_df = upload_csv_file()  # File upload for Statistika Deskriptif
     statistika_deskriptif(data_df)
