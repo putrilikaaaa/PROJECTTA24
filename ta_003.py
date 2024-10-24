@@ -315,14 +315,6 @@ if selected == "Homepage":
     </div>
     """, unsafe_allow_html=True)
 
-    # Panduan Pengguna section with download button
-    st.subheader("Panduan Pengguna")
-    st.markdown("""
-    <div style="text-align: justify;">
-    1. Download Template CSV dengan klik tombol berikut. Sesuaikan periode waktunya dengan periode waktu data anda dan jangan merubah nama provinsi.
-    </div>
-    """, unsafe_allow_html=True)
-
     # Download the template file
     template_url = 'https://github.com/putrilikaaaa/PROJECTTA24/raw/main/TEMPLATE.csv'
     response = requests.get(template_url)
