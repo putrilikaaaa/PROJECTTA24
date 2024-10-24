@@ -308,26 +308,31 @@ if selected == "Homepage":
     """, unsafe_allow_html=True)
 
     # Panduan Pengguna section with download button
-    st.subheader("Panduan Pengguna")
-    st.markdown("""
-    <div style="text-align: justify;">
-    1. Download Template CSV dengan klik tombol berikut. Sesuaikan periode waktunya dengan periode waktu data anda dan jangan merubah nama provinsi. Data yang
-    dimasukkan merupakan data runtun waktu seperti data nilai produksi, harga komoditas, temperatur udara, curah hujan, dan lainnya selama beberapa periode waktu.
-    </div>
-    """, unsafe_allow_html=True)
+st.subheader("Panduan Pengguna")
+st.markdown("""
+<div style="text-align: justify;">
+1. Download Template CSV dengan klik tombol berikut. Sesuaikan periode waktunya dengan periode waktu data anda dan jangan merubah nama provinsi. Data yang dimasukkan merupakan data runtun waktu seperti data nilai produksi, harga komoditas, temperatur udara, curah hujan, dan lainnya selama beberapa periode waktu.
+<br><br>
+2. Klik halaman Statistika Deskriptif pada menu bagian atas halaman untuk melihat kenaikan dan penurunan nilai pada setiap periode waktu. Upload file pada bagian "Upload file CSV".
+</div>
+""", unsafe_allow_html=True)
 
-    # Download the template file
-    template_url = 'https://github.com/putrilikaaaa/PROJECTTA24/raw/main/TEMPLATE.csv'
-    response = requests.get(template_url)
-    template_data = response.content
+# Download the template file
+template_url = 'https://github.com/putrilikaaaa/PROJECTTA24/raw/main/TEMPLATE.csv'
+response = requests.get(template_url)
+template_data = response.content
 
-    # Add the download button
-    st.download_button(
-        label="Download Template CSV",
-        data=template_data,
-        file_name="TEMPLATE.csv",
-        mime="text/csv"
-    )
+# Add the download button
+st.download_button(
+    label="Download Template CSV",
+    data=template_data,
+    file_name="TEMPLATE.csv",
+    mime="text/csv"
+)
+
+# Adding image for Statistika Deskriptif page
+image_url = 'https://github.com/putrilikaaaa/PROJECTTA24/blob/main/Page%20SD%201.png'
+st.image(image_url, caption='Halaman Statistika Deskriptif', use_column_width=True)
 
 elif selected == "Statistika Deskriptif":
     data_df = upload_csv_file()  # File upload for Statistika Deskriptif
