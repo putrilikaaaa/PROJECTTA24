@@ -358,6 +358,12 @@ if selected == "Homepage":
     # Display the image for the "Pemetaan Linkage" section
     st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%202.png")
 
+    # Add the additional text below the image
+    st.markdown("""
+    <div style="text-align: justify;">
+    Silahkan pilih metode yang ingin digunakan pada dropdown.
+    </div>
+    """, unsafe_allow_html=True)
 
 
 elif selected == "Statistika Deskriptif":
