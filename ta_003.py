@@ -361,7 +361,7 @@ if selected == "Homepage":
     # Add the additional text below the image
     st.markdown("""
     <div style="text-align: justify;">
-    Silahkan pilih metode yang ingin digunakan pada dropdown. Lalu akan muncul Silhouette Score Plot dan Peta Indonedia seperti tampilan di bawah ini.
+    Silahkan pilih metode yang ingin digunakan pada dropdown. Lalu akan muncul Silhouette Score Plot, Dendogram, dan Peta Indonedia seperti tampilan di bawah ini.
     </div>
     """, unsafe_allow_html=True)
 
