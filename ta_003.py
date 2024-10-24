@@ -351,7 +351,7 @@ if selected == "Homepage":
     # Add additional explanation for the "Pemetaan Linkage" section
     st.markdown("""
     <div style="text-align: justify;">
-    3. Klik halaman Pemetaan Linkage pada menu bagian atas halaman untuk melihat pemetaan dan pengelompokkan provinsi berdasarkan nilai dan periode waktu. Apabila telah mengupload file pada halaman Statistika Deskriptif maka tidak perlu mengupload ulang file pada halaman Pemetaan Linkage. Lalu akan muncul tampilan seperti di bawah ini.
+    3. Klik halaman Pemetaan Linkage pada menu bagian atas halaman untuk melihat pemetaan dan pengelompokkan provinsi berdasarkan nilai dan periode waktu. Upload ulang file seperti petunjuk pada halaman sebelumnya. Lalu akan muncul tampilan seperti di bawah ini.
     </div>
     """, unsafe_allow_html=True)
 
