@@ -355,6 +355,9 @@ if selected == "Homepage":
     </div>
     """, unsafe_allow_html=True)
 
+    # Display the additional image for "Pemetaan Linkage"
+    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%206.png")
+
     # Display the image for the "Pemetaan Linkage" section
     st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%202.png")
 
@@ -394,6 +397,16 @@ if selected == "Homepage":
     Peta yang terbentuk memiliki 2 warna karena terdapat 2 klaster. Wilayah dengan warna merah merupakan anggota klaster 1 dan warna kuning merupakan klaster 2. Wilayah pada satu klaster yang sama memiiki pola nilai yang sama, kenaikan dan penurunan yang sama pade setiap periodenya.
     </div>
      """, unsafe_allow_html=True)
+    # Add text for "Pemetaan KMedoids"
+    st.markdown("""
+    <div style="text-align: justify;">
+    3. Klik halaman Pemetaan KMedoids pada menu bagian atas halaman untuk melihat pemetaan dan pengelompokkan provinsi berdasarkan nilai dan periode waktu. Petunjuknya sama dengan halaman Pemetaan Linkage hanya saja tidak terdapat dendogram pada halaman ini karena metode KMedoids merupakan metode non-hierarki atau tidak memiliki tingkatan.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Display the image for "Pemetaan KMedoids"
+    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PK%201.png")
+
 
 
 elif selected == "Statistika Deskriptif":
