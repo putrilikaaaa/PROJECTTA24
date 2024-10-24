@@ -301,9 +301,9 @@ if selected == "Homepage":
     st.markdown("""
     <div style="text-align: justify;">
     Aplikasi ini dirancang untuk mengetahui pengelompokkan daerah provinsi di Indonesia berdasarkan pola waktunya.
-    Metode pengelompokkan yang digunakan pada aplikasi ini adalah menggunakan jarak <em>Dynamic Time Warping (DTW)</em> dan 
-    metode pengelompokkan secara hierarki dengan menggunakan <em>Single Linkage</em>, <em>Complete Linkage</em>, dan <em>Average Linkage</em>, 
-    serta pengelompokkan secara non-hierarki dengan menggunakan <em>K-Medoids</em>.
+    Metode pengelompokkan yang digunakan pada aplikasi ini adalah menggunakan jarak <em><strong>Dynamic Time Warping (DTW)</strong></em> dan 
+    metode pengelompokkan secara hierarki dengan menggunakan <em><strong>Single Linkage</strong></em>, <em><strong>Complete Linkage</strong></em>, dan 
+    <em><strong>Average Linkage</strong></em>, serta pengelompokkan secara non-hierarki dengan menggunakan <em><strong>K-Medoids</strong></em>.
     </div>
     """, unsafe_allow_html=True)
 
