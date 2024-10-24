@@ -359,7 +359,11 @@ if selected == "Home Page":
     """, unsafe_allow_html=True)
 
     # Display the additional image for "Pemetaan Linkage"
-    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%206.png")
+    st.markdown("""
+    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
+    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%206.png" alt="Statistika Deskriptif" width="600">
+    </div>
+    """, unsafe_allow_html=True)
 
     # Display the image for the "Pemetaan Linkage" section
     st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%202.png")
