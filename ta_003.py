@@ -348,6 +348,17 @@ if selected == "Homepage":
     # Display the second image with the raw URL
     st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20SD%202.png")
 
+    # Add additional explanation for the "Pemetaan Linkage" section
+    st.markdown("""
+    <div style="text-align: justify;">
+    3. Klik halaman Pemetaan Linkage pada menu bagian atas halaman untuk melihat pemetaan dan pengelompokkan provinsi berdasarkan nilai dan periode waktu. Apabila telah mengupload file pada halaman Statistika Deskriptif maka tidak perlu mengupload ulang file pada halaman Pemetaan Linkage. Lalu akan muncul tampilan seperti di bawah ini.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Display the image for the "Pemetaan Linkage" section
+    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%201.png")
+
+
 
 elif selected == "Statistika Deskriptif":
     data_df = upload_csv_file()  # File upload for Statistika Deskriptif
