@@ -335,7 +335,17 @@ if selected == "Homepage":
     </div>
     """, unsafe_allow_html=True)
 
-    # Display the image from the link
+    # Display the first image
+    st.image("https://github.com/putrilikaaaa/PROJECTTA24/raw/main/Page%20SD%201.png")
+
+    # Add additional explanation below the first image
+    st.markdown("""
+    <div style="text-align: justify;">
+    Setelah mengupload data, akan muncul tampilan seperti di bawah ini. Anda dapat memilih provinsi pada dropdown dan visualisasi kenaikan dan penurunan nilai pada setiap provinsi akan disajikan oleh aplikasi.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Display the second image
     st.image("https://github.com/putrilikaaaa/PROJECTTA24/raw/main/Page%20SD%201.png")
 
 elif selected == "Statistika Deskriptif":
