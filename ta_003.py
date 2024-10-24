@@ -335,7 +335,11 @@ if selected == "Home Page":
     """, unsafe_allow_html=True)
 
     # Display the first image
-    st.image("https://github.com/putrilikaaaa/PROJECTTA24/raw/main/Page%20SD%201.png")
+    st.markdown("""
+    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
+    <img src="https://github.com/putrilikaaaa/PROJECTTA24/raw/main/Page%20SD%201.png" alt="Statistika Deskriptif" width="600">
+    </div>
+    """, unsafe_allow_html=True)
 
     # Add additional explanation below the first image
     st.markdown("""
