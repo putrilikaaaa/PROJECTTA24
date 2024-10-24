@@ -345,8 +345,9 @@ if selected == "Homepage":
     </div>
     """, unsafe_allow_html=True)
 
-    # Display the second image
-    st.image("https://github.com/putrilikaaaa/PROJECTTA24/blob/main/Page%20SD%202.png")
+    # Display the second image with the raw URL
+    st.image("https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20SD%202.png")
+
 
 elif selected == "Statistika Deskriptif":
     data_df = upload_csv_file()  # File upload for Statistika Deskriptif
