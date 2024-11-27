@@ -177,6 +177,20 @@ def pemetaan(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
             st.pyplot(fig)
 
+# Function to compute DTW distance matrix using fastdtw
+def compute_dtw_distance_matrix(data):
+    num_series = data.shape[1]
+    dtw_distance_matrix = np.zeros((num_series, num_series))
+
+    for i in range(num_series):
+        for j in range(i, num_series):
+            # Using fastdtw to compute DTW distance
+            distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)
+            dtw_distance_matrix[i, j] = distance
+            dtw_distance_matrix[j, i] = distance  # DTW distance is symmetric
+
+    return dtw_distance_matrix
+    
 # Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
     st.subheader("Halaman Pemetaan dengan Metode K-Medoids")
@@ -188,25 +202,28 @@ def pemetaan_kmedoids(data_df):
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
+       # Scaling the data using MinMaxScaler
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values.T)
+        # Compute DTW distance matrix using fastdtw
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(pd.DataFrame(data_daily_values))
 
+        # K-Medoids clustering using DTW distance matrix
         max_n_clusters = 10
         silhouette_scores = {}
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            kmedoids = KMedoids(n_clusters=n_clusters, metric="precomputed", random_state=42)
-            labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
+            kmedoids = KMedoids(n_clusters=n_clusters, metric='precomputed', init='k-medoids++', random_state=42)
+            kmedoids.fit(dtw_distance_matrix_daily)
+            labels = kmedoids.labels_
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
@@ -220,7 +237,7 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        # Adjust cluster labels to start from 1 instead of 0
+        # Get cluster labels and map them starting from 1
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
@@ -272,7 +289,7 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - K-Medoids (DTW)")
             st.pyplot(fig)
 
 # Sidebar options
