@@ -198,9 +198,9 @@ def pemetaan_kmedoids(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
-            labels = kmedoids.fit_predict(data_daily_values.T)
-            score = silhouette_score(data_daily_values.T, labels)
+            kmedoids = KMedoids(n_clusters=n_clusters, metric="precomputed", random_state=42)
+            labels = kmedoids.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
