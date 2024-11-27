@@ -176,20 +176,7 @@ def pemetaan(data_df):
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
             st.pyplot(fig)
-            
-def compute_dtw_distance_matrix(data_values):
-    n = data_values.shape[1]
-    dtw_matrix = np.zeros((n, n))
-    for i in range(n):
-        for j in range(i + 1, n):
-            distance, _ = fastdtw(data_values[:, i].reshape(-1, 1), data_values[:, j].reshape(-1, 1), dist=euclidean)
-            dtw_matrix[i, j] = dtw_matrix[j, i] = distance
-    return dtw_matrix
 
-# Fungsi untuk menyimetrisasi matriks jarak
-def symmetrize(matrix):
-    return (matrix + matrix.T) / 2
-    
 # Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
     st.subheader("Halaman Pemetaan dengan Metode K-Medoids")
@@ -203,10 +190,6 @@ def pemetaan_kmedoids(data_df):
 
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
-        
-        # Hitung matriks jarak DTW
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
-        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
         max_n_clusters = 10
         silhouette_scores = {}
