@@ -218,11 +218,9 @@ def pemetaan_kmedoids(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        # Adjust cluster labels to start from 1 instead of 0
-        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
-            'Cluster': cluster_labels
+            'Cluster': cluster_labels_dict[optimal_n_clusters] + 1
         })
 
         st.subheader("Tabel Label Cluster Setiap Provinsi")
@@ -270,186 +268,28 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids (Euclidean Distance)")
             st.pyplot(fig)
 
-# Sidebar options
-selected = option_menu(
-    menu_title=None,
-    options=["Home Page", "Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
-    icons=["house", "bar-chart", "map", "map"],
-    default_index=0,
-    orientation="horizontal",
-    styles={
-        "nav-link": {"--hover-color": "#eee"},
-        "icon": {"color": "white"},
-        "nav-link-selected": {"background-color": "#2C6DD5"},
-        "nav-link": {"font-size": "18px", "text-align": "center", "margin": "0px", "--hover-color": "#2C6DD5"},
-        "nav-link-selected": {"background-color": "#2C6DD5"},
-    }
-)
+# Main Page Navigation
+def main():
+    st.set_page_config(page_title="Clustering Pemetaan", layout="wide")
 
-# Load sample data for pages
-def load_data():
-    url = 'https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/DATAFILE.csv'
-    data = pd.read_csv(url)
-    return data
-
-if selected == "Home Page":
-    st.title("Selamat Datang di Aplikasi Pengelompokkan dan Pemetaan Provinsi Indonesia")
-    st.markdown("""
-    <div style="text-align: justify;">
-    Aplikasi ini dirancang untuk mengetahui pengelompokkan daerah provinsi di Indonesia berdasarkan pola waktunya.
-    Metode pengelompokkan yang digunakan pada aplikasi ini adalah menggunakan jarak <em><strong>Dynamic Time Warping (DTW)</strong></em> dan 
-    metode pengelompokkan secara hierarki dengan menggunakan <em><strong>Single Linkage</strong></em>, <em><strong>Complete Linkage</strong></em>, dan 
-    <em><strong>Average Linkage</strong></em>, serta pengelompokkan secara non-hierarki dengan menggunakan <em><strong>K-Medoids</strong></em>.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Panduan Pengguna section with download button
-    st.subheader("Panduan Pengguna")
-    st.markdown("""
-    <div style="text-align: justify;">
-    1. Download Template CSV dengan klik tombol berikut. Sesuaikan periode waktunya dengan periode waktu data anda dan jangan merubah nama provinsi. Data yang dimasukkan merupakan data runtun waktu seperti data nilai produksi, harga komoditas, temperatur udara, curah hujan, dan lainnya selama beberapa periode waktu.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Download the template file
-    template_url = 'https://github.com/putrilikaaaa/PROJECTTA24/raw/main/TEMPLATE.csv'
-    response = requests.get(template_url)
-    template_data = response.content
-
-    # Add the download button
-    st.download_button(
-    label="Download Template CSV",
-    data=template_data,
-    file_name="TEMPLATE.csv",
-    mime="text/csv"
+    selected = option_menu(
+        menu_title="Pilih Halaman",
+        options=["Statistika Deskriptif", "Pemetaan Linkage", "Pemetaan KMedoids"],
+        icons=["bar-chart", "map", "map"],
+        default_index=0,
     )
 
-    # Add the second point and image
-    st.markdown("""
-    <div style="text-align: justify;">
-    2. Klik halaman Statistika Deskriptif pada menu bagian atas halaman untuk melihat kenaikan dan penurunan nilai pada setiap periode waktu. Upload file pada bagian "Upload file CSV".
-    </div>
-    """, unsafe_allow_html=True)
+    data_df = upload_csv_file()
 
-    # Display the first image
-    st.markdown("""
-    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://github.com/putrilikaaaa/PROJECTTA24/raw/main/Page%20SD%201.png" alt="Statistika Deskriptif" width="600">
-    </div>
-    """, unsafe_allow_html=True)
+    if selected == "Statistika Deskriptif":
+        statistika_deskriptif(data_df)
+    elif selected == "Pemetaan Linkage":
+        pemetaan(data_df)
+    elif selected == "Pemetaan KMedoids":
+        pemetaan_kmedoids(data_df)
 
-    # Add additional explanation below the first image
-    st.markdown("""
-    <div style="text-align: justify;">
-    Setelah mengupload data, akan muncul tampilan seperti di bawah ini. Anda dapat memilih provinsi pada dropdown dan visualisasi kenaikan dan penurunan nilai pada setiap provinsi akan disajikan oleh aplikasi.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Display the second image with the raw URL
-    st.markdown("""
-    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20SD%202.png" alt="Statistika Deskriptif" width="600">
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Add additional explanation for the "Pemetaan Linkage" section
-    st.markdown("""
-    <div style="text-align: justify;">
-    3. Klik halaman Pemetaan Linkage pada menu bagian atas halaman untuk melihat pemetaan dan pengelompokkan provinsi berdasarkan nilai dan periode waktu. Upload ulang file seperti petunjuk pada halaman sebelumnya. Lalu akan muncul tampilan seperti di bawah ini.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Display the additional image for "Pemetaan Linkage"
-    st.markdown("""
-    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%206.png" alt="Statistika Deskriptif" width="600">
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Display the image for the "Pemetaan Linkage" section
-    st.markdown("""
-    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%202.png" alt="Statistika Deskriptif" width="600">
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Add the additional text below the image
-    st.markdown("""
-    <div style="text-align: justify;">
-    Silahkan pilih metode yang ingin digunakan pada dropdown. Lalu akan muncul Silhouette Score Plot, Dendogram, dan Peta Indonedia seperti tampilan di bawah ini.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Display the first image
-    st.markdown("""
-    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%203.png" alt="Statistika Deskriptif" width="600">
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Add text below the first image
-    st.markdown("""
-    <div style="text-align: justify;">
-    Silhouette Score tertinggi menunjukkan jumlah klaster yang optimum. Pada contoh di atas menunjukkan bahwa klaster optimum berjumlah 2 klaster karena memiliki Silhouette Score tertinggi, yaitu sebesar 0,46.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Display the second image
-    st.markdown("""
-    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%204.png" alt="Statistika Deskriptif" width="600">
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Add text below the second image
-    st.markdown("""
-    <div style="text-align: justify;">
-    Dendogram menunjukkan anggota klaster berdasarkan tingkatan atau hierarkinya. Pada gambar di atas anggota klaster pertama memiliki garis berwarna jingga dan anggota klaster kedua memiliki garis berwarna hijau.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Display the third image
-    st.markdown("""
-    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%205.png" alt="Statistika Deskriptif" width="600">
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Add text below the third image
-    st.markdown("""
-    <div style="text-align: justify;">
-    Peta yang terbentuk memiliki 2 warna karena terdapat 2 klaster. Wilayah dengan warna merah merupakan anggota klaster 1 dan warna kuning merupakan klaster 2. Wilayah pada satu klaster yang sama memiiki pola nilai yang sama, kenaikan dan penurunan yang sama pade setiap periodenya.
-    <br><br>
-    </div>
-     """, unsafe_allow_html=True)
-    
-    # Add text for "Pemetaan KMedoids"
-    st.markdown("""
-    <div style="text-align: justify;">
-    3. Klik halaman Pemetaan KMedoids pada menu bagian atas halaman untuk melihat pemetaan dan pengelompokkan provinsi berdasarkan nilai dan periode waktu. Petunjuknya sama dengan halaman Pemetaan Linkage hanya saja tidak terdapat dendogram pada halaman ini karena metode KMedoids merupakan metode non-hierarki atau tidak memiliki tingkatan.
-    </div>
-    
-   """, unsafe_allow_html=True)
-
-    # Display the image for "Pemetaan KMedoids"
-    st.markdown("""
-    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PK%201.png" alt="Statistika Deskriptif" width="600">
-    </div>
-    """, unsafe_allow_html=True)
-
-
-elif selected == "Statistika Deskriptif":
-    data_df = upload_csv_file()  # File upload for Statistika Deskriptif
-    statistika_deskriptif(data_df)
-
-elif selected == "Pemetaan Linkage":
-    data_df = upload_csv_file()  # File upload for Pemetaan Linkage
-    pemetaan(data_df)
-
-elif selected == "Pemetaan KMedoids":
-    data_df = upload_csv_file()  # File upload for Pemetaan KMedoids
-    pemetaan_kmedoids(data_df)
+if __name__ == "__main__":
+    main()
