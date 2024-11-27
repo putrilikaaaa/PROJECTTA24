@@ -191,14 +191,21 @@ def pemetaan_kmedoids(data_df):
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
+       # Hitung matriks jarak DTW
+        dtw_dist_matrix = np.zeros((data_daily_values.shape[1], data_daily_values.shape[1]))
+        for i in range(len(data_daily_values.T)):
+            for j in range(len(data_daily_values.T)):
+                if i != j:
+                    dtw_dist_matrix[i, j] = dtw.distance(data_daily_values[:, i], data_daily_values[:, j])
+
         max_n_clusters = 10
         silhouette_scores = {}
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            kmedoids = KMedoids(n_clusters=n_clusters, metric="euclidean", random_state=42)
-            labels = kmedoids.fit_predict(data_daily_values.T)
-            score = silhouette_score(data_daily_values.T, labels)
+            kmedoids = KMedoids(n_clusters=n_clusters, metric="precomputed", random_state=42)
+            labels = kmedoids.fit_predict(dtw_dist_matrix)
+            score = silhouette_score(dtw_dist_matrix, labels, metric="precomputed")
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
@@ -208,7 +215,7 @@ def pemetaan_kmedoids(data_df):
         for n_clusters, score in silhouette_scores.items():
             plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.title('Silhouette Score vs. Number of Clusters (DTW Distance)')
         plt.xlabel('Number of Clusters')
         plt.ylabel('Silhouette Score')
         plt.xticks(range(2, max_n_clusters + 1))
@@ -270,7 +277,7 @@ def pemetaan_kmedoids(data_df):
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids")
+            plt.title(f"Pemetaan Provinsi per Kluster - KMedoids (DTW)")
             st.pyplot(fig)
 
 # Sidebar options
