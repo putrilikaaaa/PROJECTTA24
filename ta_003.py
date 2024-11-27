@@ -190,6 +190,10 @@ def pemetaan_kmedoids(data_df):
 
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
+        
+        # Hitung matriks jarak DTW
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
         max_n_clusters = 10
         silhouette_scores = {}
