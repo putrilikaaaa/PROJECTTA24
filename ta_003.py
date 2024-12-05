@@ -94,6 +94,9 @@ def pemetaan(data_df):
         for n_clusters in range(2, max_n_clusters + 1):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            if len(set(labels)) < 2:
+                st.warning(f"Silhouette score tidak dapat dihitung untuk {n_clusters} cluster karena jumlah cluster kurang dari dua.")
+                continue  # Lewati iterasi ini
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
