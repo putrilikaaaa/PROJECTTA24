@@ -29,7 +29,7 @@ def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
 
-# Function to compute DTW distance matrix
+# Function to compute DTW distance matrix for linkage
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
     dtw_distance_matrix = np.zeros((num_series, num_series))
@@ -178,7 +178,7 @@ def pemetaan(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
             st.pyplot(fig)
 
-# Function to compute DTW distance matrix using fastdtw
+# Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
     dtw_distance_matrix = np.zeros((num_series, num_series))
@@ -208,7 +208,7 @@ def pemetaan_kmedoids(data_df):
         data_daily_values = scaler.fit_transform(data_daily)
 
         # Compute DTW distance matrix using fastdtw
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(pd.DataFrame(data_daily_values))
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
 
         # K-Medoids clustering using DTW distance matrix
         max_n_clusters = 10
