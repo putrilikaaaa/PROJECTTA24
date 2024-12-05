@@ -39,7 +39,7 @@ def compute_dtw_distance_matrix(data):
             # Using fastdtw to compute DTW distance
             distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)
             dtw_distance_matrix[i, j] = distance
-            dtw_distance_matrix[j, i] = distance  # DTW distance is symmetric
+            dtw_distance_matrix[j, i] = distance  # Symmetry enforcement
 
     return dtw_distance_matrix
 
