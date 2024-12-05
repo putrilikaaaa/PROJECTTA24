@@ -96,7 +96,7 @@ def pemetaan(data_df):
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             if len(set(labels)) < 2:
                 st.warning(f"Silhouette score tidak dapat dihitung untuk {n_clusters} cluster karena jumlah cluster kurang dari dua.")
-                continue  # Lewati iterasi ini
+                continue
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
@@ -113,9 +113,12 @@ def pemetaan(data_df):
         plt.grid(True)
         st.pyplot(plt)
 
+    if silhouette_scores:
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
-
+    else:
+    st.error("Tidak ada jumlah kluster yang valid untuk menghitung Silhouette Score.")
+    
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
