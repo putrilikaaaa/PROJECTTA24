@@ -95,45 +95,52 @@ def pemetaan(data_df):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
             
-            if len(set(labels)) < 2:
+            unique_labels = set(labels)
+            if len(unique_labels) < 2:
                 st.warning(f"Silhouette score tidak dapat dihitung untuk {n_clusters} cluster karena jumlah cluster kurang dari dua.")
+                continue
+                
+            # Ensure that each cluster has more than one sample
+            cluster_sizes = [list(labels).count(label) for label in unique_labels]
+            if any(size == 1 for size in cluster_sizes):
+                st.warning(f"Silhouette score tidak dapat dihitung untuk {n_clusters} cluster karena ada cluster yang hanya memiliki satu sampel.")
                 continue
                 
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
-        # Visualisasi Silhouette Score
-        if silhouette_scores:
-            plt.figure(figsize=(10, 6))
-            plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-            for n_clusters, score in silhouette_scores.items():
-                plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+        plt.figure(figsize=(10, 6))
+        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-            plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
-            plt.xlabel('Number of Clusters')
-            plt.ylabel('Silhouette Score')
-            plt.xticks(range(2, max_n_clusters + 1))
-            plt.grid(True)
-            st.pyplot(plt)
-
-            optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-            st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
-        else:
-            st.error("Tidak ada jumlah kluster yang valid untuk menghitung Silhouette Score.")
-            return
-    
-        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
-
-        plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
-        plt.xlabel('Provinsi')
-        plt.ylabel('Jarak DTW')
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('Silhouette Score')
+        plt.xticks(range(2, max_n_clusters + 1))
+        plt.grid(True)
         st.pyplot(plt)
 
-        # Adjust cluster labels to start from 1 instead of 0
+ if silhouette_scores:
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+ else:
+        st.error("Tidak ada jumlah kluster yang valid untuk menghitung Silhouette Score.")
+
+    condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+    Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+
+    plt.figure(figsize=(16, 10))
+    dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+    plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+    plt.xlabel('Provinsi')
+    plt.ylabel('Jarak DTW')
+    st.pyplot(plt)
+
+    # Adjust cluster labels to start from 1 instead of 0
+    if silhouette_scores:
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
