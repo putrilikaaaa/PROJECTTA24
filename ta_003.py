@@ -36,7 +36,8 @@ def compute_dtw_distance_matrix(data):
 
     for i in range(num_series):
         for j in range(i, num_series):
-            distance, _ = fastdtw(data[:, i], data[:, j])
+            # Using fastdtw to compute DTW distance
+            distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)
             dtw_distance_matrix[i, j] = distance
             dtw_distance_matrix[j, i] = distance  # DTW distance is symmetric
 
@@ -185,7 +186,7 @@ def compute_dtw_distance_matrix(data):
     for i in range(num_series):
         for j in range(i, num_series):
             # Using fastdtw to compute DTW distance
-            distance, _ = fastdtw(data[:, i], data[:, j])  # Access numpy array columns
+            distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)
             dtw_distance_matrix[i, j] = distance
             dtw_distance_matrix[j, i] = distance  # DTW distance is symmetric
 
