@@ -70,6 +70,7 @@ def statistika_deskriptif(data_df):
         st.write(data_df[province].describe())
 
 # Pemetaan Linkage Page
+# Pemetaan Linkage Page
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
@@ -94,18 +95,19 @@ def pemetaan(data_df):
         for n_clusters in range(2, max_n_clusters + 1):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
-            
+
+            # Check if each cluster contains at least one sample
             unique_labels = set(labels)
             if len(unique_labels) < 2:
                 st.warning(f"Silhouette score tidak dapat dihitung untuk {n_clusters} cluster karena jumlah cluster kurang dari dua.")
                 continue
-                
+
             # Ensure that each cluster has more than one sample
             cluster_sizes = [list(labels).count(label) for label in unique_labels]
             if any(size == 1 for size in cluster_sizes):
                 st.warning(f"Silhouette score tidak dapat dihitung untuk {n_clusters} cluster karena ada cluster yang hanya memiliki satu sampel.")
                 continue
-                
+
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
@@ -122,78 +124,78 @@ def pemetaan(data_df):
         plt.grid(True)
         st.pyplot(plt)
 
- if silhouette_scores:
-        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
- else:
-        st.error("Tidak ada jumlah kluster yang valid untuk menghitung Silhouette Score.")
+        if silhouette_scores:
+            optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+            st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+        else:
+            st.error("Tidak ada jumlah kluster yang valid untuk menghitung Silhouette Score.")
 
-    condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-    Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
-    plt.figure(figsize=(16, 10))
-    dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-    plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
-    plt.xlabel('Provinsi')
-    plt.ylabel('Jarak DTW')
-    st.pyplot(plt)
+        plt.figure(figsize=(16, 10))
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.xlabel('Provinsi')
+        plt.ylabel('Jarak DTW')
+        st.pyplot(plt)
 
-    # Adjust cluster labels to start from 1 instead of 0
-    if silhouette_scores:
-        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
-        clustered_data = pd.DataFrame({
-            'Province': data_daily.columns,
-            'Cluster': cluster_labels
-        })
-
-        st.subheader("Tabel Label Cluster Setiap Provinsi")
-        st.write(clustered_data)
-
-        gdf = upload_geojson_file()
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+        # Adjust cluster labels to start from 1 instead of 0
+        if silhouette_scores:
+            optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+            cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+            clustered_data = pd.DataFrame({
+                'Province': data_daily.columns,
+                'Cluster': cluster_labels
             })
 
-            gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+            st.subheader("Tabel Label Cluster Setiap Provinsi")
+            st.write(clustered_data)
 
-            gdf['color'] = gdf['Cluster'].map({
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
+            gdf = upload_geojson_file()
+            if gdf is not None:
+                gdf = gdf.rename(columns={'Propinsi': 'Province'})
+                gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
+                clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
-            st.pyplot(fig)
+                gdf['Province'] = gdf['Province'].replace({
+                    'DI ACEH': 'ACEH',
+                    'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                    'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                    'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                    'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+                })
+
+                gdf = gdf[gdf['Province'].notna()]
+                gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+                gdf['color'] = gdf['Cluster'].map({
+                    1: 'red',
+                    2: 'yellow',
+                    3: 'green',
+                    4: 'blue',
+                    5: 'purple',
+                    6: 'orange',
+                    7: 'pink',
+                    8: 'brown',
+                    9: 'cyan',
+                    10: 'magenta'
+                })
+                gdf['color'].fillna('grey', inplace=True)
+
+                grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+                if grey_provinces:
+                    st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                    st.write(grey_provinces)
+                else:
+                    st.write("Semua provinsi termasuk dalam kluster.")
+
+                fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+                gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+                gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+                plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
+                st.pyplot(fig)
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
