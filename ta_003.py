@@ -94,30 +94,34 @@ def pemetaan(data_df):
         for n_clusters in range(2, max_n_clusters + 1):
             clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
             labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            
             if len(set(labels)) < 2:
                 st.warning(f"Silhouette score tidak dapat dihitung untuk {n_clusters} cluster karena jumlah cluster kurang dari dua.")
                 continue
+                
             score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
-        plt.figure(figsize=(10, 6))
-        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-        for n_clusters, score in silhouette_scores.items():
-            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+        # Visualisasi Silhouette Score
+        if silhouette_scores:
+            plt.figure(figsize=(10, 6))
+            plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+            for n_clusters, score in silhouette_scores.items():
+                plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
-        plt.xlabel('Number of Clusters')
-        plt.ylabel('Silhouette Score')
-        plt.xticks(range(2, max_n_clusters + 1))
-        plt.grid(True)
-        st.pyplot(plt)
+            plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+            plt.xlabel('Number of Clusters')
+            plt.ylabel('Silhouette Score')
+            plt.xticks(range(2, max_n_clusters + 1))
+            plt.grid(True)
+            st.pyplot(plt)
 
-    if silhouette_scores:
-        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
-    else:
-    st.error("Tidak ada jumlah kluster yang valid untuk menghitung Silhouette Score.")
+            optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+            st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+        else:
+            st.error("Tidak ada jumlah kluster yang valid untuk menghitung Silhouette Score.")
+            return
     
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
