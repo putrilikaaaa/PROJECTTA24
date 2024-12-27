@@ -29,6 +29,24 @@ def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
 
+# Function to compute DTW distance matrix for linkage
+def compute_dtw_distance_matrix(data):
+    num_series = data.shape[1]
+    dtw_distance_matrix = np.zeros((num_series, num_series))
+
+    for i in range(num_series):
+        for j in range(i, num_series):
+            # Using fastdtw to compute DTW distance
+            distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)
+            dtw_distance_matrix[i, j] = distance
+            dtw_distance_matrix[j, i] = distance  # Symmetry enforcement
+
+    return dtw_distance_matrix
+
+# Function to symmetrize a matrix (making it symmetric)
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
+
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
     st.subheader("Halaman Statistika Deskriptif")
@@ -51,23 +69,6 @@ def statistika_deskriptif(data_df):
         st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
         st.write(data_df[province].describe())
 
-# Function to compute DTW distance matrix for linkage
-def compute_dtw_distance_matrix(data):
-    num_series = data.shape[1]  # Number of columns (time series)
-    dtw_distance_matrix = np.zeros((num_series, num_series))  # Initialize distance matrix
-
-    for i in range(num_series):
-        for j in range(i, num_series):
-            # Using fastdtw to compute DTW distance
-            distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)  # Access columns properly
-            dtw_distance_matrix[i, j] = distance
-            dtw_distance_matrix[j, i] = distance  # Ensure symmetry
-
-    return dtw_distance_matrix
-
-# Function to symmetrize a matrix (making it symmetric)
-def symmetrize(matrix):
-    return (matrix + matrix.T) / 2
 # Pemetaan Linkage Page
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
@@ -80,24 +81,20 @@ def pemetaan(data_df):
         data_daily.fillna(method='ffill', inplace=True)
 
         scaler = MinMaxScaler()
-        data_daily_scaled = pd.DataFrame(
-            scaler.fit_transform(data_daily),
-            columns=data_daily.columns,
-            index=data_daily.index
-        )
+        data_daily_values = scaler.fit_transform(data_daily)
 
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-        dtw_distance_matrix = compute_dtw_distance_matrix(data_daily_scaled)
-        dtw_distance_matrix = symmetrize(dtw_distance_matrix)
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
         max_n_clusters = 10
         silhouette_scores = {}
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            clustering = AgglomerativeClustering(n_clusters=n_clusters, affinity='precomputed', linkage=linkage_method)
-            labels = clustering.fit_predict(dtw_distance_matrix)
-            score = silhouette_score(dtw_distance_matrix, labels, metric='precomputed')
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
@@ -116,7 +113,7 @@ def pemetaan(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix)
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
         plt.figure(figsize=(16, 10))
@@ -126,7 +123,7 @@ def pemetaan(data_df):
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Tabel cluster
+        # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
