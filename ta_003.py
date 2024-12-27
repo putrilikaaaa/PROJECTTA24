@@ -95,9 +95,9 @@ def pemetaan(data_df):
         cluster_labels_dict = {}
 
         for n_clusters in range(2, max_n_clusters + 1):
-            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
-            labels = clustering.fit_predict(dtw_distance_matrix_daily)
-            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, affinity='precomputed', linkage=linkage_method)
+            labels = clustering.fit_predict(dtw_distance_matrix)
+            score = silhouette_score(dtw_distance_matrix, labels, metric='precomputed')
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
@@ -116,7 +116,7 @@ def pemetaan(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
         plt.figure(figsize=(16, 10))
@@ -126,7 +126,7 @@ def pemetaan(data_df):
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Adjust cluster labels to start from 1 instead of 0
+        # Tabel cluster
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
