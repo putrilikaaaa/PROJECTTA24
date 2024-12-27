@@ -53,15 +53,15 @@ def statistika_deskriptif(data_df):
 
 # Function to compute DTW distance matrix for linkage
 def compute_dtw_distance_matrix(data):
-    num_series = data.shape[1]
-    dtw_distance_matrix = np.zeros((num_series, num_series))
+    num_series = data.shape[1]  # Number of columns (time series)
+    dtw_distance_matrix = np.zeros((num_series, num_series))  # Initialize distance matrix
 
     for i in range(num_series):
         for j in range(i, num_series):
             # Using fastdtw to compute DTW distance
-            distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)
+            distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)  # Access columns properly
             dtw_distance_matrix[i, j] = distance
-            dtw_distance_matrix[j, i] = distance  # Symmetry enforcement
+            dtw_distance_matrix[j, i] = distance  # Ensure symmetry
 
     return dtw_distance_matrix
 
