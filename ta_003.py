@@ -29,24 +29,6 @@ def upload_geojson_file():
     gdf = gpd.read_file('https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/indonesia-prov.geojson')
     return gdf
 
-# Function to compute DTW distance matrix for linkage
-def compute_dtw_distance_matrix(data):
-    num_series = data.shape[1]
-    dtw_distance_matrix = np.zeros((num_series, num_series))
-
-    for i in range(num_series):
-        for j in range(i, num_series):
-            # Using fastdtw to compute DTW distance
-            distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)
-            dtw_distance_matrix[i, j] = distance
-            dtw_distance_matrix[j, i] = distance  # Symmetry enforcement
-
-    return dtw_distance_matrix
-
-# Function to symmetrize a matrix (making it symmetric)
-def symmetrize(matrix):
-    return (matrix + matrix.T) / 2
-
 # Statistika Deskriptif Page
 def statistika_deskriptif(data_df):
     st.subheader("Halaman Statistika Deskriptif")
@@ -69,6 +51,23 @@ def statistika_deskriptif(data_df):
         st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
         st.write(data_df[province].describe())
 
+# Function to compute DTW distance matrix for linkage
+def compute_dtw_distance_matrix(data):
+    num_series = data.shape[1]
+    dtw_distance_matrix = np.zeros((num_series, num_series))
+
+    for i in range(num_series):
+        for j in range(i, num_series):
+            # Using fastdtw to compute DTW distance
+            distance, _ = fastdtw(data.iloc[:, i].values, data.iloc[:, j].values)
+            dtw_distance_matrix[i, j] = distance
+            dtw_distance_matrix[j, i] = distance  # Symmetry enforcement
+
+    return dtw_distance_matrix
+
+# Function to symmetrize a matrix (making it symmetric)
+def symmetrize(matrix):
+    return (matrix + matrix.T) / 2
 # Pemetaan Linkage Page
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
@@ -81,11 +80,15 @@ def pemetaan(data_df):
         data_daily.fillna(method='ffill', inplace=True)
 
         scaler = MinMaxScaler()
-        data_daily_values = scaler.fit_transform(data_daily)
+        data_daily_scaled = pd.DataFrame(
+            scaler.fit_transform(data_daily),
+            columns=data_daily.columns,
+            index=data_daily.index
+        )
 
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
-        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+        dtw_distance_matrix = compute_dtw_distance_matrix(data_daily_scaled)
+        dtw_distance_matrix = symmetrize(dtw_distance_matrix)
 
         max_n_clusters = 10
         silhouette_scores = {}
