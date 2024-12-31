@@ -81,6 +81,9 @@ def pemetaan(data_df):
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
+        # Menghitung standar deviasi per provinsi
+        std_devs = data_daily.std()
+
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
@@ -134,13 +137,6 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-        # Calculate standard deviation for each province
-        std_dev_values = data_daily.std(axis=0)
-
-        # Normalize the standard deviation values to use as a color scale
-        norm = plt.Normalize(vmin=std_dev_values.min(), vmax=std_dev_values.max())
-        cmap = plt.cm.viridis  # You can use other colormaps too (e.g., 'inferno', 'plasma')
-
         # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
@@ -160,28 +156,18 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Add the standard deviation values to the GeoDataFrame for color mapping
-            gdf['std_dev'] = gdf['Province'].map(std_dev_values)
+            # Menggabungkan nilai standar deviasi untuk setiap provinsi ke GeoDataFrame
+            gdf['std_dev'] = gdf['Province'].map(std_devs)
 
-            # Set up a Folium map with the geojson and color the regions based on std_dev
-            m = folium.Map(location=[-2.5, 118], zoom_start=5)  # Center of Indonesia
+            # Menentukan warna berdasarkan standar deviasi (semakin besar standar deviasi, semakin gelap warnanya)
+            gdf['color'] = gdf['std_dev'].apply(lambda x: plt.cm.get_cmap('YlOrRd')(x / gdf['std_dev'].max()))  # YlOrRd adalah color map yang sesuai untuk gradien
 
-            # Apply color to each province based on its standard deviation
-            for _, row in gdf.iterrows():
-                color = cmap(norm(row['std_dev']))
-                folium.GeoJson(
-                    row['geometry'],
-                    style_function=lambda x, color=color: {
-                        'fillColor': color,
-                        'fillOpacity': 0.7,
-                        'color': 'black',
-                        'weight': 0.5,
-                    }
-                ).add_to(m)
-
-            # Display the map
-            st.subheader("Pemetaan Heatmap Berdasarkan Standar Deviasi")
-            st.map(m)
+            # Plot the map with standard deviation color
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi (DTW)")
+            st.pyplot(fig)
             
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
