@@ -155,60 +155,32 @@ def pemetaan(data_df):
             cluster_options = list(range(1, optimal_n_clusters + 1))
             # Dropdown to select the cluster
 # Dropdown to select the cluster
-selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+            selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
-# Update color based on selected cluster
-gdf['color'] = 'grey'  # Default color
-gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-    1: 'red',
-    2: 'yellow',
-    3: 'green',
-    4: 'blue',
-    5: 'purple',
-    6: 'orange',
-    7: 'pink',
-    8: 'brown',
-    9: 'cyan',
-    10: 'magenta'
-}.get(selected_cluster, 'grey')
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            }.get(selected_cluster, 'grey')
 
-# Filter the data for the selected cluster
-gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+            # Filter the data for the selected cluster
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
 
-# Plot the map with the selected cluster
-fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
-st.pyplot(fig)
-
-# Line chart for Provinces in the selected cluster
-provinces_in_cluster = list(gdf_cluster['Province'])
-provinces_in_cluster = [province.strip().upper() for province in provinces_in_cluster]
-
-# Cek apakah provinsi yang dipilih ada di data_daily
-missing_provinces = [province for province in provinces_in_cluster if province not in data_daily.columns]
-
-# Jika ada provinsi yang hilang, beri tahu pengguna
-if missing_provinces:
-    st.warning(f"Provinsi yang tidak ditemukan dalam data: {', '.join(missing_provinces)}")
-
-# Pilih provinsi yang valid untuk line chart
-provinces_in_cluster = [province for province in provinces_in_cluster if province in data_daily.columns]
-
-# Jika ada provinsi yang cocok, buatkan linechart
-if provinces_in_cluster:
-    data_for_plot = data_daily[provinces_in_cluster]
-    fig, ax = plt.subplots(figsize=(12, 6))
-    for province in provinces_in_cluster:
-        ax.plot(data_for_plot.index, data_for_plot[province], label=province)
-    ax.set_title(f"Line Chart untuk Kluster {selected_cluster}")
-    ax.set_xlabel('Tanggal')
-    ax.set_ylabel('Nilai')
-    ax.legend()
-    st.pyplot(fig)
-else:
-    st.warning("Tidak ada provinsi yang cocok untuk kluster ini.")
+            # Plot the map with the selected cluster
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+            st.pyplot(fig)
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
