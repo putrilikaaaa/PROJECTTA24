@@ -134,12 +134,12 @@ def pemetaan(data_df):
         st.write(clustered_data)
 
         # GeoJSON visualization with cluster dropdown
-    gdf = upload_geojson_file()
-    if gdf is not None:
-    gdf = gdf.rename(columns={'Propinsi': 'Province'})
-    gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+        gdf = upload_geojson_file()  # Assuming upload_geojson_file() is defined elsewhere
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-    clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
     gdf['Province'] = gdf['Province'].replace({
         'DI ACEH': 'ACEH',
