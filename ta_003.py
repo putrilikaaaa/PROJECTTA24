@@ -184,38 +184,33 @@ def pemetaan(data_df):
             plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi dan Kluster {selected_cluster} (DTW)")
             st.pyplot(fig)
 
-            # Plot Linechart for Provinces in the selected cluster
-            provinces_in_cluster = [province.strip().upper() for province in clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']]
-            data_columns_normalized = [col.strip().upper() for col in data_daily.columns]
+            # Line chart for Provinces in the selected cluster
+            provinces_in_cluster = list(clustered_data[clustered_data['Cluster'] == selected_cluster]['Province'])
+            provinces_in_cluster = [province.strip().upper() for province in provinces_in_cluster]
 
-            # Check if provinces in the cluster are present in the data
-            missing_provinces = [province for province in provinces_in_cluster if province not in data_columns_normalized]
+            # Cek apakah provinsi yang dipilih ada di data_daily
+            missing_provinces = [province for province in provinces_in_cluster if province not in data_daily.columns]
 
-            # If there are missing provinces, log them
+            # Jika ada provinsi yang hilang, beri tahu pengguna
             if missing_provinces:
-                st.warning(f"The following provinces are missing from the data: {', '.join(missing_provinces)}")
+                st.warning(f"Provinsi yang tidak ditemukan dalam data: {', '.join(missing_provinces)}")
 
-            # Remove missing provinces from the selection
-            provinces_in_cluster = [province for province in provinces_in_cluster if province in data_columns_normalized]
+            # Pilih provinsi yang valid untuk line chart
+            provinces_in_cluster = [province for province in provinces_in_cluster if province in data_daily.columns]
 
-            # Check if there are provinces left to plot
+            # Jika ada provinsi yang cocok, buatkan linechart
             if provinces_in_cluster:
                 data_for_plot = data_daily[provinces_in_cluster]
-                mean_values = data_for_plot.mean(axis=1)
-
                 fig, ax = plt.subplots(figsize=(12, 6))
                 for province in provinces_in_cluster:
                     ax.plot(data_for_plot.index, data_for_plot[province], label=province)
-                ax.plot(data_for_plot.index, mean_values, color='red', label='Rata-rata', linestyle='--')
-
-                ax.set_title(f"Linechart untuk Kluster {selected_cluster}")
+                ax.set_title(f"Line Chart untuk Kluster {selected_cluster}")
                 ax.set_xlabel('Tanggal')
                 ax.set_ylabel('Nilai')
                 ax.legend()
                 st.pyplot(fig)
             else:
                 st.warning("Tidak ada provinsi yang cocok untuk kluster ini.")
-
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
