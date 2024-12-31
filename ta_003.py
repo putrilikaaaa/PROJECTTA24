@@ -133,50 +133,52 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-        gdf = upload_geojson_file()
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+gdf = upload_geojson_file()
+if gdf is not None:
+    gdf = gdf.rename(columns={'Propinsi': 'Province'})
+    gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
+    clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+    gdf['Province'] = gdf['Province'].replace({
+        'DI ACEH': 'ACEH',
+        'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+        'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+        'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+        'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+    })
 
-            gdf['color'] = gdf['Cluster'].map({
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
+    gdf = gdf[gdf['Province'].notna()]
+    gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
+    # Dropdown to select the cluster
+    selected_cluster = st.selectbox("Pilih Kluster", options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
-            st.pyplot(fig)
+    # Update color based on selected cluster
+    gdf['color'] = 'grey'  # Default color
+    gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+        1: 'red',
+        2: 'yellow',
+        3: 'green',
+        4: 'blue',
+        5: 'purple',
+        6: 'orange',
+        7: 'pink',
+        8: 'brown',
+        9: 'cyan',
+        10: 'magenta'
+    }.get(selected_cluster, 'grey')
+
+    # Filter the data for the selected cluster
+    gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+
+    # Plot the map with the selected cluster
+    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+    gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+    gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+    plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+    st.pyplot(fig)
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
