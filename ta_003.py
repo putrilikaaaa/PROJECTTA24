@@ -253,6 +253,8 @@ def pemetaan_kmedoids(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
+       
+                # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -271,7 +273,14 @@ def pemetaan_kmedoids(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            gdf['color'] = gdf['Cluster'].map({
+            cluster_options = list(range(1, optimal_n_clusters + 1))
+            # Dropdown to select the cluster
+# Dropdown to select the cluster
+            selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
                 1: 'red',
                 2: 'yellow',
                 3: 'green',
@@ -282,22 +291,18 @@ def pemetaan_kmedoids(data_df):
                 8: 'brown',
                 9: 'cyan',
                 10: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
+            }.get(selected_cluster, 'grey')
 
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi termasuk dalam kluster.")
+            # Filter the data for the selected cluster
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
 
+            # Plot the map with the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - K-Medoids (DTW)")
+            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
-
+            
 # Sidebar options
 selected = option_menu(
     menu_title=None,
