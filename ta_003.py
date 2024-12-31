@@ -184,6 +184,9 @@ def pemetaan(data_df):
             # Add dropdown to select clusters for line chart
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province'].values
 
+            # Normalize provinces names to upper case and strip extra spaces
+            provinces_in_cluster = [province.upper().strip() for province in provinces_in_cluster]
+
             # Debugging: Check the provinces in the cluster and in the data_daily
             st.write("Provinces in the selected cluster:", provinces_in_cluster)
             st.write("Provinces in data_daily columns:", data_daily.columns)
