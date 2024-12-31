@@ -180,9 +180,6 @@ def pemetaan(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
-# Assuming 'data_df' is passed to 'pemetaan' function
-pemetaan(data_df)
-
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
