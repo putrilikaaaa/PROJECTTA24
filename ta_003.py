@@ -152,8 +152,9 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
+            cluster_options = list(range(1, optimal_n_clusters + 1))
             # Dropdown to select the cluster
-            selected_cluster = st.selectbox("Pilih Kluster", options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
             # Update color based on selected cluster
             gdf['color'] = 'grey'  # Default color
