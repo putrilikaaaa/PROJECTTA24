@@ -156,19 +156,34 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Menambahkan standar deviasi ke dalam GeoDataFrame
+            # Menggabungkan nilai standar deviasi untuk setiap provinsi ke GeoDataFrame
             gdf['std_dev'] = gdf['Province'].map(std_devs)
 
-            # Normalisasi standar deviasi untuk mapping warna
+            # Menentukan warna berdasarkan standar deviasi (semakin besar standar deviasi, semakin gelap warnanya)
+            # Menggunakan colormap 'YlOrRd_r' (terbalik dari YlOrRd) untuk mendapatkan warna gelap untuk nilai tinggi
             norm = plt.Normalize(vmin=gdf['std_dev'].min(), vmax=gdf['std_dev'].max())
-            cmap = plt.cm.YlOrRd_r  # Colormap terbalik (gelap ke terang)
-
-            # Map standar deviasi ke warna
+            cmap = plt.cm.YlOrRd_r  # Menggunakan YlOrRd_r untuk gradien terbalik (gelap ke terang)
             gdf['color'] = gdf['std_dev'].apply(lambda x: cmap(norm(x)))
 
             # Dropdown untuk memilih kluster
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+
+            # Tambahkan warna berdasarkan kluster
+            gdf['color'] = gdf.apply(
+                lambda row: {
+                    1: 'red',
+                    2: 'yellow',
+                    3: 'green',
+                    4: 'blue',
+                    5: 'purple',
+                    6: 'orange',
+                    7: 'pink',
+                    8: 'brown',
+                    9: 'cyan',
+                    10: 'magenta'
+                }.get(row['Cluster'], row['color']), axis=1
+            )
 
             # Plot the map with selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
@@ -177,6 +192,7 @@ def pemetaan(data_df):
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi dan Kluster {selected_cluster} (DTW)")
             st.pyplot(fig)
+
 
             
 # Function to compute DTW distance matrix using fastdtw for medoids
