@@ -69,7 +69,7 @@ def statistika_deskriptif(data_df):
         st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
         st.write(data_df[province].describe())
 
-Pemetaan Linkage Page
+# Pemetaan Linkage Page
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
