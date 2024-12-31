@@ -74,6 +74,7 @@ def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
+        # Preprocessing data
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
@@ -87,6 +88,7 @@ def pemetaan(data_df):
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
+        # Clustering and silhouette score calculation
         max_n_clusters = 10
         silhouette_scores = {}
         cluster_labels_dict = {}
@@ -98,6 +100,7 @@ def pemetaan(data_df):
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
+        # Silhouette score plot
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
         for n_clusters, score in silhouette_scores.items():
@@ -113,6 +116,7 @@ def pemetaan(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
+        # Dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
@@ -135,6 +139,7 @@ def pemetaan(data_df):
 
         gdf = upload_geojson_file()
         if gdf is not None:
+            # Preprocess GeoJSON
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
@@ -151,27 +156,25 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            gdf['color'] = gdf['Cluster'].map({
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            })
-            gdf['color'].fillna('grey', inplace=True)
+            # Add a dropdown to select the cluster
+            selected_cluster = st.selectbox("Pilih Cluster untuk Ditampilkan", options=[None] + list(range(1, optimal_n_clusters + 1)))
 
-            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
-                st.write(grey_provinces)
+            if selected_cluster is not None:
+                cluster_std_dev = data_daily.std(axis=0).reset_index()
+                cluster_std_dev.columns = ['Province', 'Standard_Deviation']
+                gdf = gdf.merge(cluster_std_dev, on='Province', how='left')
+
+                gdf['color'] = gdf.apply(
+                    lambda row: plt.cm.Reds(row['Standard_Deviation'] / gdf['Standard_Deviation'].max())
+                    if row['Cluster'] == selected_cluster else 'lightgrey', axis=1)
+
+                # Display provinces in selected cluster
+                st.subheader(f"Provinsi dalam Cluster {selected_cluster}")
+                st.write(gdf[gdf['Cluster'] == selected_cluster]['Province'].tolist())
             else:
-                st.write("Semua provinsi termasuk dalam kluster.")
+                gdf['color'] = 'grey'
 
+            # Plot the map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
