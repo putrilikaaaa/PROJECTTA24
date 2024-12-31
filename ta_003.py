@@ -180,18 +180,18 @@ def pemetaan(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
-            # Add dropdown to select provinces for line chart
+            # Add dropdown to select clusters for line chart
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province'].values
 
             # Ensure that provinces_in_cluster exists as columns in data_daily
             valid_provinces_in_cluster = [province for province in provinces_in_cluster if province in data_daily.columns]
 
             if valid_provinces_in_cluster:
-                selected_province = st.selectbox("Pilih Provinsi untuk Line Chart", options=valid_provinces_in_cluster)
+                selected_cluster_for_line_chart = st.selectbox("Pilih Kluster untuk Line Chart", options=cluster_options)
+                # Filter data for the selected cluster and plot the line chart
+                data_for_plot = data_daily[valid_provinces_in_cluster]
 
-                # Plot the line chart for the selected province
-                data_for_plot = data_daily[selected_province]
-                st.subheader(f"Line Chart untuk Provinsi: {selected_province}")
+                st.subheader(f"Line Chart untuk Provinsi dalam Kluster {selected_cluster_for_line_chart}")
                 st.line_chart(data_for_plot)
             else:
                 st.write("No valid provinces found for the selected cluster.")
