@@ -153,6 +153,9 @@ def pemetaan(data_df):
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
 
+            color_map = {
+                1: 'red', 2: 'yellow', 3: 'green', 4: 'blue', 5: 'purple', 6: 'orange', 7: 'pink', 8: 'brown', 9: 'cyan', 10: 'magenta'
+            }
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
@@ -164,15 +167,15 @@ def pemetaan(data_df):
                 cluster_std_dev.columns = ['Province', 'Standard_Deviation']
                 gdf = gdf.merge(cluster_std_dev, on='Province', how='left')
 
-                gdf['color'] = gdf.apply(
-                    lambda row: plt.cm.Reds(row['Standard_Deviation'] / gdf['Standard_Deviation'].max())
+               gdf['color'] = gdf.apply(
+                    lambda row: color_map.get(row['Cluster'], 'lightgrey')  # Use the color_map for clusters
                     if row['Cluster'] == selected_cluster else 'lightgrey', axis=1)
 
                 # Display provinces in selected cluster
                 st.subheader(f"Provinsi dalam Cluster {selected_cluster}")
                 st.write(gdf[gdf['Cluster'] == selected_cluster]['Province'].tolist())
             else:
-                gdf['color'] = 'grey'
+                gdf['color'] = gdf['Cluster'].apply(lambda x: color_map.get(x, 'grey'))'
 
             # Plot the map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
