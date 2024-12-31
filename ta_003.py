@@ -153,7 +153,9 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            gdf['StandardDeviation'] = gdf['Cluster'].map(clustered_data.groupby('Cluster').std().mean(axis=1))
+            std_dev = clustered_data.groupby('Cluster').std()
+            std_dev['MeanStd'] = std_dev.mean(axis=1)
+            gdf['StandardDeviation'] = gdf['Cluster'].map(std_dev['MeanStd'])
 
             gdf['color'] = gdf['StandardDeviation'].apply(lambda x: plt.cm.viridis((x - gdf['StandardDeviation'].min()) / (gdf['StandardDeviation'].max() - gdf['StandardDeviation'].min())))
 
@@ -167,6 +169,7 @@ def pemetaan(data_df):
             filtered_gdf.plot(ax=ax, color=filtered_gdf['color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Heatmap Cluster {selected_cluster}")
             st.pyplot(fig)
+
 
 
 # Function to compute DTW distance matrix using fastdtw for medoids
