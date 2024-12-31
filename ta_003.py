@@ -86,15 +86,61 @@ def pemetaan(data_df):
             st.error(f"Error in normalization: {e}")
             return
 
-        std_dev = data_daily.std(axis=0)
-        std_dev_df = pd.DataFrame({'Province': data_daily.columns, 'StdDev': std_dev})
+        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+
+        max_n_clusters = 10
+        silhouette_scores = {}
+        cluster_labels_dict = {}
+
+        for n_clusters in range(2, max_n_clusters + 1):
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+            silhouette_scores[n_clusters] = score
+            cluster_labels_dict[n_clusters] = labels
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('Silhouette Score')
+        plt.xticks(range(2, max_n_clusters + 1))
+        plt.grid(True)
+        st.pyplot(plt)
+
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+
+        plt.figure(figsize=(16, 10))
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.xlabel('Provinsi')
+        plt.ylabel('Jarak DTW')
+        st.pyplot(plt)
+
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        clustered_data = pd.DataFrame({
+            'Province': data_daily.columns,
+            'Cluster': cluster_labels
+        })
+
+        st.subheader("Tabel Label Cluster Setiap Provinsi")
+        st.write(clustered_data)
 
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            std_dev_df['Province'] = std_dev_df['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             gdf['Province'] = gdf['Province'].replace({
                 'DI ACEH': 'ACEH',
@@ -105,22 +151,22 @@ def pemetaan(data_df):
             })
 
             gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(std_dev_df, on='Province', how='left')
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            gdf['color'] = gdf['StdDev'].apply(lambda x: plt.cm.Reds(x / gdf['StdDev'].max()) if pd.notna(x) else (0.8, 0.8, 0.8, 1))
+            gdf['StandardDeviation'] = gdf['Cluster'].map(clustered_data.groupby('Cluster').std().mean(axis=1))
+
+            gdf['color'] = gdf['StandardDeviation'].apply(lambda x: plt.cm.viridis((x - gdf['StandardDeviation'].min()) / (gdf['StandardDeviation'].max() - gdf['StandardDeviation'].min())))
+
+            st.subheader("Pilih Cluster untuk Ditampilkan")
+            selected_cluster = st.selectbox("Cluster yang ingin ditampilkan", options=gdf['Cluster'].unique())
+
+            filtered_gdf = gdf[gdf['Cluster'] == selected_cluster]
 
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title("Pemetaan Heatmap Berdasarkan Standar Deviasi")
+            filtered_gdf.plot(ax=ax, color=filtered_gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Heatmap Cluster {selected_cluster}")
             st.pyplot(fig)
-
-            grey_provinces = gdf[gdf['StdDev'].isna()]['Province'].tolist()
-            if grey_provinces:
-                st.subheader("Provinsi yang Tidak Memiliki Data Standar Deviasi:")
-                st.write(grey_provinces)
-            else:
-                st.write("Semua provinsi memiliki data standar deviasi.")
 
 
 # Function to compute DTW distance matrix using fastdtw for medoids
