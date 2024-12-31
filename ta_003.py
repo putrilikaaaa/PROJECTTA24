@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
@@ -81,9 +80,6 @@ def pemetaan(data_df):
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Menghitung standar deviasi per provinsi
-        std_devs = data_daily.std()
-
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
@@ -137,7 +133,7 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-        # GeoJSON visualization with cluster dropdown
+                # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -145,72 +141,45 @@ def pemetaan(data_df):
 
             clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
+
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Menggabungkan nilai standar deviasi untuk setiap provinsi ke GeoDataFrame
-            gdf['std_dev'] = gdf['Province'].map(std_devs)
-
-            # Menentukan warna berdasarkan standar deviasi (semakin besar standar deviasi, semakin gelap warnanya)
-            norm = plt.Normalize(vmin=gdf['std_dev'].min(), vmax=gdf['std_dev'].max())
-            cmap = plt.cm.YlOrRd_r  # Menggunakan YlOrRd_r untuk gradien terbalik (gelap ke terang)
-            gdf['color'] = gdf['std_dev'].apply(lambda x: cmap(norm(x)))
-
-            # Dropdown untuk memilih kluster
             cluster_options = list(range(1, optimal_n_clusters + 1))
+            # Dropdown to select the cluster
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
-            # Tambahkan warna berdasarkan kluster
-            gdf['color'] = gdf.apply(
-                lambda row: {
-                    1: 'red',
-                    2: 'yellow',
-                    3: 'green',
-                    4: 'blue',
-                    5: 'purple',
-                    6: 'orange',
-                    7: 'pink',
-                    8: 'brown',
-                    9: 'cyan',
-                    10: 'magenta'
-                }.get(row['Cluster'], row['color']), axis=1
-            )
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            }.get(selected_cluster, 'grey')
 
-            # Plot the map with selected cluster
+            # Filter the data for the selected cluster
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+
+            # Plot the map with the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi dan Kluster {selected_cluster} (DTW)")
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
-
-            # Line chart for Provinces in the selected cluster
-            provinces_in_cluster = list(clustered_data[clustered_data['Cluster'] == selected_cluster]['Province'])
-            provinces_in_cluster = [province.strip().upper() for province in provinces_in_cluster]
-
-            # Cek apakah provinsi yang dipilih ada di data_daily
-            missing_provinces = [province for province in provinces_in_cluster if province not in data_daily.columns]
-
-            # Jika ada provinsi yang hilang, beri tahu pengguna
-            if missing_provinces:
-                st.warning(f"Provinsi yang tidak ditemukan dalam data: {', '.join(missing_provinces)}")
-
-            # Pilih provinsi yang valid untuk line chart
-            provinces_in_cluster = [province for province in provinces_in_cluster if province in data_daily.columns]
-
-            # Jika ada provinsi yang cocok, buatkan linechart
-            if provinces_in_cluster:
-                data_for_plot = data_daily[provinces_in_cluster]
-                fig, ax = plt.subplots(figsize=(12, 6))
-                for province in provinces_in_cluster:
-                    ax.plot(data_for_plot.index, data_for_plot[province], label=province)
-                ax.set_title(f"Line Chart untuk Kluster {selected_cluster}")
-                ax.set_xlabel('Tanggal')
-                ax.set_ylabel('Nilai')
-                ax.legend()
-                st.pyplot(fig)
-            else:
-                st.warning("Tidak ada provinsi yang cocok untuk kluster ini.")
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
@@ -225,7 +194,7 @@ def compute_dtw_distance_matrix(data):
             dtw_distance_matrix[j, i] = distance  # DTW distance is symmetric
 
     return dtw_distance_matrix
-    
+
 # Pemetaan KMedoids Page
 def pemetaan_kmedoids(data_df):
     st.subheader("Halaman Pemetaan dengan Metode K-Medoids")
@@ -354,8 +323,8 @@ if selected == "Home Page":
     st.markdown("""
     <div style="text-align: justify;">
     Aplikasi ini dirancang untuk mengetahui pengelompokkan daerah provinsi di Indonesia berdasarkan pola waktunya.
-    Metode pengelompokkan yang digunakan pada aplikasi ini adalah menggunakan jarak <em><strong>Dynamic Time Warping (DTW)</strong></em> dan 
-    metode pengelompokkan secara hierarki dengan menggunakan <em><strong>Single Linkage</strong></em>, <em><strong>Complete Linkage</strong></em>, dan 
+    Metode pengelompokkan yang digunakan pada aplikasi ini adalah menggunakan jarak <em><strong>Dynamic Time Warping (DTW)</strong></em> dan
+    metode pengelompokkan secara hierarki dengan menggunakan <em><strong>Single Linkage</strong></em>, <em><strong>Complete Linkage</strong></em>, dan
     <em><strong>Average Linkage</strong></em>, serta pengelompokkan secara non-hierarki dengan menggunakan <em><strong>K-Medoids</strong></em>.
     </div>
     """, unsafe_allow_html=True)
@@ -429,7 +398,7 @@ if selected == "Home Page":
     <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%202.png" alt="Statistika Deskriptif" width="600">
     </div>
     """, unsafe_allow_html=True)
-    
+
     # Add the additional text below the image
     st.markdown("""
     <div style="text-align: justify;">
@@ -479,13 +448,13 @@ if selected == "Home Page":
     <br><br>
     </div>
      """, unsafe_allow_html=True)
-    
+
     # Add text for "Pemetaan KMedoids"
     st.markdown("""
     <div style="text-align: justify;">
     3. Klik halaman Pemetaan KMedoids pada menu bagian atas halaman untuk melihat pemetaan dan pengelompokkan provinsi berdasarkan nilai dan periode waktu. Petunjuknya sama dengan halaman Pemetaan Linkage hanya saja tidak terdapat dendogram pada halaman ini karena metode KMedoids merupakan metode non-hierarki atau tidak memiliki tingkatan.
     </div>
-    
+
    """, unsafe_allow_html=True)
 
     # Display the image for "Pemetaan KMedoids"
