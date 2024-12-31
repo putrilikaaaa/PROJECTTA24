@@ -183,8 +183,14 @@ def pemetaan(data_df):
             # Add dropdown to select clusters for line chart
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province'].values
 
+            # Debugging: Check the provinces in the cluster and in the data_daily
+            st.write("Provinces in the selected cluster:", provinces_in_cluster)
+            st.write("Provinces in data_daily columns:", data_daily.columns)
+
             # Ensure that provinces_in_cluster exists as columns in data_daily
             valid_provinces_in_cluster = [province for province in provinces_in_cluster if province in data_daily.columns]
+
+            st.write("Valid provinces in cluster:", valid_provinces_in_cluster)
 
             if valid_provinces_in_cluster:
                 selected_cluster_for_line_chart = st.selectbox("Pilih Kluster untuk Line Chart", options=cluster_options)
