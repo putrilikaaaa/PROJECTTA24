@@ -197,9 +197,15 @@ def pemetaan(data_df):
             data_columns_normalized = [col.strip().upper() for col in data_daily.columns]
 
             # Check if provinces in the cluster are present in the data
+            missing_provinces = [province for province in provinces_in_cluster if province not in data_columns_normalized]
+
+            # If there are missing provinces, log them
+            if missing_provinces:
+                st.warning(f"The following provinces are missing from the data: {', '.join(missing_provinces)}")
+
+            # Remove missing provinces from the selection
             provinces_in_cluster = [province for province in provinces_in_cluster if province in data_columns_normalized]
 
-            # Ensure no mismatch happens
             if provinces_in_cluster:
                 data_for_plot = data_daily[provinces_in_cluster]
                 mean_values = data_for_plot.mean(axis=1)
@@ -216,7 +222,7 @@ def pemetaan(data_df):
                 st.pyplot(fig)
             else:
                 st.warning("Tidak ada provinsi yang cocok untuk kluster ini.")
-            
+
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
