@@ -193,7 +193,34 @@ def pemetaan(data_df):
             plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi dan Kluster {selected_cluster} (DTW)")
             st.pyplot(fig)
 
+            # Linechart berdasarkan cluster yang dipilih
+            st.subheader(f"Linechart Provinsi dalam Kluster {selected_cluster}")
 
+            # Pilih provinsi yang ada di cluster yang dipilih
+            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
+            data_for_plot = data_daily[provinces_in_cluster]
+
+            # Plotkan linechart untuk masing-masing provinsi
+            import plotly.graph_objects as go
+
+            fig = go.Figure()
+
+            # Plotkan setiap provinsi dengan warna yang berbeda
+            for province in provinces_in_cluster:
+                fig.add_trace(go.Scatter(x=data_for_plot.index, y=data_for_plot[province], mode='lines', name=province))
+
+            # Tambahkan garis rata-rata (garis merah di tengah)
+            avg_line = data_for_plot.mean(axis=1)
+            fig.add_trace(go.Scatter(x=data_for_plot.index, y=avg_line, mode='lines', name='Rata-rata', line=dict(color='red', dash='dash')))
+
+            fig.update_layout(
+                title=f"Linechart Kluster {selected_cluster}",
+                xaxis_title="Tanggal",
+                yaxis_title="Nilai",
+                showlegend=True
+            )
+
+            st.plotly_chart(fig)
             
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
