@@ -134,12 +134,12 @@ def pemetaan(data_df):
         st.write(clustered_data)
 
         # GeoJSON visualization with cluster dropdown
-        gdf = upload_geojson_file()  # Assuming upload_geojson_file() is defined elsewhere
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+gdf = upload_geojson_file()  # Assuming upload_geojson_file() is defined elsewhere
+if gdf is not None:
+    gdf = gdf.rename(columns={'Propinsi': 'Province'})
+    gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+    clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
     gdf['Province'] = gdf['Province'].replace({
         'DI ACEH': 'ACEH',
@@ -159,27 +159,17 @@ def pemetaan(data_df):
     # Normalize the standard deviation to the range [0, 1] for color mapping
     norm_std_dev = (gdf['std_dev'] - gdf['std_dev'].min()) / (gdf['std_dev'].max() - gdf['std_dev'].min())
 
-    # Create a color map based on the normalized standard deviation
-    gdf['color'] = plt.cm.Greens(norm_std_dev)  # You can replace 'Greens' with other color maps
+    # Define the color map and normalization
+    cmap = plt.cm.Greens  # You can replace 'Greens' with other color maps
+    norm = mcolors.Normalize(vmin=norm_std_dev.min(), vmax=norm_std_dev.max())
+    sm = mcolors.ScalarMappable(cmap=cmap, norm=norm)
+
+    # Assign colors based on the normalized standard deviation
+    gdf['color'] = gdf['std_dev'].apply(lambda x: sm.to_rgba(x))
 
     # Dropdown to select the cluster
     cluster_options = list(range(1, optimal_n_clusters + 1))
     selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
-
-    # Apply the selected cluster's color mapping
-    gdf['color'] = 'grey'  # Default color
-    gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-        1: 'red',
-        2: 'yellow',
-        3: 'green',
-        4: 'blue',
-        5: 'purple',
-        6: 'orange',
-        7: 'pink',
-        8: 'brown',
-        9: 'cyan',
-        10: 'magenta'
-    }.get(selected_cluster, 'grey')
 
     # Filter the data for the selected cluster
     gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
