@@ -189,6 +189,7 @@ def pemetaan(data_df):
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi dan Kluster {selected_cluster} (DTW)")
             st.pyplot(fig)
+
             
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
