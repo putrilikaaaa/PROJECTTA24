@@ -224,6 +224,7 @@ def pemetaan(data_df):
             else:
                 st.warning("Tidak ada provinsi yang cocok untuk kluster ini.")
 
+
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
