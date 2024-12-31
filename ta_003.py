@@ -79,8 +79,12 @@ def pemetaan(data_df):
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        scaler = StandardScaler()
-        data_daily_values = scaler.fit_transform(data_daily)
+        try:
+            scaler = StandardScaler()
+            data_daily_values = scaler.fit_transform(data_daily)
+        except Exception as e:
+            st.error(f"Error in standardization: {e}")
+            return
 
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
