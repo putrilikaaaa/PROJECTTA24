@@ -156,31 +156,19 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Menggabungkan nilai standar deviasi untuk setiap provinsi ke GeoDataFrame
+            # Menambahkan standar deviasi ke dalam GeoDataFrame
             gdf['std_dev'] = gdf['Province'].map(std_devs)
 
-            # Menentukan warna berdasarkan standar deviasi (semakin besar standar deviasi, semakin gelap warnanya)
-            gdf['color'] = gdf['std_dev'].apply(lambda x: plt.cm.get_cmap('YlOrRd')(x / gdf['std_dev'].max()))  # YlOrRd adalah color map yang sesuai untuk gradien
+            # Normalisasi standar deviasi untuk mapping warna
+            norm = plt.Normalize(vmin=gdf['std_dev'].min(), vmax=gdf['std_dev'].max())
+            cmap = plt.cm.YlOrRd_r  # Colormap terbalik (gelap ke terang)
+
+            # Map standar deviasi ke warna
+            gdf['color'] = gdf['std_dev'].apply(lambda x: cmap(norm(x)))
 
             # Dropdown untuk memilih kluster
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
-
-            # Tambahkan warna berdasarkan kluster
-            gdf['color'] = gdf.apply(
-                lambda row: {
-                    1: 'red',
-                    2: 'yellow',
-                    3: 'green',
-                    4: 'blue',
-                    5: 'purple',
-                    6: 'orange',
-                    7: 'pink',
-                    8: 'brown',
-                    9: 'cyan',
-                    10: 'magenta'
-                }.get(row['Cluster'], row['color']), axis=1
-            )
 
             # Plot the map with selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
