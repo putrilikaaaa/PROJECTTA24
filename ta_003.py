@@ -196,21 +196,26 @@ def pemetaan(data_df):
             provinces_in_cluster = [province.strip().upper() for province in clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']]
             data_columns_normalized = [col.strip().upper() for col in data_daily.columns]
 
+            # Check if provinces in the cluster are present in the data
             provinces_in_cluster = [province for province in provinces_in_cluster if province in data_columns_normalized]
 
-            data_for_plot = data_daily[provinces_in_cluster]
-            mean_values = data_for_plot.mean(axis=1)
+            # Ensure no mismatch happens
+            if provinces_in_cluster:
+                data_for_plot = data_daily[provinces_in_cluster]
+                mean_values = data_for_plot.mean(axis=1)
 
-            fig, ax = plt.subplots(figsize=(12, 6))
-            for province in provinces_in_cluster:
-                ax.plot(data_for_plot.index, data_for_plot[province], label=province)
-            ax.plot(data_for_plot.index, mean_values, color='red', label='Rata-rata', linestyle='--')
+                fig, ax = plt.subplots(figsize=(12, 6))
+                for province in provinces_in_cluster:
+                    ax.plot(data_for_plot.index, data_for_plot[province], label=province)
+                ax.plot(data_for_plot.index, mean_values, color='red', label='Rata-rata', linestyle='--')
 
-            ax.set_title(f"Linechart untuk Kluster {selected_cluster}")
-            ax.set_xlabel('Tanggal')
-            ax.set_ylabel('Nilai')
-            ax.legend()
-            st.pyplot(fig)
+                ax.set_title(f"Linechart untuk Kluster {selected_cluster}")
+                ax.set_xlabel('Tanggal')
+                ax.set_ylabel('Nilai')
+                ax.legend()
+                st.pyplot(fig)
+            else:
+                st.warning("Tidak ada provinsi yang cocok untuk kluster ini.")
             
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
