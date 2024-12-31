@@ -69,6 +69,7 @@ def statistika_deskriptif(data_df):
         st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
         st.write(data_df[province].describe())
 
+Pemetaan Linkage Page
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
@@ -79,12 +80,8 @@ def pemetaan(data_df):
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        try:
-            scaler = MinMaxScaler()
-            data_daily_values = scaler.fit_transform(data_daily)
-        except Exception as e:
-            st.error(f"Error in normalization: {e}")
-            return
+        scaler = MinMaxScaler()
+        data_daily_values = scaler.fit_transform(data_daily)
 
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
@@ -126,6 +123,7 @@ def pemetaan(data_df):
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
+        # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
@@ -153,24 +151,32 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            std_dev = clustered_data.groupby('Cluster').std()
-            std_dev['MeanStd'] = std_dev.mean(axis=1)
-            gdf['StandardDeviation'] = gdf['Cluster'].map(std_dev['MeanStd'])
+            gdf['color'] = gdf['Cluster'].map({
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            })
+            gdf['color'].fillna('grey', inplace=True)
 
-            gdf['color'] = gdf['StandardDeviation'].apply(lambda x: plt.cm.viridis((x - gdf['StandardDeviation'].min()) / (gdf['StandardDeviation'].max() - gdf['StandardDeviation'].min())))
-
-            st.subheader("Pilih Cluster untuk Ditampilkan")
-            selected_cluster = st.selectbox("Cluster yang ingin ditampilkan", options=gdf['Cluster'].unique())
-
-            filtered_gdf = gdf[gdf['Cluster'] == selected_cluster]
+            grey_provinces = gdf[gdf['color'] == 'grey']['Province'].tolist()
+            if grey_provinces:
+                st.subheader("Provinsi yang Tidak Termasuk dalam Kluster:")
+                st.write(grey_provinces)
+            else:
+                st.write("Semua provinsi termasuk dalam kluster.")
 
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            filtered_gdf.plot(ax=ax, color=filtered_gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Heatmap Cluster {selected_cluster}")
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
             st.pyplot(fig)
-
-
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
