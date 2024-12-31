@@ -206,6 +206,7 @@ def pemetaan(data_df):
             # Remove missing provinces from the selection
             provinces_in_cluster = [province for province in provinces_in_cluster if province in data_columns_normalized]
 
+            # Check if there are provinces left to plot
             if provinces_in_cluster:
                 data_for_plot = data_daily[provinces_in_cluster]
                 mean_values = data_for_plot.mean(axis=1)
