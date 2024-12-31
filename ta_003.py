@@ -134,61 +134,62 @@ def pemetaan(data_df):
         st.write(clustered_data)
 
         # GeoJSON visualization with cluster dropdown
-        gdf = upload_geojson_file()
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+    gdf = upload_geojson_file()
+    if gdf is not None:
+    gdf = gdf.rename(columns={'Propinsi': 'Province'})
+    gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+    clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
+    gdf['Province'] = gdf['Province'].replace({
+        'DI ACEH': 'ACEH',
+        'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+        'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+        'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+        'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+    })
 
-            gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+    gdf = gdf[gdf['Province'].notna()]
+    gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # For this, you can calculate the standard deviation across all columns for each cluster
-            gdf['std_dev'] = gdf.groupby('Cluster').transform(np.std).iloc[:, :-1].max(axis=1)  # Calculate max std for each cluster
+    # Calculate the standard deviation of numeric columns for each cluster
+    numeric_columns = gdf.select_dtypes(include=np.number).columns  # Only numeric columns
+    gdf['std_dev'] = gdf.groupby('Cluster')[numeric_columns].transform(np.std).max(axis=1)
 
-            # Normalize the standard deviation to the range [0, 1] for color mapping
-            norm_std_dev = (gdf['std_dev'] - gdf['std_dev'].min()) / (gdf['std_dev'].max() - gdf['std_dev'].min())
+    # Normalize the standard deviation to the range [0, 1] for color mapping
+    norm_std_dev = (gdf['std_dev'] - gdf['std_dev'].min()) / (gdf['std_dev'].max() - gdf['std_dev'].min())
 
-            # Create a color map based on the normalized standard deviation
-            gdf['color'] = plt.cm.Greens(norm_std_dev)  # You can replace 'Greens' with other color maps
+    # Create a color map based on the normalized standard deviation
+    gdf['color'] = plt.cm.Greens(norm_std_dev)  # You can replace 'Greens' with other color maps
 
-            cluster_options = list(range(1, optimal_n_clusters + 1))
-            # Dropdown to select the cluster
-            selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+    # Dropdown to select the cluster
+    cluster_options = list(range(1, optimal_n_clusters + 1))
+    selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
-            # Update color based on selected cluster
-            gdf['color'] = 'grey'  # Default color
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            }.get(selected_cluster, 'grey')
+    # Apply the selected cluster's color mapping
+    gdf['color'] = 'grey'  # Default color
+    gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+        1: 'red',
+        2: 'yellow',
+        3: 'green',
+        4: 'blue',
+        5: 'purple',
+        6: 'orange',
+        7: 'pink',
+        8: 'brown',
+        9: 'cyan',
+        10: 'magenta'
+    }.get(selected_cluster, 'grey')
 
-            # Filter the data for the selected cluster
-            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+    # Filter the data for the selected cluster
+    gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
 
-            # Plot the map with the selected cluster
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
-            st.pyplot(fig)
+    # Plot the map with the selected cluster
+    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+    gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+    gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+    plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+    st.pyplot(fig)
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
