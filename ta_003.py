@@ -166,12 +166,28 @@ def pemetaan(data_df):
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
+            # Tambahkan warna berdasarkan kluster
+            gdf['color'] = gdf.apply(
+                lambda row: {
+                    1: 'red',
+                    2: 'yellow',
+                    3: 'green',
+                    4: 'blue',
+                    5: 'purple',
+                    6: 'orange',
+                    7: 'pink',
+                    8: 'brown',
+                    9: 'cyan',
+                    10: 'magenta'
+                }.get(row['Cluster'], row['color']), axis=1
+            )
+
             # Plot the map with selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi (DTW) - Kluster {selected_cluster}")
+            plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi dan Kluster {selected_cluster} (DTW)")
             st.pyplot(fig)
             
 # Function to compute DTW distance matrix using fastdtw for medoids
