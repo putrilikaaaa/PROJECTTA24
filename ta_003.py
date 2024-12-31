@@ -133,7 +133,7 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-        # GeoJSON visualization with cluster dropdown
+                # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -153,6 +153,8 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
+            # Dropdown to select the cluster
+# Dropdown to select the cluster
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
             # Update color based on selected cluster
@@ -179,28 +181,6 @@ def pemetaan(data_df):
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
-
-            # Add dropdown to select clusters for line chart
-            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province'].values
-
-            # Debugging: Check the provinces in the cluster and in the data_daily
-            st.write("Provinces in the selected cluster:", provinces_in_cluster)
-            st.write("Provinces in data_daily columns:", data_daily.columns)
-
-            # Ensure that provinces_in_cluster exists as columns in data_daily
-            valid_provinces_in_cluster = [province for province in provinces_in_cluster if province in data_daily.columns]
-
-            st.write("Valid provinces in cluster:", valid_provinces_in_cluster)
-
-            if valid_provinces_in_cluster:
-                selected_cluster_for_line_chart = st.selectbox("Pilih Kluster untuk Line Chart", options=cluster_options)
-                # Filter data for the selected cluster and plot the line chart
-                data_for_plot = data_daily[valid_provinces_in_cluster]
-
-                st.subheader(f"Line Chart untuk Provinsi dalam Kluster {selected_cluster_for_line_chart}")
-                st.line_chart(data_for_plot)
-            else:
-                st.write("No valid provinces found for the selected cluster.")
 
             
 # Function to compute DTW distance matrix using fastdtw for medoids
