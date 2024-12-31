@@ -69,7 +69,7 @@ def statistika_deskriptif(data_df):
         st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
         st.write(data_df[province].describe())
 
-# def pemetaan(data_df):
+def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
@@ -79,7 +79,7 @@ def statistika_deskriptif(data_df):
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        scaler = MinMaxScaler()
+        scaler = StandardScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
