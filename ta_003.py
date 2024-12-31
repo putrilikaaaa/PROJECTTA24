@@ -133,52 +133,55 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
+        # GeoJSON visualization with cluster dropdown
+        gdf = upload_geojson_file()
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-gdf = upload_geojson_file()
-if gdf is not None:
-    gdf = gdf.rename(columns={'Propinsi': 'Province'})
-    gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-    clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
 
-    gdf['Province'] = gdf['Province'].replace({
-        'DI ACEH': 'ACEH',
-        'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-        'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-        'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-        'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-    })
+            gdf = gdf[gdf['Province'].notna()]
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-    gdf = gdf[gdf['Province'].notna()]
-    gdf = gdf.merge(clustered_data, on='Province', how='left')
+            # Dropdown to select the cluster
+            selected_cluster = st.selectbox("Pilih Kluster", options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
-    # Dropdown to select the cluster
-    selected_cluster = st.selectbox("Pilih Kluster", options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            }.get(selected_cluster, 'grey')
 
-    # Update color based on selected cluster
-    gdf['color'] = 'grey'  # Default color
-    gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-        1: 'red',
-        2: 'yellow',
-        3: 'green',
-        4: 'blue',
-        5: 'purple',
-        6: 'orange',
-        7: 'pink',
-        8: 'brown',
-        9: 'cyan',
-        10: 'magenta'
-    }.get(selected_cluster, 'grey')
+            # Filter the data for the selected cluster
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
 
-    # Filter the data for the selected cluster
-    gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+            # Plot the map with the selected cluster
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+            st.pyplot(fig)
 
-    # Plot the map with the selected cluster
-    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-    gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-    gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-    plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
-    st.pyplot(fig)
+# Assuming 'data_df' is passed to 'pemetaan' function
+pemetaan(data_df)
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
