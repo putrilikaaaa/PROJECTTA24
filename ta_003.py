@@ -162,12 +162,23 @@ def pemetaan(data_df):
             numeric_columns = gdf.select_dtypes(include=np.number).columns  # Only numeric columns
             gdf['std_dev'] = gdf.groupby('Cluster')[numeric_columns].transform(np.std).max(axis=1)
 
+            # Check for NaN or invalid values in the 'std_dev' column
+            if gdf['std_dev'].isna().sum() > 0:
+                st.warning("There are NaN values in the 'std_dev' column, filling with 0.")
+                gdf['std_dev'].fillna(0, inplace=True)
+
             # Normalize the standard deviation to the range [0, 1] for color mapping
-            norm_std_dev = (gdf['std_dev'] - gdf['std_dev'].min()) / (gdf['std_dev'].max() - gdf['std_dev'].min())
+            if gdf['std_dev'].min() != gdf['std_dev'].max():
+                norm_std_dev = (gdf['std_dev'] - gdf['std_dev'].min()) / (gdf['std_dev'].max() - gdf['std_dev'].min())
+            else:
+                # If all values are the same, we can't normalize, so use a default value for all entries
+                norm_std_dev = np.ones_like(gdf['std_dev'])
 
             # Define the color map and normalization
             cmap = plt.cm.Greens  # You can replace 'Greens' with other color maps
             norm = mcolors.Normalize(vmin=norm_std_dev.min(), vmax=norm_std_dev.max())
+
+            # Create ScalarMappable only if the normalization is valid
             sm = mcolors.ScalarMappable(cmap=cmap, norm=norm)
 
             # Assign colors based on the normalized standard deviation
