@@ -162,11 +162,16 @@ def pemetaan(data_df):
             # Menentukan warna berdasarkan standar deviasi (semakin besar standar deviasi, semakin gelap warnanya)
             gdf['color'] = gdf['std_dev'].apply(lambda x: plt.cm.get_cmap('YlOrRd')(x / gdf['std_dev'].max()))  # YlOrRd adalah color map yang sesuai untuk gradien
 
-            # Plot the map with standard deviation color
+            # Dropdown untuk memilih kluster
+            cluster_options = list(range(1, optimal_n_clusters + 1))
+            selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+
+            # Plot the map with selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi (DTW)")
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi Berdasarkan Standar Deviasi (DTW) - Kluster {selected_cluster}")
             st.pyplot(fig)
             
 # Function to compute DTW distance matrix using fastdtw for medoids
