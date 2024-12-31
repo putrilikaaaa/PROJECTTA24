@@ -69,8 +69,7 @@ def statistika_deskriptif(data_df):
         st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
         st.write(data_df[province].describe())
 
-# Pemetaan Linkage Page
-def pemetaan(data_df):
+# def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
@@ -123,7 +122,6 @@ def pemetaan(data_df):
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
@@ -172,12 +170,19 @@ def pemetaan(data_df):
             else:
                 st.write("Semua provinsi termasuk dalam kluster.")
 
+            st.subheader("Pilih Cluster untuk Ditampilkan")
+            selected_cluster = st.selectbox("Cluster yang ingin ditampilkan", options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+            gdf['display_color'] = gdf.apply(
+                lambda row: row['color'] if row['Cluster'] == selected_cluster else 'lightgrey', axis=1
+            )
+
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster - Agglomerative (DTW)")
+            gdf.plot(ax=ax, color=gdf['display_color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Cluster {selected_cluster}")
             st.pyplot(fig)
-            
+
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
