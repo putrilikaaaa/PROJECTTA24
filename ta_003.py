@@ -80,10 +80,10 @@ def pemetaan(data_df):
         data_daily.fillna(method='ffill', inplace=True)
 
         try:
-            scaler = StandardScaler()
+            scaler = MinMaxScaler()
             data_daily_values = scaler.fit_transform(data_daily)
         except Exception as e:
-            st.error(f"Error in standardization: {e}")
+            st.error(f"Error in normalization: {e}")
             return
 
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
@@ -186,6 +186,7 @@ def pemetaan(data_df):
             gdf.plot(ax=ax, color=gdf['display_color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Cluster {selected_cluster}")
             st.pyplot(fig)
+
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
