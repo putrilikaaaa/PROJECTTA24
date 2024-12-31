@@ -135,17 +135,12 @@ def pemetaan(data_df):
         st.write(clustered_data)
 
         # GeoJSON visualization with cluster dropdown
-        gdf = upload_geojson_file()  # Assuming upload_geojson_file() is defined elsewhere
+        gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Ensure 'Province' column exists in clustered_data before applying string operations
-            if 'Province' in clustered_data.columns:
-                clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-            else:
-                st.error("'Province' column not found in clustered_data")
-                return  # Exit the function or handle the case accordingly
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             gdf['Province'] = gdf['Province'].replace({
                 'DI ACEH': 'ACEH',
@@ -158,35 +153,24 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Calculate the standard deviation of numeric columns for each cluster
-            numeric_columns = gdf.select_dtypes(include=np.number).columns  # Only numeric columns
-            gdf['std_dev'] = gdf.groupby('Cluster')[numeric_columns].transform(np.std).max(axis=1)
-
-            # Check for NaN or invalid values in the 'std_dev' column
-            if gdf['std_dev'].isna().sum() > 0:
-                st.warning("There are NaN values in the 'std_dev' column, filling with 0.")
-                gdf['std_dev'].fillna(0, inplace=True)
-
-            # Normalize the standard deviation to the range [0, 1] for color mapping
-            if gdf['std_dev'].min() != gdf['std_dev'].max():
-                norm_std_dev = (gdf['std_dev'] - gdf['std_dev'].min()) / (gdf['std_dev'].max() - gdf['std_dev'].min())
-            else:
-                # If all values are the same, we can't normalize, so use a default value for all entries
-                norm_std_dev = np.ones_like(gdf['std_dev'])
-
-            # Define the color map and normalization
-            cmap = plt.cm.Greens  # You can replace 'Greens' with other color maps
-            norm = mcolors.Normalize(vmin=norm_std_dev.min(), vmax=norm_std_dev.max())
-
-            # Create ScalarMappable only if the normalization is valid
-            sm = mcolors.ScalarMappable(cmap=cmap, norm=norm)
-
-            # Assign colors based on the normalized standard deviation
-            gdf['color'] = gdf['std_dev'].apply(lambda x: sm.to_rgba(x))
-
-            # Dropdown to select the cluster
             cluster_options = list(range(1, optimal_n_clusters + 1))
+            # Dropdown to select the cluster
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            }.get(selected_cluster, 'grey')
 
             # Filter the data for the selected cluster
             gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
