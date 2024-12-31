@@ -152,6 +152,15 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
+            # For this, you can calculate the standard deviation across all columns for each cluster
+            gdf['std_dev'] = gdf.groupby('Cluster').transform(np.std).iloc[:, :-1].max(axis=1)  # Calculate max std for each cluster
+
+            # Normalize the standard deviation to the range [0, 1] for color mapping
+            norm_std_dev = (gdf['std_dev'] - gdf['std_dev'].min()) / (gdf['std_dev'].max() - gdf['std_dev'].min())
+
+            # Create a color map based on the normalized standard deviation
+            gdf['color'] = plt.cm.Greens(norm_std_dev)  # You can replace 'Greens' with other color maps
+
             cluster_options = list(range(1, optimal_n_clusters + 1))
             # Dropdown to select the cluster
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
