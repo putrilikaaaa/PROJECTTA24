@@ -134,6 +134,13 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
+        # Calculate standard deviation for each province
+        std_dev_values = data_daily.std(axis=0)
+
+        # Normalize the standard deviation values to use as a color scale
+        norm = plt.Normalize(vmin=std_dev_values.min(), vmax=std_dev_values.max())
+        cmap = plt.cm.viridis  # You can use other colormaps too (e.g., 'inferno', 'plasma')
+
         # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
@@ -153,34 +160,28 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            cluster_options = list(range(1, optimal_n_clusters + 1))
-            # Dropdown to select the cluster
-            selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+            # Add the standard deviation values to the GeoDataFrame for color mapping
+            gdf['std_dev'] = gdf['Province'].map(std_dev_values)
 
-            # Update color based on selected cluster
-            gdf['color'] = 'grey'  # Default color
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            }.get(selected_cluster, 'grey')
+            # Set up a Folium map with the geojson and color the regions based on std_dev
+            m = folium.Map(location=[-2.5, 118], zoom_start=5)  # Center of Indonesia
 
-            # Filter the data for the selected cluster
-            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+            # Apply color to each province based on its standard deviation
+            for _, row in gdf.iterrows():
+                color = cmap(norm(row['std_dev']))
+                folium.GeoJson(
+                    row['geometry'],
+                    style_function=lambda x, color=color: {
+                        'fillColor': color,
+                        'fillOpacity': 0.7,
+                        'color': 'black',
+                        'weight': 0.5,
+                    }
+                ).add_to(m)
 
-            # Plot the map with the selected cluster
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
-            st.pyplot(fig)
+            # Display the map
+            st.subheader("Pemetaan Heatmap Berdasarkan Standar Deviasi")
+            st.map(m)
             
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
