@@ -77,21 +77,16 @@ def pemetaan(data_df):
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
-        # Resampling data harian dan standardisasi
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # Pilih metode linkage
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-        
-        # Hitung matriks jarak DTW
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
-        # Silhouette score untuk memilih jumlah kluster optimal
         max_n_clusters = 10
         silhouette_scores = {}
         cluster_labels_dict = {}
@@ -103,7 +98,6 @@ def pemetaan(data_df):
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
-        # Plot silhouette score
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
         for n_clusters, score in silhouette_scores.items():
@@ -119,7 +113,6 @@ def pemetaan(data_df):
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-        # Dendrogram
         condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
@@ -160,7 +153,6 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            # Dropdown to select the cluster
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
             # Update color based on selected cluster
@@ -188,20 +180,23 @@ def pemetaan(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
-            # Show line chart for the selected cluster
+            # Add dropdown to select provinces for line chart
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province'].values
 
             # Ensure that provinces_in_cluster exists as columns in data_daily
             valid_provinces_in_cluster = [province for province in provinces_in_cluster if province in data_daily.columns]
 
-            # Plot the data for the valid provinces
             if valid_provinces_in_cluster:
-                data_for_plot = data_daily[valid_provinces_in_cluster]
-                st.subheader(f"Line Chart for Cluster {selected_cluster}")
-                st.line_chart(data_for_plot.T)  # Transpose to plot each province on a separate line
+                selected_province = st.selectbox("Pilih Provinsi untuk Line Chart", options=valid_provinces_in_cluster)
+
+                # Plot the line chart for the selected province
+                data_for_plot = data_daily[selected_province]
+                st.subheader(f"Line Chart untuk Provinsi: {selected_province}")
+                st.line_chart(data_for_plot)
             else:
                 st.write("No valid provinces found for the selected cluster.")
 
+            
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
