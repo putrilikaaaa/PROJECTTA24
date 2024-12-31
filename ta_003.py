@@ -162,12 +162,12 @@ def pemetaan(data_df):
             # Add a dropdown to select the cluster
             selected_cluster = st.selectbox("Pilih Cluster untuk Ditampilkan", options=[None] + list(range(1, optimal_n_clusters + 1)))
 
-            if selected_cluster is not None:
+                        if selected_cluster is not None:
                 cluster_std_dev = data_daily.std(axis=0).reset_index()
                 cluster_std_dev.columns = ['Province', 'Standard_Deviation']
                 gdf = gdf.merge(cluster_std_dev, on='Province', how='left')
 
-               gdf['color'] = gdf.apply(
+                gdf['color'] = gdf.apply(
                     lambda row: color_map.get(row['Cluster'], 'lightgrey')  # Use the color_map for clusters
                     if row['Cluster'] == selected_cluster else 'lightgrey', axis=1)
 
@@ -175,7 +175,7 @@ def pemetaan(data_df):
                 st.subheader(f"Provinsi dalam Cluster {selected_cluster}")
                 st.write(gdf[gdf['Cluster'] == selected_cluster]['Province'].tolist())
             else:
-                gdf['color'] = gdf['Cluster'].apply(lambda x: color_map.get(x, 'grey'))'
+                gdf['color'] = gdf['Cluster'].apply(lambda x: color_map.get(x, 'grey'))  # Correct indentation here
 
             # Plot the map
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
