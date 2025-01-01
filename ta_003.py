@@ -153,11 +153,30 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster options)
 
             # Create a color mapping for the selected cluster
             gdf['color'] = 'grey'  # Default color
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = plt.cm.Reds(np.linspace(0.3, 1, gdf[gdf['Cluster'] == selected_cluster].shape[0]))
+            color_mapping = {
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            }
+            selected_color = color_mapping.get(selected_cluster, 'grey')
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = selected_color
+
+            # Apply a gradient effect for the selected cluster
+            cluster_indices = gdf[gdf['Cluster'] == selected_cluster].index
+            gradient_colors = plt.cm.Reds(np.linspace(0.3, 1, len(cluster_indices)))
+            for idx, color in zip(cluster_indices, gradient_colors):
+                gdf.at[idx, 'color'] = color
 
             # Plot the map with the gradient colors for the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
