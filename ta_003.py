@@ -484,10 +484,10 @@ if selected == "Home Page":
     </div>
      """, unsafe_allow_html=True)
 
-       # Display the third image
+    # Display the third image
     st.markdown("""
     <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/blob/main/PL%208.png.png" alt="Statistika Deskriptif" width="600">
+    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/PL%208.png" alt="Statistika Deskriptif" width="600">
     </div>
     """, unsafe_allow_html=True)
 
