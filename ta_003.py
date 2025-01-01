@@ -154,41 +154,45 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+            selected_cluster = st.selectbox ("Pilih Cluster untuk Visualisasi", options=cluster_options)
 
-            # Calculate standard deviation for provinces in cluster 1
-            if selected_cluster == 1:
-                cluster1_provinces = clustered_data[clustered_data['Cluster'] == 1]['Province']
-                initial_values = data_daily[cluster1_provinces].iloc[0]  # Assuming initial values are in the first row
-                std_devs = data_daily[cluster1_provinces].std()
+            if selected_cluster:
+                cluster_map = gdf[gdf['Cluster'] == selected_cluster]
+                st.subheader(f"Visualisasi Cluster {selected_cluster}")
+                st.map(cluster_map)
 
-                # Normalize standard deviations to a range suitable for color mapping
-                norm_std_devs = (std_devs - std_devs.min()) / (std_devs.max() - std_devs.min())
-                gdf['color'] = 'grey'  # Default color
-                gdf.loc[gdf['Cluster'] == 1, 'color'] = plt.cm.Reds(norm_std_devs)  # Map to red gradient
+                # Calculate initial values and standard deviations for the selected cluster
+                cluster1_provinces = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
+                cluster1_provinces = cluster1_provinces.str.upper().str.strip()  # Normalize province names
 
-            # Update color for other clusters
-            else:
-                gdf['color'] = 'grey'  # Default color for other clusters
-                gdf.loc[gdf['Cluster'] == 2, 'color'] = 'yellow'
-                gdf.loc[gdf['Cluster'] == 3, 'color'] = 'green'
-                gdf.loc[gdf['Cluster'] == 4, 'color'] = 'blue'
-                gdf.loc[gdf['Cluster'] == 5, 'color'] = 'purple'
-                gdf.loc[gdf['Cluster'] == 6, 'color'] = 'orange'
-                gdf.loc[gdf['Cluster'] == 7, 'color'] = 'pink'
-                gdf.loc[gdf['Cluster'] == 8, 'color'] = 'brown'
-                gdf.loc[gdf['Cluster'] == 9, 'color'] = 'cyan'
-                gdf.loc[gdf['Cluster'] == 10, 'color'] = 'magenta'
+                # Normalize data_daily column names
+                data_daily.columns = data_daily.columns.str.upper().str.strip()
 
-            # Filter the data for the selected cluster
-            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+                # Check if the provinces exist in data_daily
+                st.write("Cluster Provinces:", cluster1_provinces.tolist())  # Debugging line
+                st.write("Data Daily Columns:", data_daily.columns.tolist())  # Debugging line
 
-            # Plot the map with the selected cluster
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
-            st.pyplot(fig)
+                # Filter out any provinces that are not in data_daily
+                valid_provinces = cluster1_provinces[cluster1_provinces.isin(data_daily.columns)]
+                if not valid_provinces.empty:
+                    initial_values = data_daily[valid_provinces].iloc[0]
+                    std_devs = data_daily[valid_provinces].std()
+                    st.write("Initial Values:", initial_values)
+                    st.write("Standard Deviations:", std_devs)
+                else:
+                    st.warning("No valid provinces found in data_daily for the selected cluster.")
+
+def compute_dtw_distance_matrix(data):
+    # Function to compute DTW distance matrix
+    pass
+
+def symmetrize(matrix):
+    # Function to symmetrize the distance matrix
+    pass
+
+def upload_geojson_file():
+    # Function to upload GeoJSON file
+    pass
                 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
