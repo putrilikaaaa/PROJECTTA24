@@ -153,12 +153,12 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
             # Update color based on selected cluster
             gdf['color'] = 'grey'  # Default color
             gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-                1: 'red',
+                1 : 'red',
                 2: 'yellow',
                 3: 'green',
                 4: 'blue',
@@ -170,14 +170,16 @@ def pemetaan(data_df):
                 10: 'magenta'
             }.get(selected_cluster, 'grey')
 
-            # Filter the data for the selected cluster
-            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+            # Create a heatmap-like color mapping for all clusters
+            gdf['heatmap_color'] = gdf['Cluster'].apply(lambda x: plt.cm.viridis(x / optimal_n_clusters))
 
-            # Plot the map with the selected cluster
+            # Plot the map with both the original colors and heatmap-style colors
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+            gdf.plot(ax=ax, color=gdf['heatmap_color'], edgecolor='black', alpha=0.5)
+            gdf[gdf['Cluster'] == selected_cluster].plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW) dengan Heatmap")
             st.pyplot(fig)
 
             # Line chart for provinces in the selected cluster using data_daily_values
