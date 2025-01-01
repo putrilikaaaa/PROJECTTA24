@@ -70,7 +70,7 @@ def statistika_deskriptif(data_df):
         st.write(data_df[province].describe())
 
 # Pemetaan Linkage Page
-    def pemetaan(data_df):
+def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
@@ -215,7 +215,7 @@ def statistika_deskriptif(data_df):
             plt.ylabel('Nilai')
             plt.legend()
             st.pyplot(plt)
-
+            
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
