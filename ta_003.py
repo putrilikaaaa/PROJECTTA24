@@ -145,8 +145,8 @@ def pemetaan(data_df):
             gdf['Province'] = gdf['Province'].replace({
                 'DI ACEH': 'ACEH',
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAK ARTA',
+                'NUSATENGGARA BARAT ': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
 
@@ -185,6 +185,16 @@ def pemetaan(data_df):
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
             # Ensure the province names are consistent
             provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
+            
+            # Debugging: Print the values for comparison
+            st.write("Data Daily Columns:", data_daily.columns.tolist())
+            st.write("Provinces in Cluster:", provinces_in_cluster.tolist())
+
+            # Check if all provinces are in data_daily
+            missing_provinces = [province for province in provinces_in_cluster if province not in data_daily.columns]
+            if missing_provinces:
+                st.warning(f"Missing provinces in data_daily: {missing_provinces}")
+
             data_to_plot = data_daily[provinces_in_cluster].copy()
             st.line_chart(data_to_plot)
             
