@@ -484,20 +484,20 @@ if selected == "Home Page":
     </div>
      """, unsafe_allow_html=True)
 
-       # Display the third image
-    st.markdown("""
-    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/blob/main/PL%208.png.png" alt="Statistika Deskriptif" width="600">
-    </div>
-    """, unsafe_allow_html=True)
+# Display the third image
+st.markdown("""
+<div style="border: 2px solid black; display: inline-block; padding: 5px;">
+<img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/PL%208.png" alt="Statistika Deskriptif" width="600">
+</div>
+""", unsafe_allow_html=True)
 
-    # Add text below the third image
-    st.markdown("""
-    <div style="text-align: justify;">
-    Terdapat linechart yang mana berisi pola harga dari setiap provinsi yang berada pada kelompok yang dipilih yang ditunjukkan oleh garis berwarna abu-abu dan rata-rata pola harganya ditunjukkan oleh garis berwarna merah.
-    <br><br>
-    </div>
-     """, unsafe_allow_html=True) 
+# Add text below the third image
+st.markdown("""
+<div style="text-align: justify;">
+Terdapat linechart yang mana berisi pola harga dari setiap provinsi yang berada pada kelompok yang dipilih yang ditunjukkan oleh garis berwarna abu-abu dan rata-rata pola harganya ditunjukkan oleh garis berwarna merah.
+<br><br>
+</div>
+""", unsafe_allow_html=True) 
 
     # Add text for "Pemetaan KMedoids"
     st.markdown("""
