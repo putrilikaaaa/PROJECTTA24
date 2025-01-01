@@ -184,6 +184,9 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
+            # Tambahkan kolom 'AverageValue' ke gdf
+            gdf['AverageValue'] = gdf['Province'].apply(lambda province: data_df[province].mean())
+
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
 
