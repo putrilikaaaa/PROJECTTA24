@@ -69,7 +69,8 @@ def statistika_deskriptif(data_df):
         st.write(f"Statistika Deskriptif untuk Provinsi {province}:")
         st.write(data_df[province].describe())
 
-# Pemetaan Linkage Pagedef pemetaan(data_df):
+# Pemetaan Linkage Page
+    def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
@@ -154,15 +155,29 @@ def statistika_deskriptif(data_df):
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
+            # Assign base color based on cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            }.get(selected_cluster, 'grey')
+
             # Calculate standard deviation for each province in the selected cluster
-            cluster_provinces = gdf[gdf['Cluster'] == selected_cluster]
-            std_dev_values = cluster_provinces['value_column'].std()  # Replace 'value_column' with the actual column name
+            std_dev_values = data_daily_values[:, gdf['Cluster'] == selected_cluster].std(axis=0)
 
             # Normalize the standard deviation values
             scaler = MinMaxScaler()
-            normalized_std_dev = scaler.fit_transform(std_dev_values.values.reshape(-1, 1)).flatten()
+            normalized_std_dev = scaler.fit_transform(std_dev_values.reshape(-1, 1)).flatten()
 
-            # Create a color mapping based on normalized standard deviation
+            # Create a gradient color mapping based on normalized standard deviation
             cmap = plt.get_cmap('Reds')
             gradient_colors = cmap(normalized_std_dev)
 
