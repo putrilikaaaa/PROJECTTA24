@@ -294,7 +294,6 @@ def pemetaan_kmedoids(data_df):
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
             # Dropdown to select the cluster
-# Dropdown to select the cluster
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
             # Update color based on selected cluster
@@ -322,6 +321,28 @@ def pemetaan_kmedoids(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
+            # Line chart for provinces in the selected cluster using data_daily_values
+            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
+            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Ensure the columns in data_to_plot are also transformed
+            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
+            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
+
+            # Calculate the average line across the selected cluster provinces
+            average_line = data_to_plot_selected_cluster.mean(axis=1)
+
+            # Plot the line chart for the selected cluster
+            plt.figure(figsize=(12, 6))
+            for province in provinces_in_cluster:
+                plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
+            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
+            plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
+            plt.xlabel('Tanggal')
+            plt.ylabel('Nilai')
+            plt.legend()
+            st.pyplot(plt)
+            
 # Sidebar options
 selected = option_menu(
     menu_title=None,
