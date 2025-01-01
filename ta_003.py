@@ -276,7 +276,7 @@ def pemetaan_kmedoids(data_df):
         gdf = gdf.rename(columns={'Propinsi': 'Province'})
         gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-        clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+        clustered_data['Province'] = clustered_data['Province'].fillna('').str.upper().str.replace('.', '', regex=False).str.strip()
 
         gdf['Province'] = gdf['Province'].replace({
             'DI ACEH': 'ACEH',
