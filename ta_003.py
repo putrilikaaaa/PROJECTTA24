@@ -174,22 +174,29 @@ def pemetaan(data_df):
 
             # Calculate the average value for each province in the selected cluster
             average_values = data_daily.mean(axis=0)
-            color_map = {}
-            for province in gdf['Province']:
-                if province in average_values.index:
-                    avg_value = average_values[province]
-                    norm_value = (avg_value - average_values.min()) / (average_values.max() - average_values.min())
-                    color_map[province] = 'lightcoral' if norm_value < 0.5 else 'red'
+color_map = {}
+for province in gdf['Province']:
+    if province in average_values.index:
+        avg_value = average_values[province]
+        norm_value = (avg_value - average_values.min()) / (average_values.max() - average_values.min())
+        color_map[province] = 'lightcoral' if norm_value < 0.5 else 'red'
+    else:
+        color_map[province] = 'grey'  # Default color for provinces not in the average_values
 
-            # Update the GeoDataFrame with the assigned colors
-            gdf['color'] = gdf['Province'].map(color_map)
+# Update the GeoDataFrame with the assigned colors
+gdf['color'] = gdf['Province'].map(color_map)
 
-            # Plot the map with the selected cluster
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster {optimal_n_clusters} - Agglomerative (DTW)")
-            st.pyplot(fig)
+# Check for NaN or invalid color values
+if gdf['color'].isnull().any():
+    st.write("Warning: Some provinces have invalid color values.")
+    st.write(gdf[gdf['color'].isnull()])
+
+# Plot the map with the selected cluster
+fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+plt.title(f"Pemetaan Provinsi per Kluster {optimal_n_clusters} - Agglomerative (DTW)")
+st.pyplot(fig)
             
             # Plot the line chart for the selected cluster
             plt.figure(figsize=(12, 6))
