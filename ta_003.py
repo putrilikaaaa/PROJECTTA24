@@ -155,31 +155,16 @@ def pemetaan(data_df):
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
-            # Update color based on selected cluster
+            # Create a color mapping for the selected cluster
             gdf['color'] = 'grey'  # Default color
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-                1 : 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            }.get(selected_cluster, 'grey')
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = plt.cm.Reds(np.linspace(0.3, 1, gdf[gdf['Cluster'] == selected_cluster].shape[0]))
 
-            # Create a heatmap-like color mapping for all clusters
-            gdf['heatmap_color'] = gdf['Cluster'].apply(lambda x: plt.cm.viridis(x / optimal_n_clusters))
-
-            # Plot the map with both the original colors and heatmap-style colors
+            # Plot the map with the gradient colors for the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['heatmap_color'], edgecolor='black', alpha=0.5)
-            gdf[gdf['Cluster'] == selected_cluster].plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
 
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW) dengan Heatmap")
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW) dengan Gradient Warna")
             st.pyplot(fig)
 
             # Line chart for provinces in the selected cluster using data_daily_values
