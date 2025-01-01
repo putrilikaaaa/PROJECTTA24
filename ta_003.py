@@ -126,7 +126,7 @@ def pemetaan(data_df):
         # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
-            'Province': data_daily.columns,  # Corrected: Removed extra space
+            'Province': data_daily.columns,
             'Cluster': cluster_labels
         })
 
@@ -146,68 +146,51 @@ def pemetaan(data_df):
                 'DI ACEH': 'ACEH',
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+                'D.I YOGYAKARTA': 'DI YOG AKARTA',
+                'NUSATENGGARA TIMUR': 'NUSA TENGGARA TIMUR',
+                'JAKARTA': 'DKI JAKARTA',
+                'JAWA BARAT': 'JAWA BARAT',
+                'JAWA TENGAH': 'JAWA TENGAH',
+                'JAWA TIMUR': 'JAWA TIMUR',
+                'SUMATERA UTARA': 'SUMATERA UTARA',
+                'SUMATERA BARAT': 'SUMATERA BARAT',
+                'RIAU': 'RIAU',
+                'JAMBI': 'JAMBI',
+                'SUMATERA SELATAN': 'SUMATERA SELATAN',
+                'BENGKULU': 'BENGKULU',
+                'LAMPUNG': 'LAMPUNG',
+                'BANTEN': 'BANTEN',
+                'BALI': 'BALI',
+                'SULAWESI UTARA': 'SULAWESI UTARA',
+                'SULAWESI TENGAH': 'SULAWESI TENGAH',
+                'SULAWESI SELATAN': 'SULAWESI SELATAN',
+                'SULAWESI TENGGARA': 'SULAWESI TENGGARA',
+                'GORONTALO': 'GORONTALO',
+                'MALUKU': 'MALUKU',
+                'MALUKU UTARA': 'MALUKU UTARA',
+                'PAPUA BARAT': 'PAPUA BARAT',
+                'PAPUA': 'PAPUA'
             })
 
-            gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+            # Calculate the average value for each province in the selected cluster
+            average_values = data_daily.mean(axis=0)
+            color_map = {}
+            for province in gdf['Province']:
+                if province in average_values.index:
+                    avg_value = average_values[province]
+                    norm_value = (avg_value - average_values.min()) / (average_values.max() - average_values.min())
+                    color_map[province] = 'lightcoral' if norm_value < 0.5 else 'red'
 
-            cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
-
-            # Line chart for provinces in the selected cluster using data_daily_values
-            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
-            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
-
-            # Ensure the columns in data_to_plot are also transformed
-            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
-            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
-
-            # Calculate the average value for the selected cluster
-            average_value = data_to_plot_selected_cluster.mean().mean()  # Mean of means for the selected cluster
-
-            # Define a threshold for average value to determine color brightness
-            threshold = 0.3  # This can be adjusted based on your data range
-
-            # Update color based on selected cluster and average value
-            if average_value < threshold:
-                # Use lighter colors for lower average values
-                gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-                    1: 'lightcoral',  # Light red
-                    2: 'lightyellow',  # Light yellow
-                    3: 'lightgreen',  # Light green
-                    4: 'lightblue',  # Light blue
-                    5: 'plum',  # Light purple
-                    6: 'lightsalmon',  # Light orange
-                    7: 'lightpink',  # Light pink
-                    8: 'lightgrey',  # Light brown
-                    9: 'lightcyan',  # Light cyan
-                    10: 'lightmagenta'  # Light magenta
-                }.get(selected_cluster, 'lightgrey')
-            else:
-                # Use darker colors for higher average values
-                gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-                    1: 'red',
-                    2: 'yellow',
-                    3: 'green',
-                    4: 'blue',
-                    5: 'purple',
-                    6: 'orange',
-                    7: 'pink',
-                    8: 'brown',
-                    9: 'cyan',
-                    10: 'magenta'
-                }.get(selected_cluster, 'grey')
+            # Update the GeoDataFrame with the assigned colors
+            gdf['color'] = gdf['Province'].map(color_map)
 
             # Plot the map with the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
-            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster {optimal_n_clusters} - Agglomerative (DTW)")
             st.pyplot(fig)
-
+            
             # Plot the line chart for the selected cluster
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
