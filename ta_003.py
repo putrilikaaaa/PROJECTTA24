@@ -153,11 +153,11 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
 
             # Update color based on selected cluster
             gdf['color'] = 'grey'  # Default color
-            gdf.loc [gdf['Cluster'] == selected_cluster, 'color'] = {
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
                 1: 'red',
                 2: 'yellow',
                 3: 'green',
@@ -188,18 +188,15 @@ def pemetaan(data_df):
             data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
             data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
 
-            # Calculate the average line across all provinces
-            average_line = data_to_plot.mean(axis=1)
+            # Calculate the average line across the selected cluster provinces
+            average_line = data_to_plot_selected_cluster.mean(axis=1)
 
             # Plot the line chart for the selected cluster
-            st.line_chart(data_to_plot_selected_cluster, use_container_width=True)
-
-            # Add the average line in red
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
                 plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
-            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Seluruh Provinsi')
-            plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi')
+            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
+            plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
             plt.xlabel('Tanggal')
             plt.ylabel('Nilai')
             plt.legend()
