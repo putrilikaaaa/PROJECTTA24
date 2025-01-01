@@ -168,7 +168,7 @@ def pemetaan(data_df):
             average_value = data_to_plot_selected_cluster.mean().mean()  # Mean of means for the selected cluster
 
             # Define a threshold for average value to determine color brightness
-            threshold = 0.5  # This can be adjusted based on your data range
+            threshold = 0.3  # This can be adjusted based on your data range
 
             # Update color based on selected cluster and average value
             if average_value < threshold:
