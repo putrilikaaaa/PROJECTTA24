@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.colors import to_rgba
 import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
@@ -71,11 +70,6 @@ def statistika_deskriptif(data_df):
         st.write(data_df[province].describe())
 
 # Pemetaan Linkage Page
-def darker_color(base_color, value):
-    # Function to darken the base color based on the normalized value
-    rgba = to_rgba(base_color)
-    return (rgba[0] * (1 - value), rgba[1] * (1 - value), rgba[2] * (1 - value), rgba[3])  # Darken the color
-
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
@@ -145,7 +139,7 @@ def pemetaan(data_df):
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            clustered_data['Province'] = clustered_data['Province'].str.upper ().str.replace('.', '', regex=False).str.strip()
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             gdf['Province'] = gdf['Province'].replace({
                 'DI ACEH': 'ACEH',
@@ -155,50 +149,59 @@ def pemetaan(data_df):
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
 
-            # Merge the GeoDataFrame with the clustered data
-            merged = gdf.merge(clustered_data, on='Province', how='left')
+            gdf = gdf[gdf['Province'].notna()]
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Create a color mapping based on the cluster labels
-            color_map = {1: 'darkred', 2: 'orange', 3: 'yellow', 4: 'lightgreen', 5: 'lightblue', 6: 'blue', 7: 'purple', 8: 'pink', 9: 'brown', 10: 'gray'}
-            merged['Color'] = merged['Cluster'].map(color_map)
+            cluster_options = list(range(1, optimal_n_clusters + 1))
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
 
-            # Plotting the map
-            fig, ax = plt.subplots(1, 1, figsize=(15, 10))
-            merged.plot(column='Color', ax=ax, legend=True, missing_kwds={"color": "lightgrey"})
-            plt.title('Pemetaan Provinsi Berdasarkan Kluster')
-            plt.axis('off')
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            }.get(selected_cluster, 'grey')
+
+            # Filter the data for the selected cluster
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+
+            # Plot the map with the selected cluster
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
-            # Display the map with clusters
-            st.subheader("Peta Provinsi dengan Kluster")
-            st.pyplot(fig)
+            # Line chart for provinces in the selected cluster using data_daily_values
+            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
+            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Additional analysis or features can be added here
-            st.write("Analisis lebih lanjut dapat dilakukan berdasarkan kluster yang telah ditentukan.")
+            # Ensure the columns in data_to_plot are also transformed
+            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
+            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
 
-        # Debugging information
-        st.write("Clustered DataFrame:")
-        st.write(clustered_data)
-        st.write("Merged GeoDataFrame:")
-        st.write(merged)
+            # Calculate the average line across the selected cluster provinces
+            average_line = data_to_plot_selected_cluster.mean(axis=1)
 
-        # Check for selected cluster
-        selected_cluster = st.selectbox("Pilih Kluster untuk Ditampilkan", options=range(1, optimal_n_clusters + 1))
-        provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
-        st.write(f"Provinsi dalam Kluster {selected_cluster}:")
-        st.write(provinces_in_cluster)
+            # Plot the line chart for the selected cluster
+            plt.figure(figsize=(12, 6))
+            for province in provinces_in_cluster:
+                plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
+            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
+            plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
+            plt.xlabel('Tanggal')
+            plt.ylabel('Nilai')
+            plt.legend()
+            st.pyplot(plt)
 
-        # Line chart for the selected cluster
-        selected_provinces_data = data_daily.loc[:, clustered_data['Cluster'] == selected_cluster]
-        plt.figure(figsize=(12, 6))
-        for province in selected_provinces_data.columns:
-            plt.plot(selected_provinces_data.index, selected_provinces_data[province], label=province)
-        plt.title(f'Line Chart untuk Provinsi dalam Kluster {selected_cluster}')
-        plt.xlabel('Tanggal')
-        plt.ylabel('Nilai Rata-rata Harian')
-        plt.legend()
-        st.pyplot(plt)
-        
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
