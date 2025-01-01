@@ -126,7 +126,7 @@ def pemetaan(data_df):
         # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
-            'Province': data_daily.columns,
+            'Province ': data_daily.columns,
             'Cluster': cluster_labels
         })
 
@@ -155,8 +155,13 @@ def pemetaan(data_df):
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
-            # Filter the data for the selected cluster
-            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+            # Line chart for provinces in the selected cluster using data_daily_values
+            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
+            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Ensure the columns in data_to_plot are also transformed
+            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
+            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
 
             # Calculate the average value for the selected cluster
             average_value = data_to_plot_selected_cluster.mean().mean()  # Mean of means for the selected cluster
@@ -197,26 +202,16 @@ def pemetaan(data_df):
             # Plot the map with the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
-
-            # Line chart for provinces in the selected cluster using data_daily_values
-            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
-            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
-
-            # Ensure the columns in data_to_plot are also transformed
-            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
-            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
-
-            # Calculate the average line across the selected cluster provinces
-            average_line = data_to_plot_selected_cluster.mean(axis=1)
 
             # Plot the line chart for the selected cluster
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
                 plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
-            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
+            plt.plot(data_to_plot_selected_cluster.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
             plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
             plt.xlabel('Tanggal')
             plt.ylabel('Nilai')
