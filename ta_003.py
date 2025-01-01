@@ -75,8 +75,8 @@ def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
-    data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-    data_df.set_index('Tanggal', inplace=True)
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
 
     data_daily = data_df.resample('D').mean()
     data_daily.fillna(method='ffill', inplace=True)
