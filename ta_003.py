@@ -70,6 +70,11 @@ def statistika_deskriptif(data_df):
         st.write(data_df[province].describe())
 
 # Pemetaan Linkage Page
+def darker_color(base_color, value):
+    # Function to darken the base color based on the normalized value
+    rgba = to_rgba(base_color)
+    return (rgba[0] * (1 - value), rgba[1] * (1 - value), rgba[2] * (1 - value), rgba[3])  # Darken the color
+
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
@@ -153,22 +158,24 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
-            # Update color based on selected cluster
+            # Calculate average values for each province in the selected cluster
+            average_values = data_daily_values.mean(axis=0)
+            province_avg = pd.Series(average_values, index=data_daily.columns)
+            province_avg = province_avg[clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']]
+
+            # Normalize the average values for color mapping
+            normalized_avg = (province_avg - province_avg.min()) / (province_avg.max() - province_avg.min())
+
+            # Define color gradient from dark to light
+            colors = ['#00008B', '#0000FF', '#87CEFA']  # Dark blue to light blue
+            color_map = [to_rgba(colors[0], alpha=1 - value) for value in normalized_avg]
+
+            # Update GeoDataFrame with colors based on average values
             gdf['color'] = 'grey'  # Default color
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            }.get(selected_cluster, 'grey')
+            for province in province_avg.index:
+                gdf.loc[gdf['Province'] == province, 'color'] = color_map[province_avg.index.get_loc(province)]
 
             # Filter the data for the selected cluster
             gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
@@ -178,6 +185,12 @@ def pemetaan(data_df):
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+
+            # Create a legend for the color gradient
+            sm = plt.cm.ScalarMappable(cmap='Blues', norm=plt.Normalize(vmin=province_avg.min(), vmax=province_avg.max()))
+            sm.set_array([])
+            plt.colorbar(sm, ax=ax, label='Rata-rata Nilai Provinsi')
+
             st.pyplot(fig)
 
             # Line chart for provinces in the selected cluster using data_daily_values
