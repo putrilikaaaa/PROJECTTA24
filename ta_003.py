@@ -153,7 +153,7 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster options)
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
             # Create a color mapping for the selected cluster
             gdf['color'] = 'grey'  # Default color
