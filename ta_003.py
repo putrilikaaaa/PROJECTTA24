@@ -152,25 +152,10 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
+            # Assign colors based on cluster
+            gdf['color'] = gdf['Cluster'].map(color_mapping).fillna('grey')  # Default color for unassigned clusters
 
-            # Create a color mapping for the selected cluster
-            gdf['color'] = 'grey'  # Default color
-            color_mapping = {
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            }
-            selected_color = color_mapping.get(selected_cluster, 'grey')
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = selected_color
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=list(color_mapping.keys()))
 
             # Apply a gradient effect for the selected cluster
             cluster_indices = gdf[gdf['Cluster'] == selected_cluster].index
@@ -178,7 +163,7 @@ def pemetaan(data_df):
             for idx, color in zip(cluster_indices, gradient_colors):
                 gdf.at[idx, 'color'] = color
 
-            # Plot the map with the gradient colors for the selected cluster
+            # Plot the map with the assigned colors
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
@@ -207,6 +192,8 @@ def pemetaan(data_df):
             plt.ylabel('Nilai')
             plt.legend()
             st.pyplot(plt)
+
+
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
