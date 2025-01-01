@@ -200,6 +200,7 @@ def pemetaan(data_df):
             st.pyplot(plt)
             
 # Function to compute DTW distance matrix using fastdtw for medoids
+# Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
     dtw_distance_matrix = np.zeros((num_series, num_series))
@@ -218,13 +219,14 @@ def pemetaan_kmedoids(data_df):
     st.subheader("Halaman Pemetaan dengan Metode K-Medoids")
 
     if data_df is not None:
+        # Preprocessing data
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-       # Scaling the data using MinMaxScaler
+        # Scaling the data using MinMaxScaler
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
@@ -268,7 +270,6 @@ def pemetaan_kmedoids(data_df):
 
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
-
 
     # GeoJSON visualization with cluster dropdown
     gdf = upload_geojson_file()
@@ -330,6 +331,7 @@ def pemetaan_kmedoids(data_df):
         plt.ylabel('Nilai')
         plt.legend()
         st.pyplot(plt)
+
 
 # Sidebar options
 selected = option_menu(
