@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
@@ -70,6 +71,20 @@ def statistika_deskriptif(data_df):
         st.write(data_df[province].describe())
 
 # Pemetaan Linkage Page
+# Define the color mapping for clusters
+color_mapping = {
+    1: 'red',
+    2: 'yellow',
+    3: 'green',
+    4: 'blue',
+    5: 'purple',
+    6: 'orange',
+    7: 'pink',
+    8: 'brown',
+    9: 'cyan',
+    10: 'magenta'
+}
+
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
@@ -136,41 +151,32 @@ def pemetaan(data_df):
         # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            gdf = gdf.merge(clustered_data, left_on='name', right_on='Province', how='left')
+            gdf['color'] = 'grey'  # Default color
 
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            # Calculate standard deviation for each province in the selected cluster
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=list(color_mapping.keys()))
+            cluster_provinces = gdf[gdf['Cluster'] == selected_cluster]
+            std_dev_values = cluster_provinces['value_column'].std()  # Replace 'value_column' with the actual column name
 
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
+            # Normalize the standard deviation values
+            scaler = MinMaxScaler()
+            normalized_std_dev = scaler.fit_transform(std_dev_values.values.reshape(-1, 1)).flatten()
 
-            gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
-
-            cluster_options = list(color_mapping.keys())
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
-
-            # Create a gradient effect for the selected cluster based on the color mapping
-            base_color = color_mapping[selected_cluster]
-            lighter_color = mcolors.to_rgba(base_color, alpha=0.5)  # Lighter version with transparency
-            gradient_colors = [mcolors.to_rgba(base_color, alpha=alpha) for alpha in np.linspace(0.5, 1, len(gdf[gdf['Cluster'] == selected_cluster]))]
+            # Create a gradient color mapping based on normalized standard deviation
+            gradient_colors = plt.cm.Reds(normalized_std_dev)
 
             # Assign gradient colors to the provinces in the selected cluster
             cluster_indices = gdf[gdf['Cluster'] == selected_cluster].index
             for idx, color in zip(cluster_indices, gradient_colors):
                 gdf.at[idx, 'color'] = color
 
-            # Plot the map with the assigned colors
+            # Plot the map with the gradient colors for the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
 
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW) dengan Gradient Warna")
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW) dengan Gradient Warna Berdasarkan Standar Deviasi")
             st.pyplot(fig)
 
             # Line chart for provinces in the selected cluster using data_daily_values
