@@ -78,35 +78,61 @@ def pemetaan(data_df):
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
-    data_daily = data_df.resample('D').mean()
-    data_daily.fillna(method='ffill', inplace=True)
+        data_daily = data_df.resample('D').mean()
+        data_daily.fillna(method='ffill', inplace=True)
 
-    scaler = MinMaxScaler()
-    data_daily_values = scaler.fit_transform(data_daily)
+        scaler = MinMaxScaler()
+        data_daily_values = scaler.fit_transform(data_daily)
 
-    linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-    dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
-    dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
-    max_n_clusters = 10
-    silhouette_scores = {}
-    cluster_labels_dict = {}
+        max_n_clusters = 10
+        silhouette_scores = {}
+        cluster_labels_dict = {}
 
-    for n_clusters in range(2, max_n_clusters + 1):
-        clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
-        labels = clustering.fit_predict(dtw_distance_matrix_daily)
-        score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
-        silhouette_scores[n_clusters] = score
-        cluster_labels_dict[n_clusters] = labels
+        for n_clusters in range(2, max_n_clusters + 1):
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+            silhouette_scores[n_clusters] = score
+            cluster_labels_dict[n_clusters] = labels
 
-    optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        plt.figure(figsize=(10, 6))
+        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-    # Create clustered data DataFrame
-    cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
-    clustered_data = pd.DataFrame({
-        'Province': data_daily.columns,
-        'Cluster': cluster_labels
-    })
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('Silhouette Score')
+        plt.xticks(range(2, max_n_clusters + 1))
+        plt.grid(True)
+        st.pyplot(plt)
+
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+
+        plt.figure(figsize=(16, 10))
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.xlabel('Provinsi')
+        plt.ylabel('Jarak DTW')
+        st.pyplot(plt)
+
+        # Adjust cluster labels to start from 1 instead of 0
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        clustered_data = pd.DataFrame({
+            'Province': data_daily.columns,
+            'Cluster': cluster_labels
+        })
+
+        st.subheader("Tabel Label Cluster Setiap Provinsi")
+        st.write(clustered_data)
 
     # GeoJSON visualization with cluster dropdown
     gdf = upload_geojson_file()
