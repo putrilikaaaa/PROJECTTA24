@@ -134,10 +134,6 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-        # Debugging information
-        st.write("Clustered DataFrame:")
-        st.write(clustered_data)
-
         # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
