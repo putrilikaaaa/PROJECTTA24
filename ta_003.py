@@ -98,7 +98,6 @@ def pemetaan(data_df):
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
-        # Plot silhouette scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
         for n_clusters, score in silhouette_scores.items():
@@ -134,7 +133,7 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-        # GeoJSON visualization with cluster dropdown
+                # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -145,7 +144,7 @@ def pemetaan(data_df):
             gdf['Province'] = gdf['Province'].replace({
                 'DI ACEH': 'ACEH',
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT ': 'NUSA TENGGARA BARAT',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
@@ -154,6 +153,8 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
+            # Dropdown to select the cluster
+# Dropdown to select the cluster
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
             # Update color based on selected cluster
@@ -181,23 +182,6 @@ def pemetaan(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
-            # Line chart for provinces in the selected cluster
-            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
-            # Ensure the province names are consistent
-            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
-            
-            # Debugging: Print the values for comparison
-            st.write("Data Daily Columns:", data_daily.columns.tolist())
-            st.write("Provinces in Cluster:", provinces_in_cluster.tolist())
-
-            # Check if all provinces are in data_daily
-            missing_provinces = [province for province in provinces_in_cluster if province not in data_daily.columns]
-            if missing_provinces:
-                st.warning(f"Missing provinces in data_daily: {missing_provinces}")
-
-            data_to_plot = data_daily[provinces_in_cluster].copy()
-            st.line_chart(data_to_plot)
-            
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
@@ -268,7 +252,7 @@ def pemetaan_kmedoids(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-       
+
                 # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
@@ -317,7 +301,7 @@ def pemetaan_kmedoids(data_df):
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
-            
+
 # Sidebar options
 selected = option_menu(
     menu_title=None,
