@@ -74,112 +74,113 @@ def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
-    data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
-    data_df.set_index('Tanggal', inplace=True)
+        data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
+        data_df.set_index('Tanggal', inplace=True)
 
-    data_daily = data_df.resample('D').mean()
-    data_daily.fillna(method='ffill', inplace=True)
+        data_daily = data_df.resample('D').mean()
+        data_daily.fillna(method='ffill', inplace=True)
 
-    scaler = MinMaxScaler()
-    data_daily_values = scaler.fit_transform(data_daily)
+        scaler = MinMaxScaler()
+        data_daily_values = scaler.fit_transform(data_daily)
 
-    linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-    dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
-    dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
+        linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
+        dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
+        dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
-    max_n_clusters = 10
-    silhouette_scores = {}
-    cluster_labels_dict = {}
+        max_n_clusters = 10
+        silhouette_scores = {}
+        cluster_labels_dict = {}
 
-    for n_clusters in range(2, max_n_clusters + 1):
-        clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
-        labels = clustering.fit_predict(dtw_distance_matrix_daily)
-        score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
-        silhouette_scores[n_clusters] = score
-        cluster_labels_dict[n_clusters] = labels
+        for n_clusters in range(2, max_n_clusters + 1):
+            clustering = AgglomerativeClustering(n_clusters=n_clusters, metric='precomputed', linkage=linkage_method)
+            labels = clustering.fit_predict(dtw_distance_matrix_daily)
+            score = silhouette_score(dtw_distance_matrix_daily, labels, metric='precomputed')
+            silhouette_scores[n_clusters] = score
+            cluster_labels_dict[n_clusters] = labels
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
-    for n_clusters, score in silhouette_scores.items():
-        plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
+        plt.figure(figsize=(10, 6))
+        plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
+        for n_clusters, score in silhouette_scores.items():
+            plt.text(n_clusters, score, f"{score:.2f}", fontsize=9, ha='right')
 
-    plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
-    plt.xlabel('Number of Clusters')
-    plt.ylabel('Silhouette Score')
-    plt.xticks(range(2, max_n_clusters + 1))
-    plt.grid(True)
-    st.pyplot(plt)
+        plt.title('Silhouette Score vs. Number of Clusters (Data Harian)')
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('Silhouette Score')
+        plt.xticks(range(2, max_n_clusters + 1))
+        plt.grid(True)
+        st.pyplot(plt)
 
-    optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-    st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+        optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
-    condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
-    Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
+        condensed_dtw_distance_matrix = squareform(dtw_distance_matrix_daily)
+        Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
-    plt.figure(figsize=(16, 10))
-    dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
-    plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
-    plt.xlabel('Provinsi')
-    plt.ylabel('Jarak DTW')
-    st.pyplot(plt)
+        plt.figure(figsize=(16, 10))
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
+        plt.xlabel('Provinsi')
+        plt.ylabel('Jarak DTW')
+        st.pyplot(plt)
 
-    # Adjust cluster labels to start from 1 instead of 0
-    cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
-    clustered_data = pd.DataFrame({
-        'Province': data_daily.columns,
-        'Cluster': cluster_labels
-    })
-
-    st.subheader("Tabel Label Cluster Setiap Provinsi")
-    st.write(clustered_data)
-
-    # GeoJSON visualization with cluster dropdown
-    gdf = upload_geojson_file()
-    if gdf is not None:
-        gdf = gdf.rename(columns={'Propinsi': 'Province'})
-        gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-        clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-
-        gdf['Province'] = gdf['Province'].replace({
-            'DI ACEH': 'ACEH',
-            'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-            'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+        # Adjust cluster labels to start from 1 instead of 0
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        clustered_data = pd.DataFrame({
+            'Province': data_daily.columns,
+            'Cluster': cluster_labels
         })
 
-        gdf = gdf[gdf['Province'].notna()]
-        gdf = gdf.merge(clustered_data, on='Province', how='left')
+        st.subheader("Tabel Label Cluster Setiap Provinsi")
+        st.write(clustered_data)
 
-        cluster_options = list(range(1, optimal_n_clusters + 1))
-        # Dropdown to select the cluster
-        selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+                # GeoJSON visualization with cluster dropdown
+        gdf = upload_geojson_file()
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-        # Update color based on selected cluster
-        gdf['color'] = 'grey'  # Default color
-        gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-            1: 'red',
-            2: 'yellow',
-            3: 'green',
-            4: 'blue',
-            5: 'purple',
-            6: 'orange',
-            7: 'pink',
-            8: 'brown',
-            9: 'cyan',
-            10: 'magenta'
-        }.get(selected_cluster, 'grey')
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-        # Filter the data for the selected cluster
-        gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
 
-        # Plot the map with the selected cluster
-        fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-        gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-        gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-        plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
-        st.pyplot(fig)
+            gdf = gdf[gdf['Province'].notna()]
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
+
+            cluster_options = list(range(1, optimal_n_clusters + 1))
+            # Dropdown to select the cluster
+# Dropdown to select the cluster
+            selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
+
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            }.get(selected_cluster, 'grey')
+
+            # Filter the data for the selected cluster
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+
+            # Plot the map with the selected cluster
+            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+            st.pyplot(fig)
                 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
