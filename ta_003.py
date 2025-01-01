@@ -117,9 +117,10 @@ def pemetaan(data_df):
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
         plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily.columns , leaf_rotation=90)
+        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
         plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
-        plt.xlabel('Provinsi')
+        plt ```python
+.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
@@ -205,7 +206,7 @@ def pemetaan(data_df):
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
- plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
             # Plot the line chart for the selected cluster
