@@ -260,21 +260,15 @@ def pemetaan_kmedoids(data_df):
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
         # Get cluster labels and map them starting from 1
-       cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
-clustered_data = pd.DataFrame({
-    'Province': data_daily.columns,
-    'Cluster': cluster_labels
-})
+        cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
+        clustered_data = pd.DataFrame({
+            'Province': data_daily.columns,
+            'Cluster': cluster_labels
+        })
 
-# Debugging output to check the contents of clustered_data
-st.subheader("Tabel Label Cluster Setiap Provinsi")
-st.write(clustered_data)
+        st.subheader("Tabel Label Cluster Setiap Provinsi")
+        st.write(clustered_data)
 
-# Check if 'Province' column exists before manipulating it
-if 'Province' in clustered_data.columns:
-    clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
-else:
-    st.error("Kolom 'Province' tidak ditemukan dalam clustered_data.")
 
     # GeoJSON visualization with cluster dropdown
     gdf = upload_geojson_file()
