@@ -138,31 +138,24 @@ def pemetaan(data_df):
             data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
             data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
 
-            # Calculate the average for each province in the selected cluster
-            average_values = data_to_plot_selected_cluster.mean(axis=0)
-
-            # Normalize the average values for color mapping
-            norm = Normalize(vmin=average_values.min(), vmax=average_values.max())
-            gdf['Average'] = gdf['Province'].map(average_values)
+            # Calculate the average line across the selected cluster provinces
+            average_line = data_to_plot_selected_cluster.mean(axis=1)
 
             # Create a heatmap based on the average values
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf[gdf['Average'].notna()].plot(column='Average', ax=ax, legend=True,
-                                              legend_kwds={'label': "Rata-rata Nilai",
-                                                           'orientation': "horizontal"},
-                                              cmap='YlOrRd', missing_kwds={"color": "lightgrey"})
-            plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
-            st.pyplot(fig)
+            gdf.boundary.plot(ax=ax, linewidth= 2, color='black')
+            gdf.plot(column='Cluster', ax=ax, legend=True, cmap='Set1', edgecolor='black')
 
-            # Line chart for provinces in the selected cluster
+            # Plot the line chart for the selected cluster with the average line
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
-                plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
-            plt.title(f'Line Chart untuk Provinsi dalam Kluster {selected_cluster}')
+                plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], label=province)
+            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata', linestyle='--')
+
+            plt.title(f'Pemetaan Kluster {selected_cluster}')
             plt.xlabel('Tanggal')
-            plt.ylabel('Nilai Rata-rata Harian')
-            plt.legend(provinces_in_cluster)
+            plt.ylabel('Nilai')
+            plt.legend()
             st.pyplot(plt)
 
 # Function to compute DTW distance matrix using fastdtw for medoids
