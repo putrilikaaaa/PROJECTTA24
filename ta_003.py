@@ -70,11 +70,6 @@ def statistika_deskriptif(data_df):
         st.write(data_df[province].describe())
 
 # Pemetaan Linkage Page
-def darker_color(base_color, value):
-    # Function to darken the base color based on the normalized value
-    rgba = to_rgba(base_color)
-    return (rgba[0] * (1 - value), rgba[1] * (1 - value), rgba[2] * (1 - value), rgba[3])  # Darken the color
-
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
@@ -151,7 +146,7 @@ def pemetaan(data_df):
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAER 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
 
             gdf = gdf[gdf['Province'].notna()]
@@ -163,7 +158,10 @@ def pemetaan(data_df):
             # Calculate average values for each province in the selected cluster
             average_values = data_daily_values.mean(axis=0)
             province_avg = pd.Series(average_values, index=data_daily.columns)
-            province_avg = province_avg[clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']]
+
+            # Ensure consistent province names
+            selected_provinces = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province'].str.upper().str.strip()
+            province_avg = province_avg.loc[selected_provinces[selected_provinces.isin(province_avg.index)]]
 
             # Normalize the average values for color mapping
             normalized_avg = (province_avg - province_avg.min()) / (province_avg.max() - province_avg.min())
