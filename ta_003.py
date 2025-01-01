@@ -98,6 +98,7 @@ def pemetaan(data_df):
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
+        # Plot silhouette scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
         for n_clusters, score in silhouette_scores.items():
@@ -147,7 +148,7 @@ def pemetaan(data_df):
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
+ })
 
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
@@ -182,6 +183,8 @@ def pemetaan(data_df):
 
             # Line chart for provinces in the selected cluster
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
+            # Ensure the province names are consistent
+            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
             data_to_plot = data_daily[provinces_in_cluster].copy()
             st.line_chart(data_to_plot)
                 
