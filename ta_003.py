@@ -182,7 +182,7 @@ def pemetaan(data_df):
                                               legend_kwds={'label': "Rata-rata Nilai",
                                                            'orientation': "horizontal"},
                                               cmap='YlOrRd', missing_kwds={"color": "lightgrey"})
-            plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+            plt.title(f"Peta Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
             # Calculate the average line across the selected cluster provinces
@@ -193,7 +193,7 @@ def pemetaan(data_df):
             for province in provinces_in_cluster:
                 plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
             plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
-            plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
+            plt.title(f'Line Chart untuk Kluster {selected_cluster}')
             plt.xlabel('Tanggal')
             plt.ylabel('Nilai')
             plt.legend()
@@ -314,7 +314,7 @@ def pemetaan_kmedoids(data_df):
                                           legend_kwds={'label': "Rata-rata Nilai",
                                                        'orientation': "horizontal"},
                                           cmap='YlOrRd', missing_kwds={"color": "lightgrey"})
-        plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+        plt.title(f"Peta Provinsi per Kluster {selected_cluster} - KMedoids (DTW)")
         st.pyplot(fig)
 
         # Calculate the average line across the selected cluster provinces
@@ -325,7 +325,7 @@ def pemetaan_kmedoids(data_df):
         for province in provinces_in_cluster:
             plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
         plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
-        plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
+        plt.title(f'Line Chart untuk Kluster {selected_cluster}')
         plt.xlabel('Tanggal')
         plt.ylabel('Nilai')
         plt.legend()
