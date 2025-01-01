@@ -152,33 +152,21 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            cluster_options = list(range(1, optimal_n_clusters + 1))
+            cluster_options = list ```python
+            cluster_options = list(color_mapping.keys())
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
-            # Create a color mapping for the selected cluster
-            gdf['color'] = 'grey'  # Default color
-            color_mapping = {
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            }
-            selected_color = color_mapping.get(selected_cluster, 'grey')
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = selected_color
+            # Create a gradient effect for the selected cluster based on the color mapping
+            base_color = color_mapping[selected_cluster]
+            lighter_color = mcolors.to_rgba(base_color, alpha=0.5)  # Lighter version with transparency
+            gradient_colors = [mcolors.to_rgba(base_color, alpha=alpha) for alpha in np.linspace(0.5, 1, len(gdf[gdf['Cluster'] == selected_cluster]))]
 
-            # Apply a gradient effect for the selected cluster
+            # Assign gradient colors to the provinces in the selected cluster
             cluster_indices = gdf[gdf['Cluster'] == selected_cluster].index
-            gradient_colors = plt.cm.Reds(np.linspace(0.3, 1, len(cluster_indices)))
             for idx, color in zip(cluster_indices, gradient_colors):
                 gdf.at[idx, 'color'] = color
 
-            # Plot the map with the gradient colors for the selected cluster
+            # Plot the map with the assigned colors
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
@@ -201,7 +189,7 @@ def pemetaan(data_df):
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
                 plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
-            plt.plot(average_line.index, average_line, color='color_mapping', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
+            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
             plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
             plt.xlabel('Tanggal')
             plt.ylabel('Nilai')
