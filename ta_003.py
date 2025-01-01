@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib import cm, colors
 import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
@@ -71,37 +70,6 @@ def statistika_deskriptif(data_df):
         st.write(data_df[province].describe())
 
 # Pemetaan Linkage Page
-# Fungsi untuk menentukan warna berdasarkan cluster dan rata-rata nilai
-def get_cluster_color(cluster_num, average_value):
-    if cluster_num == 1:  # Merah
-        colormap = cm.Reds
-    elif cluster_num == 2:  # Kuning
-        colormap = cm.Yellows
-    elif cluster_num == 3:  # Hijau
-        colormap = cm.Greens
-    elif cluster_num == 4:  # Biru
-        colormap = cm.Blues
-    elif cluster_num == 5:  # Ungu
-        colormap = cm.Purples
-    elif cluster_num == 6:  # Jingga
-        colormap = cm.Oranges
-    elif cluster_num == 7:  # Merah Muda
-        colormap = cm.Pink
-    elif cluster_num == 8:  # Coklat
-        colormap = cm.copper
-    elif cluster_num == 9:  # Cyan
-        colormap = cm.cool
-    elif cluster_num == 10:  # Magenta
-        colormap = cm.PuMagenta
-
-    # Normalize rata-rata untuk menentukan warna dalam skala
-    norm = colors.Normalize(vmin=gdf['AverageValue'].min(), vmax=gdf['AverageValue'].max())
-    
-    # Tentukan warna berdasarkan nilai rata-rata
-    color = colors.rgb2hex(colormap(norm(average_value)))
-    return color
-
-# Fungsi utama pemetaan
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
@@ -184,14 +152,23 @@ def pemetaan(data_df):
             gdf = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            # Tambahkan kolom 'AverageValue' ke gdf
-            gdf['AverageValue'] = gdf['Province'].apply(lambda province: data_df[province].mean())
-
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
 
-            # Tentukan warna untuk setiap provinsi dalam kluster
-            gdf['color'] = gdf.apply(lambda row: get_cluster_color(row['Cluster'], row['AverageValue']), axis=1)
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                1: 'red',
+                2: 'yellow',
+                3: 'green',
+                4: 'blue',
+                5: 'purple',
+                6: 'orange',
+                7: 'pink',
+                8: 'brown',
+                9: 'cyan',
+                10: 'magenta'
+            }.get(selected_cluster, 'grey')
 
             # Filter the data for the selected cluster
             gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
