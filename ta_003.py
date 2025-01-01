@@ -146,7 +146,7 @@ def pemetaan(data_df):
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
                 'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAER 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
 
             gdf = gdf[gdf['Province'].notna()]
