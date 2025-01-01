@@ -134,66 +134,66 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-        # GeoJSON visualization with cluster dropdown
-        gdf = upload_geojson_file()
-        if gdf is not None:
-            gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+    # GeoJSON visualization with cluster dropdown
+    gdf = upload_geojson_file()
+    if gdf is not None:
+        gdf = gdf.rename(columns={'Propinsi': 'Province'})
+        gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+        clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-            gdf['Province'] = gdf['Province'].replace({
-                'DI ACEH': 'ACEH',
-                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-                'NUSATENGGARA BARAT': 'NUSA T ENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-            })
+        gdf['Province'] = gdf['Province'].replace({
+            'DI ACEH': 'ACEH',
+            'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
+            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+            'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+        })
 
-            gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+        gdf = gdf[gdf['Province'].notna()]
+        gdf = gdf.merge(clustered_data, on='Province', how='left')
 
-            cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
+        cluster_options = list(range(1, optimal_n_clusters + 1))
+        selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
-            # Calculate average values for provinces in the selected cluster using original data
-            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
-            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
+        # Calculate average values for provinces in the selected cluster
+        provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
+        provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Use original data for plotting
-            data_to_plot = data_daily.copy()
-            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
+        # Ensure the columns in data_to_plot are also transformed
+        data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
+        data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
 
-            # Calculate the average for each province in the selected cluster
-            average_values = data_to_plot_selected_cluster.mean(axis=0)
+        # Calculate the average for each province in the selected cluster
+        average_values = data_to_plot_selected_cluster.mean(axis=0)
 
-            # Create a heatmap based on the average values
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf['Average'] = gdf['Province'].map(average_values)
-            gdf[gdf['Average'].notna()].plot(column='Average', ax=ax, legend=True,
-                                              legend_kwds={'label': "Rata-rata Nilai",
-                                                           'orientation': "horizontal"},
-                                              cmap='YlOrRd', missing_kwds={"color": "lightgrey"})
-            plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
-            st.pyplot(fig)
+        # Normalize the average values for color mapping
+        norm = Normalize(vmin=average_values.min(), vmax=average_values.max())
+        gdf['Average'] = gdf['Province'].map(average_values)
 
-            # Calculate the average line across the selected cluster provinces using original data
-            average_line = data_to_plot_selected_cluster.mean(axis=1)
+        # Create a heatmap based on the average values
+        fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+        gdf.boundary.plot(ax=ax, linewidth=1, color='black')
+        gdf[gdf['Average'].notna()].plot(column='Average', ax=ax, legend=True,
+                                          legend_kwds={'label': "Rata-rata Nilai",
+                                                       'orientation': "horizontal"},
+                                          cmap='YlOrRd', missing_kwds={"color": "lightgrey"})
+        plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+        st.pyplot(fig)
 
-            # Plot the line chart for the selected cluster
-            plt.figure(figsize=(12, 6))
-            for province in provinces_in_cluster:
-                plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
-            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
-            plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
-            plt.xlabel('Tanggal')
-            plt.ylabel('Nilai')
-            plt.legend()
-            st.pyplot(plt)
+        # Calculate the average line across the selected cluster provinces
+        average_line = data_to_plot_selected_cluster.mean(axis=1)
 
-            # Display the GeoJSON map
-            st.map(gdf)
+        # Plot the line chart for the selected cluster
+        plt.figure(figsize=(12, 6))
+        for province in provinces_in_cluster:
+            plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
+        plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
+        plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
+        plt.xlabel('Tanggal')
+        plt.ylabel('Nilai')
+        plt.legend()
+        st.pyplot(plt)
             
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
