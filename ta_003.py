@@ -117,7 +117,7 @@ def pemetaan(data_df):
         Z = linkage(condensed_dtw_distance_matrix, method=linkage_method)
 
         plt.figure(figsize=(16, 10))
-        dendrogram(Z, labels=data_daily.columns, leaf_rotation=90)
+        dendrogram(Z, labels=data_daily.columns , leaf_rotation=90)
         plt.title(f'Dendrogram Clustering dengan DTW (Data Harian) - Linkage: {linkage_method.capitalize()}')
         plt.xlabel('Provinsi')
         plt.ylabel('Jarak DTW')
@@ -126,7 +126,7 @@ def pemetaan(data_df):
         # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
-            'Province ': data_daily.columns,
+            'Province': data_daily.columns,  # Corrected: Removed extra space
             'Cluster': cluster_labels
         })
 
@@ -139,6 +139,7 @@ def pemetaan(data_df):
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
             gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
+            # Ensure the column name matches
             clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             gdf['Province'] = gdf['Province'].replace({
@@ -204,13 +205,14 @@ def pemetaan(data_df):
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
             gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
             gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+ plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
             # Plot the line chart for the selected cluster
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
                 plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
+            average_line = data_to_plot_selected_cluster.mean(axis=1)
             plt.plot(data_to_plot_selected_cluster.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
             plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
             plt.xlabel('Tanggal')
