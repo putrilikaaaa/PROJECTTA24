@@ -134,24 +134,24 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-    # GeoJSON visualization with cluster dropdown
-    gdf = upload_geojson_file()
-    if gdf is not None:
-        gdf = gdf.rename(columns={'Propinsi': 'Province'})
-        gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+        # GeoJSON visualization with cluster dropdown
+        gdf = upload_geojson_file()
+        if gdf is not None:
+            gdf = gdf.rename(columns={'Propinsi': 'Province'})
+            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-        clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-        gdf['Province'] = gdf['Province'].replace({
-            'DI ACEH': 'ACEH',
-            'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
-            'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-            'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-            'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
-        })
+            gdf['Province'] = gdf['Province'].replace({
+                'DI ACEH': 'ACEH',
+                'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
+                'NUSATENGGARA BARAT': 'NUSA T ENGGARA BARAT',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
+                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+            })
 
-        gdf = gdf[gdf['Province'].notna()]
-        gdf = gdf.merge(clustered_data, on='Province', how='left')
+            gdf = gdf[gdf['Province'].notna()]
+            gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
@@ -191,6 +191,9 @@ def pemetaan(data_df):
             plt.ylabel('Nilai')
             plt.legend()
             st.pyplot(plt)
+
+            # Display the GeoJSON map
+            st.map(gdf)
             
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
