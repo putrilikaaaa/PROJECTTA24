@@ -158,6 +158,9 @@ def pemetaan(data_df):
             plt.legend()
             st.pyplot(plt)
 
+            # Display the GeoJSON map
+            st.map(gdf)
+
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
