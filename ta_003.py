@@ -70,6 +70,11 @@ def statistika_deskriptif(data_df):
         st.write(data_df[province].describe())
 
 # Pemetaan Linkage Page
+def darker_color(base_color, value):
+    # Function to darken the base color based on the normalized value
+    rgba = to_rgba(base_color)
+    return (rgba[0] * (1 - value), rgba[1] * (1 - value), rgba[2] * (1 - value), rgba[3])  # Darken the color
+
 def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
@@ -137,7 +142,7 @@ def pemetaan(data_df):
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
-            gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
+            gdf ['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
             clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
@@ -145,50 +150,21 @@ def pemetaan(data_df):
                 'DI ACEH': 'ACEH',
                 'KEPULAUAN BANGKA BELITUNG': 'BANGKA BELITUNG',
                 'NUSATENGGARA BARAT': 'NUSA TENGGARA BARAT',
-                'D.I YOGYAKARTA': 'DI YOGYAKARTA',
-                'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
+                'D.I YOGYAKARTA': 'DI YOGYAKARTA'
             })
 
-            gdf = gdf[gdf['Province'].notna()]
-            gdf = gdf.merge(clustered_data, on='Province', how='left')
+            # Merge the GeoDataFrame with the clustered data
+            merged = gdf.merge(clustered_data, on='Province', how='left')
 
-            cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
+            # Create a color mapping based on the cluster labels
+            color_map = {1: 'darkred', 2: 'orange', 3: 'yellow', 4: 'lightgreen', 5: 'lightblue', 6: 'blue', 7: 'purple', 8: 'pink', 9: 'brown', 10: 'gray'}
+            merged['Color'] = merged['Cluster'].map(color_map)
 
-            # Calculate average values for each province in the selected cluster
-            average_values = data_daily_values.mean(axis=0)
-            province_avg = pd.Series(average_values, index=data_daily.columns)
-
-            # Ensure consistent province names
-            selected_provinces = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province'].str.upper().str.strip()
-            province_avg = province_avg.loc[selected_provinces[selected_provinces.isin(province_avg.index)]]
-
-            # Normalize the average values for color mapping
-            normalized_avg = (province_avg - province_avg.min()) / (province_avg.max() - province_avg.min())
-
-            # Define color gradient from dark to light
-            colors = ['#00008B', '#0000FF', '#87CEFA']  # Dark blue to light blue
-            color_map = [to_rgba(colors[0], alpha=1 - value) for value in normalized_avg]
-
-            # Update GeoDataFrame with colors based on average values
-            gdf['color'] = 'grey'  # Default color
-            for province in province_avg.index:
-                gdf.loc[gdf['Province'] == province, 'color'] = color_map[province_avg.index.get_loc(province)]
-
-            # Filter the data for the selected cluster
-            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
-
-            # Plot the map with the selected cluster
-            fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
-
-            # Create a legend for the color gradient
-            sm = plt.cm.ScalarMappable(cmap='Blues', norm=plt.Normalize(vmin=province_avg.min(), vmax=province_avg.max()))
-            sm.set_array([])
-            plt.colorbar(sm, ax=ax, label='Rata-rata Nilai Provinsi')
-
+            # Plotting the map
+            fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+            merged.plot(column='Color', ax=ax, legend=True, missing_kwds={"color": "lightgrey"})
+            plt.title('Pemetaan Provinsi Berdasarkan Kluster')
+            plt.axis('off')
             st.pyplot(fig)
 
             # Line chart for provinces in the selected cluster using data_daily_values
