@@ -74,22 +74,17 @@ def pemetaan(data_df):
     st.subheader("Halaman Pemetaan dengan Metode Linkage")
 
     if data_df is not None:
-        # Preprocessing
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
-        # Resampling and filling missing values
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Standardization
-        scaler = StandardScaler()
+        # Gunakan MinMaxScaler di sini
+        scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
-        # User selects linkage method
         linkage_method = st.selectbox("Pilih Metode Linkage", options=["complete", "single", "average"])
-
-        # Compute DTW distance matrix
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
