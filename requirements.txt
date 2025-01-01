@@ -17,7 +17,3 @@ plotly
 streamlit_folium
 streamlit-option-menu
 requests
-geopy
-shapely
-pytz
-pandas_profiling
