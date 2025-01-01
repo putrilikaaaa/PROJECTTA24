@@ -153,24 +153,11 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
 
-            # Calculate average values for provinces in the selected cluster
-            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
-            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
-
-            # Ensure the columns in data_daily_values are also transformed
-            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
-            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
-
-            # Calculate the average for each province in the selected cluster
-            average_values = data_to_plot_selected_cluster.mean(axis=0)
-
-            # Normalize the average values to a range of 0 to 1
-            normalized_values = (average_values - average_values.min()) / (average_values.max() - average_values.min())
-
-            # Define color mapping from dark to light for each cluster
-            color_map = {
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
                 1: 'red',
                 2: 'yellow',
                 3: 'green',
@@ -181,14 +168,7 @@ def pemetaan(data_df):
                 8: 'brown',
                 9: 'cyan',
                 10: 'magenta'
-            }
-
-            # Assign colors based on normalized average values
-            gdf['color'] = 'grey'  # Default color
-            for cluster, base_color in color_map.items():
-                if cluster == selected_cluster:
-                    gdf.loc[gdf['Cluster'] == cluster, 'color'] = [base_color] * len(gdf[gdf['Cluster'] == cluster])
-                    gdf.loc[gdf['Cluster'] == cluster, 'color'] = [darker_color(base_color, value) for value in normalized_values]
+            }.get(selected_cluster, 'grey')
 
             # Filter the data for the selected cluster
             gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
@@ -201,6 +181,17 @@ def pemetaan(data_df):
             st.pyplot(fig)
 
             # Line chart for provinces in the selected cluster using data_daily_values
+            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
+            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Ensure the columns in data_to_plot are also transformed
+            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
+            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
+
+            # Calculate the average line across the selected cluster provinces
+            average_line = data_to_plot_selected_cluster.mean(axis=1)
+
+            # Plot the line chart for the selected cluster
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
                 plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
@@ -211,12 +202,6 @@ def pemetaan(data_df):
             plt.legend()
             st.pyplot(plt)
 
-def darker_color(base_color, value):
-    # Function to darken the base color based on the normalized value
-    from matplotlib.colors import to_rgba
-    rgba = to_rgba(base_color)
-    return (rgba[0] * (1 - value), rgba[1] * (1 - value), rgba[2] * (1 - value), rgba[3])  # Darken the color
-    
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
