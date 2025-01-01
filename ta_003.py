@@ -156,7 +156,7 @@ def pemetaan(data_df):
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
             # Update color based on selected cluster
-            gdf['color'] = 'grey'  # Default color
+            gdf['color '] = 'grey'  # Default color
             gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
                 1: 'red',
                 2: 'yellow',
@@ -184,8 +184,8 @@ def pemetaan(data_df):
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
             provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Extract the corresponding data for the provinces in the selected cluster
-            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns, index=data_daily.index)
+            # Ensure the columns in data_to_plot are also transformed
+            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
             data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
 
             # Plot the line chart for the selected cluster
