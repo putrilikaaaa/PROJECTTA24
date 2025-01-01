@@ -472,17 +472,32 @@ if selected == "Home Page":
     # Display the third image
     st.markdown("""
     <div style="border: 2px solid black; display: inline-block; padding: 5px;">
-    <img src="https://raw.githubusercontent.com/putrilikaaaa/PROJECTTA24/main/Page%20PL%205.png" alt="Statistika Deskriptif" width="600">
+    <img src="https://github.com/putrilikaaaa/PROJECTTA24/blob/main/PL%207.png" alt="Statistika Deskriptif" width="600">
     </div>
     """, unsafe_allow_html=True)
 
     # Add text below the third image
     st.markdown("""
     <div style="text-align: justify;">
-    Peta yang terbentuk memiliki 2 warna karena terdapat 2 klaster. Wilayah dengan warna merah merupakan anggota klaster 1 dan warna kuning merupakan klaster 2. Wilayah pada satu klaster yang sama memiiki pola nilai yang sama, kenaikan dan penurunan yang sama pade setiap periodenya.
+    Terdapat dropdown yang mana pengguna dapat memilih kelompok amna yang mau ditampilkan. Semakin gelap warna suatu provinsi, maka semakin tinggi rata-rata harganya.
     <br><br>
     </div>
      """, unsafe_allow_html=True)
+
+       # Display the third image
+    st.markdown("""
+    <div style="border: 2px solid black; display: inline-block; padding: 5px;">
+    <img src="https://github.com/putrilikaaaa/PROJECTTA24/blob/main/PL%208.png.png" alt="Statistika Deskriptif" width="600">
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Add text below the third image
+    st.markdown("""
+    <div style="text-align: justify;">
+    Terdapat linechart yang mana berisi pola harga dari setiap provinsi yang berada pada kelompok yang dipilih yang ditunjukkan oleh garis berwarna abu-abu dan rata-rata pola harganya ditunjukkan oleh garis berwarna merah.
+    <br><br>
+    </div>
+     """, unsafe_allow_html=True) 
 
     # Add text for "Pemetaan KMedoids"
     st.markdown("""
