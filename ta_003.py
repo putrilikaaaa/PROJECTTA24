@@ -80,7 +80,6 @@ def pemetaan(data_df):
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Gunakan MinMaxScaler di sini
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
@@ -88,7 +87,6 @@ def pemetaan(data_df):
         dtw_distance_matrix_daily = compute_dtw_distance_matrix(data_daily_values)
         dtw_distance_matrix_daily = symmetrize(dtw_distance_matrix_daily)
 
-        # Clustering and silhouette scores
         max_n_clusters = 10
         silhouette_scores = {}
         cluster_labels_dict = {}
@@ -100,7 +98,6 @@ def pemetaan(data_df):
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
-        # Silhouette score plot
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
         for n_clusters, score in silhouette_scores.items():
@@ -113,7 +110,6 @@ def pemetaan(data_df):
         plt.grid(True)
         st.pyplot(plt)
 
-        # Determine optimal clusters and display dendrogram
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
         st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
@@ -127,7 +123,7 @@ def pemetaan(data_df):
         plt.ylabel('Jarak DTW')
         st.pyplot(plt)
 
-        # Cluster assignment
+        # Adjust cluster labels to start from 1 instead of 0
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
         clustered_data = pd.DataFrame({
             'Province': data_daily.columns,
@@ -137,7 +133,7 @@ def pemetaan(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
-        # GeoJSON visualization
+        # GeoJSON visualization with cluster dropdown
         gdf = upload_geojson_file()
         if gdf is not None:
             gdf = gdf.rename(columns={'Propinsi': 'Province'})
@@ -157,25 +153,11 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
 
-            # Calculate standard deviation for provinces in the selected cluster
-            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
-            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
-
-            data_to_analyze = pd.DataFrame(
-                data_daily_values,
-                columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(),
-                index=data_daily.index
-            )
-            data_to_analyze_selected = data_to_analyze[provinces_in_cluster].copy()
-            std_deviation = data_to_analyze_selected.std(axis=0)
-
-            # Normalize standard deviation for color mapping
-            normalized_std_dev = (std_deviation - std_deviation.min()) / (std_deviation.max() - std_deviation.min())
-
-            # Assign gradient colors based on normalized standard deviation
-            base_color = {
+            # Update color based on selected cluster
+            gdf['color'] = 'grey'  # Default color
+            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
                 1: 'red',
                 2: 'yellow',
                 3: 'green',
@@ -186,27 +168,25 @@ def pemetaan(data_df):
                 8: 'brown',
                 9: 'cyan',
                 10: 'magenta'
-            }[selected_cluster]
+            }.get(selected_cluster, 'grey')
 
-            def gradient_color(base_color, intensity):
-                from matplotlib.colors import to_rgb
-                color = to_rgb(base_color)
-                return (intensity * color[0], intensity * color[1], intensity * color[2])
+            # Filter the data for the selected cluster
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
 
-            gdf['color'] = 'grey'  # Default color
-            for province, intensity in normalized_std_dev.items():
-                province_row = gdf['Province'] == province
-                gdf.loc[province_row, 'color'] = gradient_color(base_color, intensity)
-
-            # Plot the map with gradient colors
+            # Plot the map with the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Berdasarkan Standar Deviasi")
+            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
-            # Line chart for the selected cluster
-            data_to_plot_selected_cluster = data_to_analyze_selected
+            # Line chart for provinces in the selected cluster using data_daily_values
+            provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
+            provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
+
+            # Ensure the columns in data_to_plot are also transformed
+            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
+            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
 
             # Calculate the average line across the selected cluster provinces
             average_line = data_to_plot_selected_cluster.mean(axis=1)
@@ -221,7 +201,6 @@ def pemetaan(data_df):
             plt.ylabel('Nilai')
             plt.legend()
             st.pyplot(plt)
-
 
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
