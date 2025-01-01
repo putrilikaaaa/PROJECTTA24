@@ -157,7 +157,7 @@ def statistika_deskriptif(data_df):
 
             # Assign base color based on cluster
             gdf['color'] = 'grey'  # Default color
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+            gdf.loc[g df['Cluster'] == selected_cluster, 'color'] = {
                 1: 'red',
                 2: 'yellow',
                 3: 'green',
