@@ -149,29 +149,50 @@ def pemetaan(data_df):
                 'DAERAH ISTIMEWA YOGYAKARTA': 'DI YOGYAKARTA',
             })
 
-            gdf = gdf[gdf['Province'].notna()]
+            g df = gdf[gdf['Province'].notna()]
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
-
-            # Update color based on selected cluster
-            gdf['color'] = 'grey'  # Default color
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            }.get(selected_cluster, 'grey')
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
             # Filter the data for the selected cluster
             gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
+
+            # Calculate the average value for the selected cluster
+            average_value = data_to_plot_selected_cluster.mean().mean()  # Mean of means for the selected cluster
+
+            # Define a threshold for average value to determine color brightness
+            threshold = 0.5  # This can be adjusted based on your data range
+
+            # Update color based on selected cluster and average value
+            if average_value < threshold:
+                # Use lighter colors for lower average values
+                gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                    1: 'lightcoral',  # Light red
+                    2: 'lightyellow',  # Light yellow
+                    3: 'lightgreen',  # Light green
+                    4: 'lightblue',  # Light blue
+                    5: 'plum',  # Light purple
+                    6: 'lightsalmon',  # Light orange
+                    7: 'lightpink',  # Light pink
+                    8: 'lightgrey',  # Light brown
+                    9: 'lightcyan',  # Light cyan
+                    10: 'lightmagenta'  # Light magenta
+                }.get(selected_cluster, 'lightgrey')
+            else:
+                # Use darker colors for higher average values
+                gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
+                    1: 'red',
+                    2: 'yellow',
+                    3: 'green',
+                    4: 'blue',
+                    5: 'purple',
+                    6: 'orange',
+                    7: 'pink',
+                    8: 'brown',
+                    9: 'cyan',
+                    10: 'magenta'
+                }.get(selected_cluster, 'grey')
 
             # Plot the map with the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
