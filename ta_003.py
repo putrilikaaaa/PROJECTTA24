@@ -153,7 +153,7 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options = cluster_options)
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
             # Update color based on selected cluster
             gdf['color'] = 'grey'  # Default color
@@ -180,29 +180,13 @@ def pemetaan(data_df):
             plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
-            # Line chart for provinces in the selected cluster
+            # Line chart for provinces in the selected cluster using data_daily_values
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
             provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
 
-            # Print for debugging
-            st.write("Provinces in Cluster:", provinces_in_cluster.tolist())
-            st.write("Data Daily Columns:", data_daily.columns.tolist())
-
             # Extract the corresponding data for the provinces in the selected cluster
-            data_to_plot = data_daily[provinces_in_cluster].copy()
-
-            # Plot the line chart
-            st.line_chart(data_to_plot)
-
-            # New dropdown for visualizing line chart of selected cluster
-            selected_cluster_for_line_chart = st.selectbox("Pilih Kluster untuk Visualisasi Line Chart", options=cluster_options)
-
-            # Filter provinces for the selected cluster
-            provinces_in_selected_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster_for_line_chart]['Province']
-            provinces_in_selected_cluster = provinces_in_selected_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
-
-            # Extract the corresponding data for the selected provinces
-            data_to_plot_selected_cluster = data_daily[provinces_in_selected_cluster].copy()
+            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns, index=data_daily.index)
+            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
 
             # Plot the line chart for the selected cluster
             st.line_chart(data_to_plot_selected_cluster)
