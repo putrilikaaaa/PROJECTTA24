@@ -219,14 +219,13 @@ def pemetaan_kmedoids(data_df):
     st.subheader("Halaman Pemetaan dengan Metode K-Medoids")
 
     if data_df is not None:
-        # Preprocessing data
         data_df['Tanggal'] = pd.to_datetime(data_df['Tanggal'], format='%d-%b-%y', errors='coerce')
         data_df.set_index('Tanggal', inplace=True)
 
         data_daily = data_df.resample('D').mean()
         data_daily.fillna(method='ffill', inplace=True)
 
-        # Scaling the data using MinMaxScaler
+       # Scaling the data using MinMaxScaler
         scaler = MinMaxScaler()
         data_daily_values = scaler.fit_transform(data_daily)
 
@@ -259,7 +258,7 @@ def pemetaan_kmedoids(data_df):
         st.pyplot(plt)
 
         optimal_n_clusters = max(silhouette_scores, key=silhouette_scores.get)
-        st.write(f"Jumlah cluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
+        st.write(f"Jumlah kluster optimal berdasarkan Silhouette Score adalah: {optimal_n_clusters}")
 
         # Get cluster labels and map them starting from 1
         cluster_labels = cluster_labels_dict[optimal_n_clusters] + 1
@@ -271,13 +270,14 @@ def pemetaan_kmedoids(data_df):
         st.subheader("Tabel Label Cluster Setiap Provinsi")
         st.write(clustered_data)
 
+
     # GeoJSON visualization with cluster dropdown
     gdf = upload_geojson_file()
     if gdf is not None:
         gdf = gdf.rename(columns={'Propinsi': 'Province'})
         gdf['Province'] = gdf['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
-        clustered_data['Province'] = clustered_data['Province'].fillna('').str.upper().str.replace('.', '', regex=False).str.strip()
+        clustered_data['Province'] = clustered_data['Province'].str.upper().str.replace('.', '', regex=False).str.strip()
 
         gdf['Province'] = gdf['Province'].replace({
             'DI ACEH': 'ACEH',
@@ -291,7 +291,7 @@ def pemetaan_kmedoids(data_df):
         gdf = gdf.merge(clustered_data, on='Province', how='left')
 
         cluster_options = list(range(1, optimal_n_clusters + 1))
-        selected_cluster = st.selectbox("Pilih Cluster untuk Pemetaan", options=cluster_options)
+        selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
         # Calculate average values for provinces in the selected cluster
         provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
@@ -315,7 +315,7 @@ def pemetaan_kmedoids(data_df):
                                           legend_kwds={'label': "Rata-rata Nilai",
                                                        'orientation': "horizontal"},
                                           cmap='YlOrRd', missing_kwds={"color": "lightgrey"})
-        plt.title(f"Peta Provinsi per Cluster {selected_cluster} - KMedoids (DTW)")
+        plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
         st.pyplot(fig)
 
         # Calculate the average line across the selected cluster provinces
@@ -325,13 +325,12 @@ def pemetaan_kmedoids(data_df):
         plt.figure(figsize=(12, 6))
         for province in provinces_in_cluster:
             plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
-        plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Cluster')
-        plt.title(f'Line Chart untuk Cluster {selected_cluster}')
+        plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
+        plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
         plt.xlabel('Tanggal')
         plt.ylabel('Nilai')
         plt.legend()
         st.pyplot(plt)
-
 
 # Sidebar options
 selected = option_menu(
