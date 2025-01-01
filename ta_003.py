@@ -153,9 +153,9 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
+            selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options= cluster_options)
 
-            # Assign base color based on cluster
+            # Update color based on selected cluster
             gdf['color'] = 'grey'  # Default color
             gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
                 1: 'red',
@@ -170,28 +170,14 @@ def pemetaan(data_df):
                 10: 'magenta'
             }.get(selected_cluster, 'grey')
 
-            # Calculate standard deviation for each province in the selected cluster
-            std_dev_values = data_daily_values[:, gdf['Cluster'] == selected_cluster].std(axis=0)
+            # Filter the data for the selected cluster
+            gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
 
-            # Normalize the standard deviation values
-            scaler = MinMaxScaler()
-            normalized_std_dev = scaler.fit_transform(std_dev_values.reshape(-1, 1)).flatten()
-
-            # Create a gradient color mapping based on normalized standard deviation
-            cmap = plt.get_cmap('Reds')
-            gradient_colors = cmap(normalized_std_dev)
-
-            # Assign gradient colors to the provinces in the selected cluster
-            cluster_indices = gdf[gdf['Cluster'] == selected_cluster].index
-            for idx, color in zip(cluster_indices, gradient_colors):
-                gdf.at[idx, 'color'] = color
-
-            # Plot the map with the gradient colors for the selected cluster
+            # Plot the map with the selected cluster
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf.plot(ax=ax, color=gdf['color'], edgecolor='black', alpha=0.7)
-
-            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW) dengan Gradient Warna Berdasarkan Standar Deviasi")
+            gdf_cluster.plot(ax=ax, color=gdf_cluster['color'], edgecolor='black', alpha=0.7)
+            plt.title(f"Pemetaan Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
             # Line chart for provinces in the selected cluster using data_daily_values
@@ -215,7 +201,7 @@ def pemetaan(data_df):
             plt.ylabel('Nilai')
             plt.legend()
             st.pyplot(plt)
-            
+
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
     num_series = data.shape[1]
