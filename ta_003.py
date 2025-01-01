@@ -98,6 +98,7 @@ def pemetaan(data_df):
             silhouette_scores[n_clusters] = score
             cluster_labels_dict[n_clusters] = labels
 
+        # Plot silhouette scores
         plt.figure(figsize=(10, 6))
         plt.plot(list(silhouette_scores.keys()), list(silhouette_scores.values()), marker='o', linestyle='-')
         for n_clusters, score in silhouette_scores.items():
@@ -153,23 +154,31 @@ def pemetaan(data_df):
             gdf = gdf.merge(clustered_data, on='Province', how='left')
 
             cluster_options = list(range(1, optimal_n_clusters + 1))
-            # Dropdown to select the cluster
             selected_cluster = st.selectbox("Pilih Kluster", options=cluster_options)
 
-            # Update color based on selected cluster
-            gdf['color'] = 'grey'  # Default color
-            gdf.loc[gdf['Cluster'] == selected_cluster, 'color'] = {
-                1: 'red',
-                2: 'yellow',
-                3: 'green',
-                4: 'blue',
-                5: 'purple',
-                6: 'orange',
-                7: 'pink',
-                8: 'brown',
-                9: 'cyan',
-                10: 'magenta'
-            }.get(selected_cluster, 'grey')
+            # Calculate standard deviation for provinces in cluster 1
+            if selected_cluster == 1:
+                cluster1_provinces = clustered_data[clustered_data['Cluster'] == 1]['Province']
+                initial_values = data_daily[cluster1_provinces].iloc[0]  # Assuming initial values are in the first row
+                std_devs = data_daily[cluster1_provinces].std()
+
+                # Normalize standard deviations to a range suitable for color mapping
+                norm_std_devs = (std_devs - std_devs.min()) / (std_devs.max() - std_devs.min())
+                gdf['color'] = 'grey'  # Default color
+                gdf.loc[gdf['Cluster'] == 1, 'color'] = plt.cm.Reds(norm_std_devs)  # Map to red gradient
+
+            # Update color for other clusters
+            else:
+                gdf['color'] = 'grey'  # Default color for other clusters
+                gdf.loc[gdf['Cluster'] == 2, 'color'] = 'yellow'
+                gdf.loc[gdf['Cluster'] == 3, 'color'] = 'green'
+                gdf.loc[gdf['Cluster'] == 4, 'color'] = 'blue'
+                gdf.loc[gdf['Cluster'] == 5, 'color'] = 'purple'
+                gdf.loc[gdf['Cluster'] == 6, 'color'] = 'orange'
+                gdf.loc[gdf['Cluster'] == 7, 'color'] = 'pink'
+                gdf.loc[gdf['Cluster'] == 8, 'color'] = 'brown'
+                gdf.loc[gdf['Cluster'] == 9, 'color'] = 'cyan'
+                gdf.loc[gdf['Cluster'] == 10, 'color'] = 'magenta'
 
             # Filter the data for the selected cluster
             gdf_cluster = gdf[gdf['Cluster'] == selected_cluster]
