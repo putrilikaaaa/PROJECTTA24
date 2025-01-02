@@ -482,7 +482,7 @@ if selected == "Home Page":
     # Add text below the third image
     st.markdown("""
     <div style="text-align: justify;">
-    Terdapat dropdown yang mana pengguna dapat memilih kelompok amna yang mau ditampilkan. Semakin gelap warna suatu provinsi, maka semakin tinggi rata-rata harganya.
+    Terdapat dropdown yang mana pengguna dapat memilih kelompok mana yang mau ditampilkan. Semakin gelap warna suatu provinsi, maka semakin tinggi rata-rata harganya.
     <br><br>
     </div>
      """, unsafe_allow_html=True)
