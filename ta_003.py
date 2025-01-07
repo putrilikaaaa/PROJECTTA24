@@ -165,8 +165,8 @@ def pemetaan(data_df):
             provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Ensure the columns in data_to_plot are also transformed
-            data_to_plot = pd.DataFrame(data_daily, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
-            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
+            data_to_plot_original = pd.DataFrame(data_daily, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
+            data_to_plot_selected_cluster = data_to_plot_original[provinces_in_cluster].copy()
 
             # Calculate the average for each province in the selected cluster
             average_values = data_to_plot_selected_cluster.mean(axis=0)
