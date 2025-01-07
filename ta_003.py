@@ -165,7 +165,11 @@ def pemetaan(data_df):
             provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Ensure the columns in data_to_plot are also transformed
-            data_to_plot_original = pd.DataFrame(data_daily, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
+            data_to_plot_original = pd.DataFrame(
+                data_daily, 
+                columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(),
+                index=data_daily.index
+            )
             data_to_plot_selected_cluster = data_to_plot_original[provinces_in_cluster].copy()
 
             # Calculate the average for each province in the selected cluster
@@ -176,11 +180,18 @@ def pemetaan(data_df):
 
             # Create a heatmap based on the average values
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf[gdf['Average'].notna()].plot(column='Average', ax=ax, legend=True,
-                                                legend_kwds={'label': "Rata-rata Nilai",
-                                                               'orientation': "horizontal"},
-                                                cmap='YlOrRd', missing_kwds={"color": "lightgrey"})
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Garis batas
+            gdf[gdf['Average'].notna()].plot(
+                column='Average', 
+                ax=ax, 
+                legend=True,
+                legend_kwds={
+                    'label': "Rata-rata Nilai",
+                    'orientation': "horizontal"
+                },
+                cmap='YlOrRd',  # Skema warna
+                missing_kwds={"color": "lightgrey"}  # Warna jika data hilang
+            )
             plt.title(f"Peta Provinsi per Cluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
