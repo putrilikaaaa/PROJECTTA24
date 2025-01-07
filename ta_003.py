@@ -309,45 +309,56 @@ def pemetaan_kmedoids(data_df):
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
-            # Calculate average values for provinces in the selected cluster
+         # Calculate average values for provinces in the selected cluster
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
             provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Ensure the columns in data_to_plot are also transformed
-            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
-            data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
+            data_to_plot_original = pd.DataFrame(
+                data_daily, 
+                columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(),
+                index=data_daily.index
+            )
+            data_to_plot_selected_cluster = data_to_plot_original[provinces_in_cluster].copy()
 
             # Calculate the average for each province in the selected cluster
             average_values = data_to_plot_selected_cluster.mean(axis=0)
 
-            # Normalize the average values for color mapping
-            norm = Normalize(vmin=average_values.min(), vmax=average_values.max())
+            
             gdf['Average'] = gdf['Province'].map(average_values)
 
             # Create a heatmap based on the average values
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-            gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf[gdf['Average'].notna()].plot(column='Average', ax=ax, legend=True,
-                                              legend_kwds={'label': "Rata-rata Nilai",
-                                                           'orientation': "horizontal"},
-                                              cmap='YlOrRd', missing_kwds={"color": "lightgrey"})
-            plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
+            gdf.boundary.plot(ax=ax, linewidth=1, color='black')  # Garis batas
+            gdf[gdf['Average'].notna()].plot(
+                column='Average', 
+                ax=ax, 
+                legend=True,
+                legend_kwds={
+                    'label': "Rata-rata Nilai",
+                    'orientation': "horizontal"
+                },
+                cmap='YlOrRd',  # Skema warna
+                missing_kwds={"color": "lightgrey"}  # Warna jika data hilang
+            )
+            plt.title(f"Peta Provinsi per Cluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
             # Calculate the average line across the selected cluster provinces
             average_line = data_to_plot_selected_cluster.mean(axis=1)
 
+            st.write("Rentang nilai rata-rata:", average_values.min(), "-", average_values.max())
+
             # Plot the line chart for the selected cluster
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
                 plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
-            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
-            plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
+            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Cluster')
+            plt.title(f'Line Chart untuk Cluster {selected_cluster}')
             plt.xlabel('Tanggal')
             plt.ylabel('Nilai')
             plt.legend()
             st.pyplot(plt)
-
 # Sidebar options
 selected = option_menu(
     menu_title=None,
