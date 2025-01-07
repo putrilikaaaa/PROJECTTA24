@@ -175,7 +175,6 @@ def pemetaan(data_df):
             # Calculate the average for each province in the selected cluster
             average_values = data_to_plot_selected_cluster.mean(axis=0)
 
-            
             gdf['Average'] = gdf['Province'].map(average_values)
 
             # Create a heatmap based on the average values
@@ -211,7 +210,6 @@ def pemetaan(data_df):
             plt.legend()
             st.pyplot(plt)
             
-
             
 # Function to compute DTW distance matrix using fastdtw for medoids
 def compute_dtw_distance_matrix(data):
@@ -309,7 +307,7 @@ def pemetaan_kmedoids(data_df):
             cluster_options = list(range(1, optimal_n_clusters + 1))
             selected_cluster = st.selectbox("Pilih Kluster untuk Pemetaan", options=cluster_options)
 
-         # Calculate average values for provinces in the selected cluster
+            # Calculate average values for provinces in the selected cluster
             provinces_in_cluster = clustered_data[clustered_data['Cluster'] == selected_cluster]['Province']
             provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
 
@@ -324,7 +322,6 @@ def pemetaan_kmedoids(data_df):
             # Calculate the average for each province in the selected cluster
             average_values = data_to_plot_selected_cluster.mean(axis=0)
 
-            
             gdf['Average'] = gdf['Province'].map(average_values)
 
             # Create a heatmap based on the average values
@@ -347,18 +344,17 @@ def pemetaan_kmedoids(data_df):
             # Calculate the average line across the selected cluster provinces
             average_line = data_to_plot_selected_cluster.mean(axis=1)
 
-            st.write("Rentang nilai rata-rata:", average_values.min(), "-", average_values.max())
-
             # Plot the line chart for the selected cluster
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
                 plt.plot(data_to_plot_selected_cluster.index, data_to_plot_selected_cluster[province], color='gray', alpha=0.5)
-            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Cluster')
-            plt.title(f'Line Chart untuk Cluster {selected_cluster}')
+            plt.plot(average_line.index, average_line, color='red', linewidth=2, label='Rata-rata Provinsi dalam Kluster')
+            plt.title(f'Line Chart untuk Kluster {selected_cluster} dan Rata-rata Provinsi dalam Kluster')
             plt.xlabel('Tanggal')
             plt.ylabel('Nilai')
             plt.legend()
             st.pyplot(plt)
+
 # Sidebar options
 selected = option_menu(
     menu_title=None,
