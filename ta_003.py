@@ -314,23 +314,28 @@ def pemetaan_kmedoids(data_df):
             provinces_in_cluster = provinces_in_cluster.str.upper().str.replace('.', '', regex=False).str.strip()
 
             # Ensure the columns in data_to_plot are also transformed
-            data_to_plot = pd.DataFrame(data_daily_values, columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(), index=data_daily.index)
+            data_to_plot = pd.DataFrame(
+                data_daily.values,  # Data asli tanpa scaling
+                columns=data_daily.columns.str.upper().str.replace('.', '', regex=False).str.strip(),
+                index=data_daily.index
+            )
             data_to_plot_selected_cluster = data_to_plot[provinces_in_cluster].copy()
 
             # Calculate the average for each province in the selected cluster
             average_values = data_to_plot_selected_cluster.mean(axis=0)
 
-            # Normalize the average values for color mapping
-            norm = Normalize(vmin=average_values.min(), vmax=average_values.max())
+            
             gdf['Average'] = gdf['Province'].map(average_values)
 
             # Create a heatmap based on the average values
             fig, ax = plt.subplots(1, 1, figsize=(12, 10))
             gdf.boundary.plot(ax=ax, linewidth=1, color='black')
-            gdf[gdf['Average'].notna()].plot(column='Average', ax=ax, legend=True,
-                                              legend_kwds={'label': "Rata-rata Nilai",
-                                                           'orientation': "horizontal"},
-                                              cmap='YlOrRd', missing_kwds={"color": "lightgrey"})
+            gdf[gdf['Average'].notna()].plot(
+                column='Average', ax=ax, legend=True,
+                legend_kwds={'label': "Rata-rata Nilai",
+                             'orientation': "horizontal"},
+                cmap='YlOrRd', missing_kwds={"color": "lightgrey"}
+            )
             plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
