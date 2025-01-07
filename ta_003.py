@@ -198,6 +198,8 @@ def pemetaan(data_df):
             # Calculate the average line across the selected cluster provinces
             average_line = data_to_plot_selected_cluster.mean(axis=1)
 
+            st.write("Rentang nilai rata-rata:", average_values.min(), "-", average_values.max())
+
             # Plot the line chart for the selected cluster
             plt.figure(figsize=(12, 6))
             for province in provinces_in_cluster:
@@ -208,7 +210,7 @@ def pemetaan(data_df):
             plt.ylabel('Nilai')
             plt.legend()
             st.pyplot(plt)
-            st.write("Rentang nilai rata-rata:", average_values.min(), "-", average_values.max())
+            
 
             
 # Function to compute DTW distance matrix using fastdtw for medoids
