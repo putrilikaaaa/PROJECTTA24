@@ -188,8 +188,8 @@ def pemetaan(data_df):
                 cmap='YlOrRd', missing_kwds={"color": "lightgrey"}
             )
             # Add labels for "Rendah" and "Tinggi" on the legend
-            ax.text(0.2, -0.2, "Rendah", transform=ax.transAxes, ha="center", fontsize=10)
-            ax.text(0.8, -0.2, "Tinggi", transform=ax.transAxes, ha="center", fontsize=10)
+            ax.text(0.2, -0.4, "Rendah", transform=ax.transAxes, ha="center", fontsize=10)
+            ax.text(0.8, -0.4, "Tinggi", transform=ax.transAxes, ha="center", fontsize=10)
             plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - Agglomerative (DTW)")
             st.pyplot(fig)
 
