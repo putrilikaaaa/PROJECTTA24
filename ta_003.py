@@ -330,6 +330,9 @@ def pemetaan_kmedoids(data_df):
                              'orientation': "horizontal"},
                 cmap='YlOrRd', missing_kwds={"color": "lightgrey"}
             )
+            # Add labels for "Rendah" and "Tinggi" on the legend
+            ax.text(0.09, -0.3, "Rendah", transform=ax.transAxes, ha="right", fontsize=10)
+            ax.text(0.92, -0.3, "Tinggi", transform=ax.transAxes, ha="left", fontsize=10)
             plt.title(f"Peta Panas Provinsi per Kluster {selected_cluster} - K-Medoids (DTW)")
             st.pyplot(fig)
 
